@@ -19,6 +19,17 @@ the STEAM menu, the Quick Access Menu and the Settings pages. It is reversible, 
 > **stubs / placeholders**, and it has only been tested on one Steam Deck (LCD/OLED not distinguished, SteamOS 3.x stable,
 > Russian UI language). Expect bugs. Read [Status](#status) and [Safety and recovery](#safety-and-recovery) before installing.
 
+## Highlights — what already works (and works *much* better than in stock Steam)
+
+*Based on the author's daily use on a real Deck; there is no formal benchmark yet (see [Why try it](#why-try-it-and-what-is-not-proven-yet)).*
+
+- **Noticeably smoother than the stock Steam UI** in the parts that are implemented — navigation, Library, Settings and menus feel several times snappier on the author's Deck.
+- **Built-in functionality of popular Decky plugins — no plugin loader needed:**
+  - 🎞️ **Animation Changer** — native Animations page: browse and apply boot / suspend animations.
+  - 🖼️ **SteamGridDB** — custom capsules, heroes, logos and icons straight from SteamGridDB. *You need your own free SteamGridDB API key* (create it on steamgriddb.com → Preferences → API, then put it into `~/.config/deckshell/sgdb.json` as `{"api_key": "YOUR_KEY"}`, or set `DECKSHELL_SGDB_KEY`; without a key only the offline cache works).
+- **No lag with animated (video/WebM) SteamGridDB artwork** — animated capsules and heroes play smoothly instead of stuttering the whole UI.
+- Reversible, off by default, one-command install and rollback.
+
 ## Install (one command)
 
 On the Deck, in Desktop Mode (Konsole) or over SSH, as the normal `deck` user:
@@ -137,6 +148,16 @@ Steam остаётся «движком»: подменяется только �
 Всё обратимо, по умолчанию выключено, есть аварийный выключатель.
 
 > ⚠️ **Ранний экспериментальный проект (v0.1.0, пре-релиз).** Многое не доделано, **во многих местах заглушки**, проверялось на одной Деке (SteamOS 3.x, русский язык). Возможны баги. Прочитайте «Статус» и «Безопасность и откат» перед установкой.
+
+### Главное — что уже работает (и работает *кратно* лучше, чем в самом Steam)
+
+*По ежедневному опыту автора на настоящей Деке; формального бенчмарка пока нет (см. «Зачем пробовать»).*
+
+- **Заметно плавнее штатного интерфейса Steam** в реализованных частях — навигация, библиотека, настройки и меню ощущаются в разы отзывчивее.
+- **Встроенный функционал популярных плагинов Decky — загрузчик плагинов не нужен:**
+  - 🎞️ **Animation Changer** — нативная страница «Анимации»: просмотр и применение анимаций загрузки/сна.
+  - 🖼️ **SteamGridDB** — свои капсулы, обложки, логотипы и иконки прямо из SteamGridDB. *Нужен ваш собственный бесплатный API-ключ SteamGridDB* (создаётся на steamgriddb.com → Preferences → API, затем впишите его в `~/.config/deckshell/sgdb.json` как `{"api_key": "ВАШ_КЛЮЧ"}` или задайте `DECKSHELL_SGDB_KEY`; без ключа работает только офлайн-кэш).
+- **Не лагает с анимированными (видео/WebM) элементами SteamGridDB** — анимированные капсулы и обложки играют плавно, не тормозя весь интерфейс.
 
 ### Установка (одной командой)
 
