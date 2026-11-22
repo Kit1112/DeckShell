@@ -37,7 +37,14 @@ DeckShell picks its language **automatically from your Steam language**: Steam s
 
 Want your language? Ask your AI coding agent (Claude Code, Codex, Gemini CLI, …). Clone the repo, open the agent in it and paste:
 
-> Add **<LANGUAGE>** to DeckShell (locale code **<code>**, Steam language name **<steam name, e.g. german>**). Read `docs/LANGUAGES.md` first. Copy `locales/en.json` to `locales/<code>.json`, translate every value (keep keys and `{placeholders}`), register the locale as described in the doc, run `DECKSHELL_DRYRUN=1 cargo test --workspace`, and open a pull request. Do not touch anything else.
+```text
+Add the language LANGUAGE to DeckShell (locale code CODE, Steam language name STEAM_NAME, e.g. german).
+Read docs/LANGUAGES.md first. Copy locales/en.json to locales/CODE.json and translate every value
+(keep the keys and the {placeholders}). Register the locale as described in the doc, run
+DECKSHELL_DRYRUN=1 cargo test --workspace, and open a pull request. Do not touch anything else.
+```
+
+(Replace LANGUAGE, CODE and STEAM_NAME with your values.)
 
 Details and the full prompt: [docs/LANGUAGES.md](docs/LANGUAGES.md). Translations are very welcome as pull requests.
 
@@ -175,7 +182,16 @@ Steam остаётся «движком»: подменяется только �
 DeckShell выбирает язык **автоматически по языку вашего Steam**: Steam на русском → русский, любой другой → английский. Настраивать ничего не нужно
 (для проверки: `DECKSHELL_LANG=en` / `ru` или одна строка в `~/.config/deckshell/lang`).
 
-Нужен ваш язык? Попросите своего ИИ-агента (Claude Code, Codex, Gemini CLI и др.): склонируйте репозиторий, откройте в нём агента и вставьте промпт из [docs/LANGUAGES.md](docs/LANGUAGES.md) (там же русская сводка): *«Добавь в DeckShell язык <язык> (код <code>, имя языка Steam <steam name>). Прочитай docs/LANGUAGES.md, скопируй locales/en.json в locales/<code>.json, переведи значения (ключи и {плейсхолдеры} не менять), зарегистрируй язык, прогони `DECKSHELL_DRYRUN=1 cargo test --workspace` и оформи pull request»*. Переводы — очень приветствуются.
+Нужен ваш язык? Попросите своего ИИ-агента (Claude Code, Codex, Gemini CLI и др.): склонируйте репозиторий, откройте в нём агента и вставьте этот промпт (подробности и русская сводка — в [docs/LANGUAGES.md](docs/LANGUAGES.md)):
+
+```text
+Добавь в DeckShell язык ЯЗЫК (код CODE, имя языка Steam STEAM_NAME, например german).
+Сначала прочитай docs/LANGUAGES.md. Скопируй locales/en.json в locales/CODE.json и переведи
+все значения (ключи и {плейсхолдеры} не менять). Зарегистрируй язык, как описано в документе,
+прогони DECKSHELL_DRYRUN=1 cargo test --workspace и оформи pull request. Больше ничего не трогай.
+```
+
+Переводы — очень приветствуются.
 
 ### Установка (одной командой)
 
