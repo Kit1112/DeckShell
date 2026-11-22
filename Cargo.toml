@@ -1,0 +1,16 @@
+[workspace]
+resolver = "2"
+exclude = ["tools/rust-anything"]
+members = ["crates/steam-bridge", "crates/steam-auth", "crates/steam-assets", "crates/steam-data", "crates/steam-control", "crates/deck-system", "crates/media", "crates/battery-logic", "app"]
+
+[workspace.package]
+edition = "2021"
+version = "0.1.0"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 4
+
+[profile.dev.package."*"]
+opt-level = 2

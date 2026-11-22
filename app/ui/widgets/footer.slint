@@ -1,0 +1,9 @@
+import { Hint } from "types.slint";
+
+// Footer state: written by app/src/app.rs (update_hint). Labels come from steam-assets loc(), glyphs from hint_glyph().
+export global FooterState {
+    // Actual generated Gaming Mode footer; shared by page clipping boundaries.
+    out property <length> bar-height: 62.73px;
+    in property <[Hint]> hints;
+    in property <Hint> left-hint;
+}

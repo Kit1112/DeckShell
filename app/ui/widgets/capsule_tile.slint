@@ -1,0 +1,106 @@
+import { Tokens } from "../tokens.slint";
+import { Icon, Icons } from "icon.slint";
+import { DS } from "meta.slint";
+import { Shell } from "../shell.slint";
+
+// Tile / capsule. Focus = CSS translateZ (scale) 300ms ease-focus, unfocus 400ms ease-unfocus, outline 400ms + pulse,
+// box-shadow/filter 400ms ease-unfocus (cdp-spec Animations). brightness/saturate filters are approximated by an overlay (`dim`).
+export component Card inherits Rectangle {
+    in property <image> img;
+    in property <bool> has-img;
+    in property <image> wide;
+    in property <bool> has-wide;
+    in property <string> name;
+    in property <bool> focused;
+    in property <bool> installed: true;
+    in property <bool> wide-mode; // home row: first tile is the header capsule
+    in property <float> dim: 0; // unfocused dimming 0..1 (home: Darken Unfocused Games; library: brightness .9)
+    in property <float> focus-scale: Tokens.lib-focus-scale;
+    in property <color> outline: Tokens.tile-outline-lib;
+    in property <bool> shadow-idle: false;
+    in property <bool> ambient: true; // outline pulse
+    in property <bool> glow-on: true;
+    in property <color> glow: #00000000;
+    in property <string> caption;
+    callback tapped;
+    callback held; // press-and-hold (touch long-press) = context menu / game page, like START on the focused tile
+    in property <string> meta: DS.tile;
+    accessible-role: button; accessible-label: root.name; accessible-description: "button||" + root.meta;
+    property <bool> did-hold: false;
+
+    background: transparent;
+    transform-scale: 1.0;
+    z: root.focused ? 10 : 0;
+    property <bool> show-wide: root.wide-mode && root.has-wide;
+    property <bool> show-port: !root.show-wide && root.has-img;
+    property <length> ring-grow: 10px;
+    property <float> ring-a: 0;
+    property <float> pm: 0; // pulse mix (Shell.pulse is the Rust-driven, frame-capped wave)
+    property <float> dim-k: 0;
+    property <length> sh-dy: Tokens.tile-shadow-dy;
+    property <length> sh-blur: Tokens.tile-shadow-blur;
+    property <color> sh-col: root.shadow-idle ? Tokens.tile-shadow-color : #00000000;
+    states [
+        on when root.focused: {
+            transform-scale: root.focus-scale;
+            ring-grow: 0px; ring-a: 1; pm: root.ambient ? 1 : 0; dim-k: 1;
+            sh-dy: Tokens.tile-shadow-focus-dy; sh-blur: Tokens.tile-shadow-focus-blur; sh-col: Tokens.tile-shadow-focus-color;
+            in {
+                animate transform-scale { duration: Tokens.dur-focus-in; easing: Tokens.ease-focus; }
+                animate ring-grow, ring-a { duration: Tokens.dur-outline-in; easing: Tokens.ease-css; }
+                animate pm { duration: Tokens.dur-outline-pulse; delay: Tokens.dur-outline-delay; easing: linear; }
+                animate dim-k, sh-dy, sh-blur, sh-col { duration: Tokens.dur-focus-out; easing: Tokens.ease-unfocus; }
+            }
+            out {
+                animate transform-scale, ring-grow, ring-a, pm, dim-k, sh-dy, sh-blur, sh-col { duration: Tokens.dur-focus-out; easing: Tokens.ease-unfocus; }
+            }
+        }
+    ]
+
+    if root.focused && root.glow-on: Rectangle {
+        background: root.glow;
+        drop-shadow-color: root.glow.with-alpha(0.5);
+        drop-shadow-blur: Tokens.glow-blur-lib;
+    }
+    base := Rectangle {
+        background: Tokens.tile-bg;
+        drop-shadow-color: root.sh-col;
+        drop-shadow-offset-y: root.sh-dy;
+        drop-shadow-blur: root.sh-blur;
+        clip: true;
+        if root.show-wide: Image { width: parent.width; height: parent.height; source: root.wide; image-fit: cover; }
+        if root.show-port: Image { width: parent.width; height: parent.height; source: root.img; image-fit: cover; }
+        if !root.show-port && !root.show-wide: Rectangle {
+            background: @linear-gradient(180deg, Tokens.tile-bg.brighter(0.25) 0%, Tokens.tile-bg 100%);
+            Text {
+                x: 16px; y: 24px; width: parent.width - 32px; height: parent.height - 30px;
+                text: root.name; color: Tokens.norecent-name-color; font-size: Tokens.norecent-name-size; font-weight: Tokens.norecent-name-weight; wrap: word-wrap;
+                horizontal-alignment: center; vertical-alignment: top; overflow: elide;
+            }
+        }
+        Rectangle {
+            background: Tokens.darken-color;
+            opacity: root.dim * (1 - root.dim-k);
+        }
+        if !root.installed: Rectangle {
+            x: parent.width - 42px; y: parent.height - 46px; width: 28px; height: 28px; border-radius: 14px; background: #1b1e24e6;
+            Icon { x: 6px; y: 6px; src: Icons.downloads; s: 16px; }
+        }
+    }
+    Rectangle {
+        x: -(Tokens.tile-outline-w + root.ring-grow); y: -(Tokens.tile-outline-w + root.ring-grow);
+        width: parent.width + 2 * (Tokens.tile-outline-w + root.ring-grow); height: parent.height + 2 * (Tokens.tile-outline-w + root.ring-grow);
+        border-width: Tokens.tile-outline-w + root.ring-grow;
+        border-color: root.outline.transparentize(1 - root.ring-a * (1 - root.pm * (1 - Shell.pulse)));
+    }
+    if root.caption != "" && root.focused: Rectangle {
+        y: parent.height - 34px; x: (parent.width - self.width) / 2; width: cap.preferred-width + 24px; height: 26px; border-radius: 13px; background: #00000099;
+        cap := Text { text: root.caption; color: Tokens.text; font-size: 14px; horizontal-alignment: center; vertical-alignment: center; }
+    }
+    ta := TouchArea {
+        clicked => { if (!root.did-hold) { root.tapped(); } }
+        changed pressed => { if (!self.pressed) { root.did-hold = false; } }
+    }
+    Timer { interval: 550ms; running: ta.pressed && !root.did-hold; triggered => { root.did-hold = true; root.held(); } }
+}
+

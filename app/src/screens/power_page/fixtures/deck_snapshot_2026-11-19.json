@@ -1,0 +1,30 @@
+{
+ "c": {
+  "steamos_charge_limit_enabled": false,
+  "steamos_charge_limit": 90,
+  "steamos_charge_limit_devmode": false,
+  "system_idle_suspend_battery_sec": 1200,
+  "system_idle_suspend_ac_sec": 900,
+  "system_idle_screensaver_battery_sec": 0,
+  "system_idle_screensaver_ac_sec": 300,
+  "system_enable_low_power_downloads": true,
+  "system_allow_battery_low_power_downloads": true,
+  "steamos_cec_control": false,
+  "steamos_cec_wake_device": true,
+  "steamos_cec_suspend_device": true,
+  "steamos_cec_wake_tv": true,
+  "steamos_cec_suspend_tv": true
+ },
+ "power": {
+  "battery": null,
+  "dim_battery": 1200,
+  "dim_ac": 600,
+  "pref": "{\"bShowBatteryPercentage\":true}",
+  "charge_limit_available": true,
+  "charge_limit_min": 10,
+  "charge_limit_max": 100,
+  "charge_limit_default": 80,
+  "cec_wake_supported": false,
+  "cec_available": true
+ }
+}

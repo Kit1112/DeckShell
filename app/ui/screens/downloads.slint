@@ -1,0 +1,252 @@
+// /routes/library/downloads — страница «Загрузки»: сводка, «Сейчас загружается», секции очереди.
+// Строки (вид, y/h, подписи, картинки) строит app/src/screens/downloads.rs из app/src/screens/downloads_page.rs;
+// здесь они только рисуются. Размеры и цвета — по стоковой странице (docs/downloads-page-2026-11-18.md):
+// карточка 83 css-px (×1,2), капсула 136×64, прогресс 8 px, фокус rgba(255,255,255,.15), анимации Tokens.dur-menu-row / ease-hero.
+import { Tokens } from "../tokens.slint";
+import { Shell } from "../shell.slint";
+import { Page } from "../widgets/page.slint";
+import { Icon, Icons } from "../widgets/icon.slint";
+
+export struct DlBadge {
+    // 0 контент, 1 мастерская, 2 кэш шейдеров
+    kind: int,
+    label: string,
+    // 0 ждёт, 1 качается сейчас, 2 завершён
+    state: int,
+}
+
+export struct DlPageRow {
+    // 0 сводка, 1 герой (идёт загрузка), 2 заголовок секции, 3 карточка очереди, 4 пустая заглушка
+    kind: int,
+    y: float,
+    h: float,
+    name: string,
+    state: string,
+    size: string,
+    speed: string,
+    pct: string,
+    // 0..1, отрицательное — без полосы
+    progress: float,
+    thumb: image,
+    has-thumb: bool,
+    // номер в очереди, 0 — без номера
+    order: int,
+    // 0 обычный, 1 идёт загрузка, 2 ошибка, 3 приглушённый (пауза, ожидание)
+    tone: int,
+    // кнопка действия: подпись и значок (0 нет, 1 пауза, 2 продолжить, 3 загрузить, 4 повторить, 5 играть)
+    b1: string,
+    b1-icon: int,
+    // кнопка убрать
+    b2: string,
+    // кнопка заголовка секции (автообновления / скрыть все)
+    hb: string,
+    // значки типа содержимого
+    badges: [DlBadge],
+    // можно перетащить (очередь «Далее»)
+    drag: bool,
+    // график скорости за 2 минуты (герой): 120 столбцов сети 0..1, ломаная диска (SVG-путь в 120×100), пик сети
+    has-graph: bool,
+    bars: [float],
+    disc-path: string,
+    max-net: string,
+    // герой: «скачано» / «всего» (из size), оставшееся время, широкая арт-обложка и логотип игры
+    done: string,
+    total: string,
+    eta: string,
+    hero: image,
+    has-hero: bool,
+    logo: image,
+    has-logo: bool,
+}
+
+export global DownloadsState {
+    in property <[DlPageRow]> rows;
+    in property <string> headline;
+    in property <string> detail;
+    in property <string> net;
+    in property <string> peak;
+    in property <string> disc;
+    in property <int> focus-row: -1;
+    // 0 карточка, 1 действие, 2 убрать
+    in property <int> focus-col: 0;
+    in property <length> content-h: 700px;
+    in-out property <length> vy;
+    in property <string> root-row-pad: "Y,DPAD_UP,long_press";
+    // перетаскиваемая карточка и её сдвиг по вертикали
+    in-out property <int> drag-row: -1;
+    in-out property <length> drag-dy;
+    callback activate(int, int);
+    // отпустили карточку: строка и сдвиг в px
+    callback drag-end(int, float);
+}
+
+component Stat inherits Rectangle {
+    in property <string> label;
+    in property <string> value;
+    in property <bool> disk;
+    width: 190px;
+    height: 56px;
+    visible: root.value != "";
+    if !root.disk: Rectangle { x: 0px; y: 7px; width: 14px; height: 14px;
+        Rectangle { x: 0px; y: 6px; width: 3px; height: 8px; background: Tokens.accent; }
+        Rectangle { x: 5px; y: 0px; width: 3px; height: 14px; background: Tokens.accent; }
+        Rectangle { x: 10px; y: 3px; width: 3px; height: 11px; background: Tokens.accent; } }
+    if root.disk: Rectangle { x: 0px; y: 13px; width: 17px; height: 3px; background: #5ec14a; }
+    Text { x: 26px; y: 0px; width: parent.width - 26px; height: 28px; text: root.label.to-uppercase(); color: #c8cdd3; font-size: 15px; font-weight: 700; vertical-alignment: center; overflow: elide; }
+    Text { x: 26px; y: 24px; width: parent.width - 26px; height: 30px; text: root.value; color: Tokens.text; font-size: 19px; font-weight: 700; vertical-alignment: center; overflow: elide; }
+}
+
+// статус типа содержимого слева от блока скорости: галочка — готово, кольцо — идёт, пустое кольцо — ждёт
+component Badge inherits Rectangle {
+    in property <string> label;
+    in property <int> state;
+    height: 30px;
+    width: 190px;
+    Text { x: 0px; width: parent.width - 34px; height: parent.height; text: root.label.to-uppercase(); color: #c8cdd3; font-size: 15px; font-weight: 700; horizontal-alignment: right; vertical-alignment: center; overflow: elide; }
+    if root.state == 2: Path { x: parent.width - 24px; y: 6px; width: 20px; height: 18px; viewbox-width: 20; viewbox-height: 18;
+        commands: "M2 9 L8 15 L18 3"; stroke: #5ec14a; stroke-width: 3px; fill: transparent; }
+    if root.state != 2: Rectangle { x: parent.width - 24px; y: 5px; width: 20px; height: 20px; border-radius: 10px; border-width: 2px;
+        border-color: root.state == 1 ? Tokens.accent : #6b7480; }
+}
+
+// квадратная кнопка-значок: пауза героя (белая) и загрузка строки очереди (серая)
+component SqBtn inherits Rectangle {
+    in property <int> icon;
+    in property <bool> focused;
+    in property <bool> light;
+    width: 54px; height: 54px;
+    border-radius: 2px;
+    background: root.light ? (root.focused ? #ffffff : #ffffffe6) : (root.focused ? Tokens.accent : #3d4450);
+    border-width: root.focused ? 3px : 0px;
+    border-color: Tokens.accent;
+    animate background { duration: Tokens.dur-btn; easing: ease-out; }
+    Icon { x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2; s: 28px; c: root.light ? #0e141b : white;
+        src: root.icon == 1 ? Icons.pause : root.icon == 2 ? Icons.play : root.icon == 5 ? Icons.play : Icons.downloads; }
+}
+
+component Prog inherits Rectangle {
+    in property <float> value: -1;
+    in property <color> fill: Tokens.accent;
+    height: 4px;
+    background: #ffffff33;
+    clip: true;
+    if root.value >= 0: Rectangle { x: 0px; width: clamp(parent.width * clamp(root.value, 0, 1), root.value > 0 ? 4px : 0px, parent.width); height: parent.height; background: root.fill; }
+}
+
+export component DownloadsScreen inherits Page {
+    shown: Shell.page == 3;
+    row-pad: DownloadsState.root-row-pad;
+    // страница от самого верха окна: баннер героя лежит под прозрачным верхним баром, как в стоке
+    Rectangle { x: 0px; y: 0px; width: root.width; height: root.height; background: #0b1017; clip: true;
+        Flickable {
+            interactive: DownloadsState.drag-row < 0;
+            width: parent.width; height: parent.height; content-width: parent.width; content-height: DownloadsState.content-h; content-y <=> DownloadsState.vy;
+            for r[i] in DownloadsState.rows: Rectangle {
+                x: 0px; y: r.y * 1px + (DownloadsState.drag-row == i ? DownloadsState.drag-dy : 0px); width: parent.width; height: r.h * 1px;
+                z: DownloadsState.drag-row == i ? 10 : 0;
+                property <bool> card-focus: DownloadsState.focus-row == i && DownloadsState.focus-col == 0;
+                property <bool> b1-focus: DownloadsState.focus-row == i && DownloadsState.focus-col == 1;
+                property <bool> b2-focus: DownloadsState.focus-row == i && DownloadsState.focus-col == 2;
+                accessible-role: list-item; accessible-label: r.kind == 0 ? DownloadsState.headline : r.name;
+                accessible-description: r.kind == 1 || r.kind == 3 ? "list-item||A,X,START,DPAD_UP,DPAD_DOWN,DPAD_LEFT,DPAD_RIGHT,FOCUS,touch,mouse" : "";
+
+                // --- статус (только когда нет героя)
+                if r.kind == 0: Rectangle {
+                    Text { x: 42px; y: 60px; width: parent.width - 84px; height: parent.height - 60px; text: DownloadsState.headline; color: Tokens.text-dim; font-size: 22px; vertical-alignment: center; overflow: elide; }
+                }
+                // --- герой (360 px): арт игры с логотипом слева, справа сеть / макс. / диск, две тонкие полосы, остаток времени и пауза
+                if r.kind == 1: Rectangle {
+                    Rectangle { x: 0px; y: 0px; width: parent.width; height: 360px; background: #10161d; clip: true;
+                        if r.has-hero: Image { width: parent.width; height: parent.height; source: r.hero; image-fit: cover; }
+                        if !r.has-hero && r.has-thumb: Image { width: parent.width; height: parent.height; source: r.thumb; image-fit: cover; }
+                        // затемнение справа под текстом и плавный переход в фон страницы снизу
+                        Rectangle { background: @linear-gradient(90deg, #00000000 0%, #00000000 38%, #000000b3 62%, #000000d9 100%); }
+                        Rectangle { y: parent.height - 130px; height: 130px; background: @linear-gradient(180deg, #0b101700 0%, #0b1017 100%); }
+                        // график сети: тонкие синие столбцы у правого края арта, линия диска поверх
+                        if r.has-graph: Rectangle { x: 583px; y: 0px; width: 120px; height: parent.height;
+                            for b[k] in r.bars: Rectangle { visible: k >= 90; x: (k - 90) * 4px; y: parent.height - self.height; width: 3px; height: max(b * 190px, b > 0 ? 2px : 0px); background: #1a7fd4; }
+                            Path { x: 0px; y: parent.height - 190px; width: 120px; height: 190px; viewbox-x: 90; viewbox-y: 0; viewbox-width: 30; viewbox-height: 100;
+                                commands: r.disc-path; stroke: #5ec14a; stroke-width: 2px; fill: transparent; } }
+                        if r.has-logo: Image { x: 30px; y: 100px; width: min(330px, 160px * self.source.width / max(1, self.source.height)); height: 160px; source: r.logo; image-fit: contain; }
+                        if !r.has-logo: Text { x: 36px; y: 100px; width: 520px; height: 160px; text: r.name; color: white; font-size: 44px; font-weight: 800; wrap: word-wrap; vertical-alignment: center; }
+                        if card-focus: Rectangle { border-width: 3px; border-color: Tokens.accent; }
+                    }
+                    // типы содержимого: шейдеры / контент
+                    VerticalLayout { x: 500px; y: 74px; width: 190px; spacing: 4px; alignment: start;
+                        for b in r.badges: Badge { label: b.label; state: b.state; } }
+                    Stat { x: 724px; y: 84px; width: 190px; label: "Сеть"; value: DownloadsState.net; }
+                    Stat { x: 938px; y: 84px; width: 150px; label: "Макс."; value: DownloadsState.peak; }
+                    Stat { x: 1092px; y: 84px; width: 190px; disk: true; label: "Исп. диска"; value: DownloadsState.disc; }
+                    // загрузка данных
+                    Text { x: 724px; y: 170px; width: 300px; height: 28px; text: r.state; color: r.tone == 2 ? #eb5757 : Tokens.text; font-size: 18px; vertical-alignment: center; overflow: elide; }
+                    Text { x: 1010px; y: 170px; width: parent.width - 1010px - 52px; height: 28px; text: r.done != "" ? r.done : r.size; color: Tokens.text; font-size: 16px; font-weight: 700; horizontal-alignment: right; vertical-alignment: center; overflow: elide; }
+                    Rectangle { x: parent.width - 18px - 28px; y: 170px; width: 18px; height: 28px; Icon { y: 5px; s: 18px; c: #c8cdd3; src: Icons.downloads; } }
+                    Prog { x: 724px; y: 204px; width: parent.width - 724px - 18px; value: r.progress; fill: r.tone == 1 ? Tokens.accent : #8b929a; }
+                    // установка файлов
+                    Text { x: 724px; y: 224px; width: 300px; height: 28px; text: "Установка файлов"; color: Tokens.text; font-size: 18px; vertical-alignment: center; }
+                    Prog { x: 724px; y: 258px; width: parent.width - 724px - 18px; value: -1; }
+                    Text { x: 724px; y: 298px; width: 440px; height: 28px; text: r.eta; color: Tokens.text-dim; font-size: 18px; vertical-alignment: center; overflow: elide; }
+                    if r.b1 != "": SqBtn { x: parent.width - 18px - 54px; y: 288px; icon: r.b1-icon; focused: b1-focus; light: true; }
+                    // плашка «управление загрузками»
+                    Rectangle { x: 15px; y: 312px; width: 456px; height: 44px; border-radius: 6px; background: #000000b3;
+                        mg := Text { x: 12px; height: parent.height; vertical-alignment: center; font-size: 17px; font-weight: 700; text: "УПРАВЛЕНИЕ ЗАГРУЗКАМИ:"; color: white; }
+                        Text { x: mg.x + mg.preferred-width + 6px; height: parent.height; vertical-alignment: center; font-size: 17px; font-weight: 700; text: "ЭТО УСТРОЙСТВО"; color: Tokens.accent; } }
+                }
+                // --- заголовок секции: крупное название и число, тонкая линия, справа мелкая подпись
+                if r.kind == 2: Rectangle {
+                    ttl := Text { x: 37px; y: 0px; height: 70px; text: r.name; color: Tokens.text; font-size: 29px; vertical-alignment: center; }
+                    cnt := Text { x: ttl.x + ttl.preferred-width + 10px; y: 3px; height: 70px; text: r.size; color: Tokens.text-dim; font-size: 23px; vertical-alignment: center; }
+                    hbm := Text { visible: false; text: r.hb; font-size: 15px; font-weight: 700; }
+                    Rectangle { x: cnt.x + cnt.preferred-width + 16px; y: 35px; height: 1px; width: max(0px, parent.width - self.x - 35px - (r.hb != "" ? hbm.preferred-width + 40px : 0px)); background: #ffffff2e; }
+                    if r.hb != "": Rectangle { x: parent.width - 35px - hbm.preferred-width - 20px; y: 18px; width: hbm.preferred-width + 20px; height: 34px; border-radius: 3px;
+                        background: card-focus ? Tokens.accent : transparent;
+                        animate background { duration: Tokens.dur-btn; easing: ease-out; }
+                        Text { x: 10px; height: parent.height; text: r.hb; color: card-focus ? white : Tokens.text-dim; font-size: 15px; font-weight: 700; vertical-alignment: center; } }
+                }
+                // --- строка очереди: обложка, название, справа время и квадратная кнопка-значок; фон только у строки в фокусе
+                if r.kind == 3: Rectangle {
+                    property <bool> row-focus: card-focus || b1-focus || b2-focus;
+                    Rectangle { x: 20px; y: 2px; width: parent.width - 40px; height: parent.height - 4px; border-radius: 4px;
+                        background: card-focus ? #ffffff26 : transparent;
+                        animate background { duration: Tokens.dur-menu-row; easing: Tokens.ease-hero; } }
+                    if r.drag: Text { x: 4px; y: 0px; width: 30px; height: parent.height; text: "≡"; color: DownloadsState.drag-row == i ? Tokens.accent : #ffffff55; font-size: 22px; horizontal-alignment: center; vertical-alignment: center; }
+                    Rectangle { x: 37px; y: 8px; width: 204px; height: 95px; background: #000; clip: true;
+                        if r.has-thumb: Image { width: parent.width; height: parent.height; source: r.thumb; image-fit: cover; } }
+                    Text { x: 276px; y: 0px; width: parent.width - 276px - 350px; height: parent.height; text: r.name; color: r.tone == 3 ? Tokens.text-body : Tokens.text; font-size: 26px; vertical-alignment: center; overflow: elide; }
+                    Text { x: parent.width - 35px - 54px - 18px - (r.b2 != "" && row-focus ? 66px : 0px) - 300px; y: 0px; width: 300px; height: parent.height; text: r.state.to-uppercase();
+                        color: r.tone == 2 ? #eb5757 : r.tone == 1 ? Tokens.accent : Tokens.text-dim; font-size: 17px; font-weight: 700; horizontal-alignment: right; vertical-alignment: center; overflow: elide; }
+                    if r.b1 != "": SqBtn { x: parent.width - 35px - 54px; y: 29px; icon: r.b1-icon; focused: b1-focus; }
+                    if r.b2 != "" && row-focus: Rectangle { x: parent.width - 35px - 54px * 2 - 12px; y: 29px; width: 54px; height: 54px; border-radius: 2px;
+                        background: b2-focus ? Tokens.accent : #3d4450; border-width: b2-focus ? 3px : 0px; border-color: Tokens.accent;
+                        Text { text: r.b2; color: white; font-size: 28px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; } }
+                }
+                if r.kind == 4: Text { x: 42px; y: 0px; width: parent.width - 84px; height: 34px; text: r.name; color: Tokens.text-dim; font-size: 25px; vertical-alignment: center; }
+                if r.kind == 1 || r.kind == 3 || (r.kind == 2 && r.hb != ""): TouchArea { width: 100%; height: 100%; clicked => { DownloadsState.activate(i, 0); } }
+                if r.b1 != "" && (r.kind == 1 || r.kind == 3): TouchArea {
+                    x: r.kind == 1 ? parent.width - 18px - 54px : parent.width - 35px - 54px; y: r.kind == 1 ? 288px : 29px; width: 54px; height: 54px;
+                    clicked => { DownloadsState.activate(i, 1); }
+                }
+                if r.b2 != "" && r.kind == 3 && (card-focus || b1-focus || b2-focus): TouchArea {
+                    x: parent.width - 35px - 54px * 2 - 12px; y: 29px; width: 54px; height: 54px;
+                    clicked => { DownloadsState.activate(i, 2); }
+                }
+                // ручка перетаскивания (≡): тянуть карточку по вертикали, отпустить — SetQueueIndex
+                if r.drag: drag-ta := TouchArea {
+                    x: 24px; y: 0px; width: 64px; height: parent.height;
+                    mouse-cursor: grab;
+                    moved => { if self.pressed { DownloadsState.drag-dy = self.mouse-y - self.pressed-y; } }
+                    pointer-event(e) => {
+                        if e.button == PointerEventButton.left && e.kind == PointerEventKind.down {
+                            DownloadsState.drag-dy = 0px;
+                            DownloadsState.drag-row = i;
+                        } else if e.kind == PointerEventKind.up || e.kind == PointerEventKind.cancel {
+                            if DownloadsState.drag-row == i { DownloadsState.drag-end(i, DownloadsState.drag-dy / 1px); }
+                            DownloadsState.drag-row = -1;
+                            DownloadsState.drag-dy = 0px;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

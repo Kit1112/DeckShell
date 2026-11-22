@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="220" height="220" viewBox="0 0 220 220">
+  <!-- DeckShell launch cover cat: our own drawing (task 330), no third-party artwork -->
+  <path d="M36 82 L42 22 L88 62 Z" fill="#e8924a"/>
+  <path d="M184 82 L178 22 L132 62 Z" fill="#e8924a"/>
+  <ellipse cx="110" cy="125" rx="84" ry="75" fill="#f0a35c"/>
+  <ellipse cx="72" cy="112" rx="11" ry="13" fill="#1b1d22"/>
+  <ellipse cx="148" cy="112" rx="11" ry="13" fill="#1b1d22"/>
+  <path d="M101 138 L119 138 L110 149 Z" fill="#d9637a"/>
+  <path d="M30 128 L72 134 M30 142 L72 140 M190 128 L148 134 M190 142 L148 140" stroke="#2a2620" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+</svg>

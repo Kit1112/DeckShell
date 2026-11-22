@@ -1,0 +1,261 @@
+// Quick Access Menu popup ("..." button): rail with 5 tabs (notifications, friends, quick settings, performance, Decky) + content column.
+// Look = generated/menus/menus.slint (dumps qam.json / QuickAccess Decky dump); this file wires a generic row model that Rust fills per tab
+// (src/screens/qam.rs). Slide: 300 ms in / 200 ms out with a 300 css px offset (docs/engine/qam.json "animation").
+import { Tokens } from "../tokens.slint";
+import { Icons, Icon } from "../widgets/icon.slint";
+import { Toggle } from "../widgets/toggle.slint";
+import { GStyle } from "../generated/style.slint";
+import { DeckyTab } from "decky/decky_tab.slint";
+import { GMenuGeo, GQamRail, GQamTitle, GQamHeader, GQamSliderRow, GQamToggleRow, GQamButtonRow, GQamNotchRow, GQamSep, GQamEntry } from "../generated/menus/menus.slint";
+
+// Kinds 14–16 are Bluetooth devices, shortcut toggles and Bluetooth Add.
+export struct QamRow {
+    kind: int,
+    fid: int,            // focus id (-1 = not focusable)
+    label: string,
+    sub: string,         // entry status line / battery time
+    rtext: string,       // right-hand text (button value)
+    cap-l: string,
+    cap-r: string,
+    icon: image,
+    has-icon: bool,
+    value: float,        // slider 0..1 (<0 unavailable)
+    on: int,             // toggle 1/0/-1
+    notches: int,
+    y: length,
+    h: length,
+    cx: length,          // cell x inside the content column (cells of one line; 0 with cw 0 = full row)
+    cw: length,          // cell width (0 = full row)
+    tint: color,
+    meta: string,
+}
+
+export global QamState {
+    in property <bool> open;
+    in property <bool> expanded; // Friends opened from the main menu uses the full chat surface.
+    in property <int> tab;                 // selected rail tab (0 notifications, 1 friends, 2 quick settings, 3 performance, 4 decky)
+    in property <int> rail-focus: -1;      // rail item holding gamepad focus (-1: focus is in the content)
+    in property <bool> slider-adjusting: false;
+    in property <int> cursor: -1;          // focused content row (fid)
+    in property <length> scroll;           // content scroll (device px)
+    in property <length> shortcut-top;     // start of the radio shortcuts in the scrolling content
+    in property <string> title;
+    in property <[string]> tab-labels;
+    in property <[QamRow]> rows;
+    in property <image> decky-icon;        // plug glyph of the Decky tab (not part of Steam's icon set)
+    in property <bool> decky-present;      // HOOK: set by the Decky integration once its DeckyTab exists
+    callback activate(int);                // content row clicked (fid)
+    callback changed(int, float);          // slider dragged (fid, 0..1)
+    callback select-tab(int);
+    callback hover(int);
+    callback scrolled(length);             // mouse wheel / two-finger scroll over the content (delta-y, device px)
+    callback close;
+}
+
+// HOOK(decky): the Decky tab body. The plugin-panel agent replaces this component's body with `DeckyTab { }` (app/ui/screens/decky/) and sets
+// QamState.decky-present = true; until then the tab shows the generic row model Rust provides (plugin list placeholder).
+export component QamDeckySlot inherits Rectangle {
+    background: Tokens.bg;
+    DeckyTab { x: 0px; y: 0px; width: parent.width + GMenuGeo.qam-rail-w; height: parent.height; }
+}
+
+// Friends list tab (Steam FriendsListTab, FriendsListSteamDeckTabs): icon only, no label or box. The 24 CSS px SVG is
+// 28.8 px here (factor 1.2) at the top of its 36 px cell. Colours: #3d4450 normal, #8b929a active, #fff focused.
+// The label is kept for focus/accessibility text only; it is not drawn.
+component GQamSubTab inherits Rectangle {
+    in property <image> icon;
+    in property <string> label;
+    in property <string> badge;
+    in property <bool> active;
+    in property <bool> focused;
+    callback clicked();
+    background: transparent;
+    Image {
+        x: (parent.width - 28.8px) / 2; y: 0px; width: 28.8px; height: 28.8px; image-fit: contain;
+        source: Icons.tinted(root.icon, root.focused ? #ffffff : (root.active ? #8b929a : #3d4450));
+    }
+    if root.badge != "": Rectangle {
+        x: parent.width / 2 + 4px; y: 0px; width: 18px; height: 16px; border-radius: 8px; background: #d64242;
+        Text { text: root.badge; color: #ffffff; font-size: 10px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
+    }
+    TouchArea { clicked => { root.clicked(); } }
+}
+
+// Friends header button (Steam FriendsInvitesButton / AddFriendButton / NewChatGroupButton): icon, optional count.
+component GQamHeaderButton inherits Rectangle {
+    in property <image> icon;
+    in property <string> badge;
+    in property <bool> focused;
+    callback clicked();
+    background: root.focused ? #ffffff : transparent;
+    border-radius: 6px;
+    Image {
+        x: (parent.width - 26px) / 2; y: (parent.height - 26px) / 2; width: 26px; height: 26px; image-fit: contain;
+        source: Icons.tinted(root.icon, root.focused ? #1b1f26 : #ffffff);
+    }
+    if root.badge != "": Text {
+        x: parent.width - 20px; y: 2px; width: 18px; text: root.badge; color: #ffffff; font-size: 10px; font-weight: 700;
+        horizontal-alignment: center;
+    }
+    TouchArea { clicked => { root.clicked(); } }
+}
+
+export component Qam inherits Rectangle {
+    Rectangle { visible: QamState.open; x: 0px; y: 0px; width: root.width; height: 60px; background: #000000; }
+    Rectangle { visible: QamState.open; width: root.width; y: root.height - 60px; height: 60px; background: #000000; }
+    Rectangle {
+        y: 60px; height: root.height - 120px;
+        background: #000000cc; opacity: QamState.open ? 1 : 0;
+        animate opacity { duration: QamState.open ? GMenuGeo.qam-in : GMenuGeo.qam-out; easing: Tokens.ease-focus; }
+        visible: self.opacity > 0.01;
+        TouchArea { clicked => { QamState.close(); } }
+    }
+    panel := Rectangle {
+        // Local scale converts the generated 1.2x geometry to the captured Gaming Mode 1.5x viewport.
+        property <bool> wide-friends: QamState.expanded && QamState.tab == 1;
+        property <length> content-width: self.wide-friends ? 288px : GMenuGeo.qam-content-w;
+        y: 60px; height: 544.8px; width: self.wide-friends ? root.width / 1.25 : GMenuGeo.qam-w;
+        x: (self.wide-friends ? 0px : root.width - self.width * 1.25) + (QamState.open ? 0px : 450px);
+        transform-origin: { x: 0px, y: 0px }; transform-scale: 1.25;
+        opacity: QamState.open ? 1 : 0;
+        animate x { duration: QamState.open ? GMenuGeo.qam-in : GMenuGeo.qam-out; easing: Tokens.ease-focus; }
+        animate opacity { duration: QamState.open ? GMenuGeo.qam-in : GMenuGeo.qam-out; easing: Tokens.ease-focus; }
+        visible: self.opacity > 0.01;
+        background: Tokens.bg;
+        clip: true;
+        // The divider separates friend selection from the empty conversation area.
+        if panel.wide-friends: Rectangle {
+            x: GMenuGeo.qam-rail-w + 288px; width: parent.width - self.x; height: parent.height; background: #0e141b;
+            Rectangle { x: 0px; width: 1px; height: parent.height; background: #000000; }
+            Text { y: 215px; width: parent.width; height: 30px; text: "ЧТОБЫ НАЧАТЬ, ВЫБЕРИТЕ ДРУГА ИЛИ ГРУППУ"; color: #969696; font-size: 15px; font-weight: 700; letter-spacing: 1px; horizontal-alignment: center; vertical-alignment: center; }
+        }
+        // ---- content column (rows scroll under the sticky title)
+        content := Rectangle {
+            x: GMenuGeo.qam-rail-w; width: panel.content-width; height: parent.height; clip: true;
+            property <bool> quick-divider: QamState.tab == 2 && QamState.scroll > QamState.shortcut-top - 60px;
+            TouchArea { scroll-event(e) => { QamState.scrolled(e.delta-y); accept } }
+            Rectangle {
+                y: -QamState.scroll - (panel.wide-friends ? 24px : 0px); width: parent.width; height: 4000px;
+                animate y { duration: 200ms; easing: ease-in-out; }
+                for r in QamState.rows: Rectangle {
+                    x: 0px; y: r.y; width: parent.width; height: r.h;
+                    if r.kind == 0: GQamHeader { height: r.h; text: r.label; }
+                    if r.kind == 1: GQamSliderRow {
+                        height: r.h; icon: r.icon; label: r.label; value: r.value; meta: r.meta; adjusting: QamState.slider-adjusting && QamState.cursor == r.fid; focused: QamState.cursor == r.fid && QamState.rail-focus < 0;
+                        clicked => { QamState.activate(r.fid); } changed(v) => { QamState.changed(r.fid, v); }
+                    }
+                    if r.kind == 2: GQamToggleRow {
+                        height: r.h; icon: r.icon; has-icon: r.has-icon; label: r.label; on: r.on; meta: r.meta; text-h: r.h - 22px;
+                        focused: QamState.cursor == r.fid && QamState.rail-focus < 0;
+                        clicked => { QamState.activate(r.fid); }
+                    }
+                    if r.kind == 15: Rectangle {
+                        property <bool> focused: QamState.cursor == r.fid && QamState.rail-focus < 0;
+                        background: focused ? #ffffff26 : transparent;
+                        accessible-role: switch; accessible-label: r.label; accessible-description: r.meta;
+                        Icon { x: 19.19px; y: (parent.height - self.height) / 2; src: r.icon; s: 24px; c: focused ? #ffffff : #dcdedf; }
+                        Text {
+                            x: 55.19px; width: parent.width - 130px; height: parent.height;
+                            color: focused ? #ffffff : #dcdedf; text: r.label; font-family: GStyle.loc-font;
+                            font-size: 19.2px; vertical-alignment: center;
+                        }
+                        Toggle {
+                            x: parent.width - 23.19px - self.width; y: (parent.height - self.height) / 2;
+                            on: r.on; focused: parent.focused;
+                        }
+                        if r.notches == 1: Rectangle {
+                            x: 19.19px; width: parent.width - 38.38px; y: parent.height - 1.19px; height: 1.19px;
+                            background: #ffffff1a;
+                        }
+                        TouchArea { enabled: r.on >= 0; clicked => { QamState.activate(r.fid); } }
+                    }
+                    if r.kind == 14 || r.kind == 16: Rectangle {
+                        property <bool> focused: QamState.cursor == r.fid && QamState.rail-focus < 0;
+                        property <color> ink: focused ? #ffffff : (r.on == 0 ? #67707b : #dcdedf);
+                        background: focused ? #ffffff1a : transparent;
+                        accessible-role: button; accessible-label: r.label; accessible-description: r.meta;
+                        Icon { x: 43.19px; y: (parent.height - self.height) / 2; src: r.icon; s: 24px; c: ink; }
+                        Text {
+                            x: 79.19px; width: min(r.on == 0 || r.value >= 0 ? 192px : 253px, parent.width - 126px);
+                            height: parent.height; text: r.label; overflow: elide; vertical-alignment: center;
+                            font-family: r.kind == 16 ? GStyle.loc-font : Tokens.font-family; font-size: 19.2px; color: ink;
+                        }
+                        if r.notches == 1: Icon {
+                            x: parent.width - 47px; y: (parent.height - self.height) / 2; src: Icons.spinner; s: 24px; c: ink;
+                            transform-rotation: Math.mod(animation-tick() / 1ms, 1000) / 1000 * 360deg;
+                        }
+                        if r.notches == 0 && r.value >= 0: Rectangle {
+                            x: parent.width - 46px; y: (parent.height - self.height) / 2; width: 22px; height: 13px;
+                            border-width: 1.6px; border-radius: 1px; border-color: ink;
+                            Rectangle { x: 2.7px; y: 2.7px; width: 16.6px * r.value; height: parent.height - 5.4px; background: ink; }
+                            Rectangle { x: parent.width; y: 4px; width: 2px; height: 5px; background: ink; }
+                        }
+                        TouchArea { clicked => { QamState.activate(r.fid); } }
+                    }
+                    if r.kind == 3: GQamButtonRow {
+                        height: r.h; icon: r.icon; has-icon: r.has-icon; label: r.label; rtext: r.rtext; meta: r.meta; focused: QamState.cursor == r.fid && QamState.rail-focus < 0;
+                        clicked => { QamState.activate(r.fid); }
+                    }
+                    if r.kind == 4: GQamNotchRow {
+                        height: r.h; label: r.label; value: r.value; cap-left: r.cap-l; cap-right: r.cap-r; notches: r.notches; meta: r.meta;
+                        focused: QamState.cursor == r.fid && QamState.rail-focus < 0;
+                        clicked => { QamState.activate(r.fid); } changed(v) => { QamState.changed(r.fid, v); }
+                    }
+                    if r.kind == 5: GQamSep { height: r.h; }
+                    if r.kind == 6: Text {
+                        x: r.cx + GMenuGeo.qam-pad; width: (r.cw > 0px ? r.cw : parent.width) - 2 * GMenuGeo.qam-pad; height: r.h; text: r.label; wrap: word-wrap; vertical-alignment: top;
+                        font-size: 19.2px; color: r.tint;
+                    }
+                    if r.kind == 7 || r.kind == 8: GQamEntry {
+                        height: r.h; name: r.label; sub: r.sub; accent: r.tint; header: r.kind == 8; meta: r.meta;
+                        avatar: r.icon; has-avatar: r.has-icon; friend: QamState.tab == 1;
+                        focused: r.kind == 7 && QamState.cursor == r.fid && QamState.rail-focus < 0;
+                        clicked => { QamState.activate(r.fid); }
+                    }
+                    // Stock places shoulder hints on the outer edges of the Friends strip.
+                    if r.kind == 10 && r.fid == 0: Rectangle {
+                        x: 16px; y: 9px; width: 26px; height: 16px; border-radius: 8px; background: #ffffff;
+                        Text { text: "LB"; color: #0e141b; font-size: 10px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
+                    }
+                    if r.kind == 10 && r.fid == 3: Rectangle {
+                        x: parent.width - 42px; y: 9px; width: 26px; height: 16px; border-radius: 8px; background: #ffffff;
+                        Text { text: "RB"; color: #0e141b; font-size: 10px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
+                    }
+                    if r.kind == 10: GQamSubTab {
+                        x: r.cx * (panel.wide-friends ? 0.8 : 1) + 3px; width: r.cw * (panel.wide-friends ? 0.8 : 1) - 6px; height: r.h - 6px; y: 3px; label: r.label; badge: r.rtext; active: r.on == 1; icon: r.icon;
+                        focused: QamState.cursor == r.fid && QamState.rail-focus < 0;
+                        clicked => { QamState.activate(r.fid); }
+                    }
+                    if r.kind == 12: GQamHeaderButton {
+                        x: r.cx + 3px; width: r.cw - 6px; height: r.h - 6px; y: 3px; icon: r.icon; badge: r.rtext;
+                        focused: QamState.cursor == r.fid && QamState.rail-focus < 0;
+                        clicked => { QamState.activate(r.fid); }
+                    }
+                    if r.kind == 9: Rectangle {
+                        Text { x: GMenuGeo.qam-pad; y: 6px; height: 34px; text: r.label; font-size: 26.4px; font-weight: 700; color: #ffffff; vertical-alignment: center; }
+                        Text { x: GMenuGeo.qam-pad; y: 42px; height: 24px; text: r.sub; font-size: 19.2px; color: #dcdedf; vertical-alignment: center; }
+                        Text { x: GMenuGeo.qam-pad; y: 68px; height: 18px; text: r.cap-l; font-size: 12px; font-weight: 700; letter-spacing: 0.6px; color: #969696; vertical-alignment: center; }
+                    }
+                    // HOOK(decky): QamDeckySlot { } is placed once below, outside the row model
+                }
+            }
+            if content.quick-divider: Rectangle {
+                x: 0px; y: 0px; width: parent.width; height: 78.6px; background: #0e141b;
+                Rectangle { x: 19.19px; width: parent.width - 38.38px; y: 76.8px; height: 1.5px; background: #252c34; }
+                TouchArea { scroll-event(e) => { QamState.scrolled(e.delta-y); accept } }
+            }
+        }
+        QamDeckySlot { x: GMenuGeo.qam-rail-w; y: 0px; width: GMenuGeo.qam-content-w; height: parent.height; visible: QamState.tab == 4; }
+        // sticky title bar over the scrolled rows
+        GQamTitle { visible: QamState.tab != 4; x: GMenuGeo.qam-rail-w; y: panel.wide-friends ? -16px : 0px; width: panel.content-width; text: QamState.title; }
+        // rail (selected tab = rgba(255,255,255,.1) + icon scale 1.1; focus = white chip)
+        GQamRail {
+            x: 0px; y: 0px; height: parent.height;
+            icons: [Icons.bell, Icons.friends, Icons.settings, Icons.performance, QamState.decky-icon];
+            labels: QamState.tab-labels;
+            metas: ["tab||A,B,L1,R1,DPAD_UP,DPAD_DOWN,DPAD_RIGHT,FOCUS,BLUR,touch,mouse", "tab||A,B,L1,R1,DPAD_UP,DPAD_DOWN,DPAD_RIGHT,FOCUS,BLUR,touch,mouse", "tab||A,B,L1,R1,DPAD_UP,DPAD_DOWN,DPAD_RIGHT,FOCUS,BLUR,touch,mouse", "tab||A,B,L1,R1,DPAD_UP,DPAD_DOWN,DPAD_RIGHT,FOCUS,BLUR,touch,mouse", "tab||A,B,L1,R1,DPAD_UP,DPAD_DOWN,DPAD_RIGHT,FOCUS,BLUR,touch,mouse"];
+            selected: QamState.tab; focused: QamState.rail-focus;
+            activated(i) => { QamState.select-tab(i); }
+        }
+    }
+}

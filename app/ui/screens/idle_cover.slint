@@ -1,0 +1,24 @@
+// Idle screensaver (task 518, src/idle.rs): a black cover with a dim clock, shown after the "screensaver" idle timer of
+// Настройки → Питание. Input that reaches it only wakes it (the Rust side swallows the event, the TouchArea blocks pointers).
+export global IdleState {
+    in-out property <bool> saver: false;
+    in-out property <string> clock;
+}
+
+export component IdleCover inherits Rectangle {
+    background: #000000;
+    opacity: IdleState.saver ? 1 : 0;
+    visible: IdleState.saver || self.opacity > 0.005;
+    animate opacity { duration: 400ms; easing: ease-out; }
+
+    Text {
+        text: IdleState.clock;
+        color: #3c3f45;
+        font-size: 64px;
+        horizontal-alignment: center;
+        x: 0px;
+        width: parent.width;
+        y: (parent.height - self.height) / 2;
+    }
+    TouchArea { }
+}

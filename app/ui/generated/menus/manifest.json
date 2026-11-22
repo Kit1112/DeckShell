@@ -1,0 +1,40 @@
+{
+ "unit": "device px (css x 1.2)",
+ "elements": [
+  {
+   "comp": "menus",
+   "name": "menu.row0",
+   "rect": [
+    0,
+    171.12,
+    288,
+    57.59
+   ],
+   "probe": "edge",
+   "thr": 20
+  },
+  {
+   "comp": "menus",
+   "name": "qam.rail.tab0",
+   "rect": [
+    0,
+    161,
+    57.59,
+    76.79
+   ],
+   "probe": "edge",
+   "thr": 15
+  },
+  {
+   "comp": "menus",
+   "name": "qam.title",
+   "rect": [
+    76.78,
+    23.99,
+    181.45,
+    33.59
+   ],
+   "probe": "ink"
+  }
+ ]
+}

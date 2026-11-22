@@ -1,0 +1,78 @@
+import { HeaderLayout, TopBarState } from "top_bar.slint";
+
+// One header target (Steam: focusable <Focusable> per item). Invisible touch/pointer area + focus ring for the D-pad cursor; carries the
+// parity metadata (context/archive/docs/parity/deckshell-tree-format.md via widgets/meta.slint) because generated files cannot be annotated by hand.
+component HeaderHit inherits Rectangle {
+    in property <int> idx;
+    in property <bool> focused;
+    in property <string> token;
+    in property <string> label;
+    in property <string> handlers: "A,FOCUS,BLUR,touch,mouse";
+    accessible-role: button;
+    accessible-label: root.label;
+    accessible-description: "button|" + root.token + "|" + root.handlers;
+    // the focus block itself (solid white, full row height) is painted under the icons by HeaderBlocks
+    TouchArea { clicked => { TopBarState.header-clicked(root.idx); } }
+}
+
+// The search field target: same as HeaderHit but exposed as a text input.
+component HeaderField inherits Rectangle {
+    in property <string> label;
+    accessible-role: text-input;
+    accessible-label: root.label;
+    accessible-description: "text-field||A,FOCUS,BLUR,keyboard,touch,mouse";
+    TouchArea { clicked => { TopBarState.header-clicked(1); } }
+}
+
+// Shares every slot boundary with the painted row in generated/topbar.slint.
+export component HeaderHits inherits Rectangle {
+    in property <length> search-left;
+    in property <length> search-width;
+    in property <length> left-padding;
+    height: HeaderLayout.row-height;
+    // avatar
+    avatar-hit := HeaderHit {
+        idx: 0; x: root.left-padding; y: 0px; width: HeaderLayout.avatar-width; height: parent.height;
+        token: "#HeaderActions_AccountPage";
+        label: TopBarState.persona-name != "" ? TopBarState.persona-name : "#HeaderActions_AccountPage";
+        focused: TopBarState.hfocus == 0;
+    }
+    if TopBarState.persona-name != "" && avatar-hit.focused: Rectangle {
+        x: avatar-hit.x + 8px;
+        y: avatar-hit.y + avatar-hit.height;
+        width: min(persona.preferred-width + 24px, 320px);
+        height: 34px;
+        background: #23262e;
+        border-radius: 4px;
+        persona := Text {
+            x: 12px;
+            width: parent.width - 24px;
+            text: TopBarState.persona-name;
+            color: white;
+            vertical-alignment: center;
+            overflow: elide;
+        }
+    }
+    if HeaderLayout.search-expanded: HeaderField { x: root.search-left; y: 0px; width: root.search-width; height: parent.height; label: TopBarState.search-placeholder; }
+    if !HeaderLayout.search-expanded: HeaderHit { idx: 1; x: root.search-left; y: 0px; width: root.search-width; height: parent.height; label: TopBarState.search-placeholder; }
+    if TopBarState.dl-active: HeaderHit { idx: 6; x: root.width - HeaderLayout.download-inset; y: 0px; width: HeaderLayout.slot; height: parent.height; token: "#HeaderActions_Downloads"; label: "#HeaderActions_Downloads"; focused: TopBarState.hfocus == 6; }
+    if TopBarState.has-sdcard: HeaderHit { idx: 2; x: root.width - HeaderLayout.sd-inset; y: 0px; width: HeaderLayout.slot; height: parent.height; token: "#HeaderActions_StorageSettings"; label: "#HeaderActions_StorageSettings"; focused: TopBarState.hfocus == 2; }
+    if TopBarState.unread > 0: HeaderHit { idx: 3; x: root.width - HeaderLayout.bell-inset; y: 0px; width: HeaderLayout.slot; height: parent.height; token: "#ViewNotifications"; label: "#ViewNotifications"; focused: TopBarState.hfocus == 3; }
+    if TopBarState.wifi >= 0: HeaderHit { idx: 4; x: root.width - HeaderLayout.wifi-inset; y: 0px; width: HeaderLayout.wifi-width; height: parent.height; token: "#HeaderActions_Network"; label: "#HeaderActions_Network"; focused: TopBarState.hfocus == 4; }
+    if TopBarState.bat-pct >= 0: HeaderHit { idx: 5; x: root.width - HeaderLayout.battery-inset; y: 0px; width: HeaderLayout.battery-inset; height: parent.height; token: "#HeaderActions_PowerSettings"; label: "#HeaderActions_PowerSettings"; focused: TopBarState.hfocus == 5; }
+}
+
+component Block inherits Rectangle { background: #ffffff; }
+
+// Stock focus look: a solid white rectangle over the full row height (no rounding), icon and text turn dark. Painted below the icons;
+// shares every slot boundary with HeaderHits. The search has no block here: it expands into its own white field.
+export component HeaderBlocks inherits Rectangle {
+    in property <length> left-padding;
+    height: HeaderLayout.row-height;
+    if TopBarState.hfocus == 0: Block { x: root.left-padding; width: HeaderLayout.avatar-width; height: parent.height; }
+    if TopBarState.hfocus == 6 && TopBarState.dl-active: Block { x: root.width - HeaderLayout.download-inset; width: HeaderLayout.slot; height: parent.height; }
+    if TopBarState.hfocus == 2 && TopBarState.has-sdcard: Block { x: root.width - HeaderLayout.sd-inset; width: HeaderLayout.slot; height: parent.height; }
+    if TopBarState.hfocus == 3 && TopBarState.unread > 0: Block { x: root.width - HeaderLayout.bell-inset; width: HeaderLayout.slot; height: parent.height; }
+    if TopBarState.hfocus == 4 && TopBarState.wifi >= 0: Block { x: root.width - HeaderLayout.wifi-inset; width: HeaderLayout.wifi-width; height: parent.height; }
+    if TopBarState.hfocus == 5 && TopBarState.bat-pct >= 0: Block { x: root.width - HeaderLayout.battery-inset; width: HeaderLayout.battery-inset; height: parent.height; }
+}

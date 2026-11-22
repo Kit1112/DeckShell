@@ -1,0 +1,75 @@
+// Fixture workbench based on Gaming Mode capture 12 (DPR 1.5).
+// Buttons read and edit the Steam session; other sections retain their fixture status.
+import { GStyle } from "../generated/style.slint";
+export struct ControllerEditorSection { label: string, glyph: image, }
+export struct ControllerEditorRow { label: string, value: string, command-glyph: image, gear: bool, gear-only: bool, glyph: image, value-width: length, y: length, h: length,
+    /* header: group title without panel; bare: button without row panel; dropdown: value with a triangle;
+       dim: empty command (stock greys the button and the gear); value-x > 0: absolute x of the value button. */
+    header: bool, bare: bool, dropdown: bool, dim: bool, value-x: length, }
+export struct ControllerEditorAction { label: string, x: length, y: length, w: length, h: length, }
+export component ControllerEditorView inherits Rectangle {
+    in property <[ControllerEditorSection]> sections;
+    in property <[ControllerEditorRow]> rows;
+    in property <[ControllerEditorAction]> actions;
+    in property <int> active-section;
+    in property <int> focus-row: -1;
+    in property <bool> focus-gear;
+    in property <length> content-height;
+    in property <length> rows-y: 147px;
+    in property <string> title;
+    in property <string> group-title;
+    in property <string> status;
+    in property <bool> can-undo;
+    in property <bool> help;
+    in property <length> scroll;
+    callback undo();
+    callback section-clicked(int);
+    callback row-clicked(int, bool);
+    callback action-clicked(int);
+    background: #17191f;
+    Rectangle { x: 0px; y: 0px; width: 360px; height: parent.height; background: #25272e;
+        Rectangle { x: 36px; y: parent.height - 165px; width: 288px; height: 2px; background: #ffffff1a; }
+        for section[i] in root.sections: Rectangle { x: 0px; y: i < 6 ? i * 63px : parent.height - 26px - (root.sections.length - i) * 63px; width: parent.width; height: 63px;
+            background: root.active-section == i ? @linear-gradient(90deg, #245577 0%, #25272e 100%) : transparent;
+            if root.active-section == i: Rectangle { x: 0px; y: 0px; width: 3px; height: parent.height; background: #1a9fff; }
+            Image { x: 39px; y: 16px; width: 32px; height: 32px; source: i == 6 ? @image-url("../assets/controller/touch-menu.svg") : (i == 7 ? @image-url("../assets/controller/action-sets.svg") : section.glyph); image-fit: contain; }
+            Text { x: 92px; y: 0px; width: parent.width - 105px; height: parent.height; text: section.label;
+                color: root.active-section == i ? #ffffff : #b8bcbf; font-size: 25px; vertical-alignment: center; overflow: elide; font-family: GStyle.loc-font; }
+            accessible-role: button; accessible-label: section.label;
+            TouchArea { clicked => { root.section-clicked(i); } }
+        }
+    }
+    Text { x: 396px; y: 37px; width: 840px; height: 45px; text: root.title; color: #ffffff; font-size: 34px; font-weight: 700; font-family: GStyle.loc-font; }
+    Text { visible: root.status != "Раскладка прочитана · изменения в редактируемой копии"; x: 396px; y: 82px; width: 710px; height: 52px; text: root.status; color: #9fc9e5; font-size: 18px; wrap: word-wrap; }
+    // Кадр 17 (Наборы действий): кнопка «?» справа от заголовка, 60×45.
+    if root.help: Rectangle { x: parent.width - 95px; y: 36px; width: 60px; height: 45px; border-radius: 3px; background: #3b3d43;
+        Text { text: "?"; color: #dcdedf; font-size: 28px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; font-family: GStyle.loc-font; } }
+    Rectangle { visible: root.can-undo; x: parent.width - 170px; y: 40px; width: 140px; height: 38px; background: root.can-undo ? #404b58 : #25272e; Text { text: "X Отменить"; color: white; font-size: 20px; horizontal-alignment: center; vertical-alignment: center; } TouchArea { enabled: root.can-undo; clicked => { root.undo(); } } }
+    Text { visible: root.status == "Раскладка прочитана · изменения в редактируемой копии"; x: 396px; y: 105px; width: 840px; height: 35px; text: root.group-title; color: #dcdedf; font-size: 25px; font-family: GStyle.loc-font; }
+    Flickable { x: 396px; y: root.rows-y; width: parent.width - 431px; height: parent.height - root.rows-y; viewport-height: root.content-height; viewport-y: -root.scroll;
+        for row[i] in root.rows: Rectangle { x: 0px; y: row.y; width: parent.width; height: row.h; border-radius: 3px; background: (row.header || row.bare) ? transparent : (root.focus-row == i ? #30333b : #20232b);
+            if row.header: Text { x: 0px; y: 0px; width: parent.width; height: parent.height; text: row.label; color: #dcdedf; font-size: 25px; vertical-alignment: center; overflow: elide; font-family: GStyle.loc-font; }
+            if !row.header && row.gear-only: Image { x: 21px; y: (parent.height - 24px) / 2; width: 24px; height: 24px; source: @image-url("../assets/controller/action-sets.svg"); image-fit: contain; }
+            if !row.header: Image { x: 18px; y: (parent.height - 36px) / 2; width: 36px; height: 36px; source: row.glyph; image-fit: contain; }
+            if !row.header: Text { visible: row.glyph.width == 0 || (row.label != "A" && row.label != "B" && row.label != "X" && row.label != "Y"); x: row.gear-only ? 63px : row.glyph.width > 0 ? 67px : 18px; y: 0px; width: 405px; height: parent.height; text: row.label; color: #dcdedf; font-size: 24px; vertical-alignment: center; overflow: elide; font-family: GStyle.loc-font; }
+            if !row.header && !row.gear-only: Rectangle { x: row.value-x > 0px ? row.value-x : parent.width - (row.gear ? 93px : 18px) - (row.value-width > 0px ? row.value-width : 300px); y: row.bare ? 0px : 18px; width: row.value-width > 0px ? row.value-width : 300px; height: row.bare ? parent.height : parent.height - 36px; border-radius: 3px;
+                background: root.focus-row == i && !root.focus-gear ? #ffffff : (row.dim ? #30333b : #40434b);
+                accessible-role: button; accessible-label: row.label + " " + row.value;
+                Image { x: 8px; y: (parent.height - 30px)/2; width: 30px; height: 30px; source: row.command-glyph; image-fit: contain; }
+                Text { x: row.command-glyph.width > 0 ? 43px : 4px; width: parent.width - self.x - (row.dropdown ? 44px : 4px); text: row.value; color: root.focus-row == i && !root.focus-gear ? #17191f : (row.dim ? #808287 : #dcdedf); font-size: 24px; horizontal-alignment: center; vertical-alignment: center; wrap: word-wrap; overflow: elide; font-family: GStyle.loc-font; }
+                if row.dropdown: Text { x: parent.width - 38px; width: 30px; text: "▾"; color: root.focus-row == i && !root.focus-gear ? #17191f : #dcdedf; font-size: 25px; horizontal-alignment: center; vertical-alignment: center; }
+                TouchArea { clicked => { root.row-clicked(i, false); } }
+            }
+            if row.gear: Rectangle { x: parent.width - 78px; y: 18px; width: 60px; height: parent.height - 36px; border-radius: 3px; background: root.focus-row == i && root.focus-gear ? #ffffff : (row.dim ? #1a1c22 : #40434b);
+                accessible-role: button; accessible-label: row.label + " — настройки";
+                Image { x: (parent.width - 36px) / 2; y: (parent.height - 36px) / 2; width: 36px; height: 36px; opacity: row.dim && !(root.focus-row == i && root.focus-gear) ? 0.45 : 1.0; source: root.focus-row == i && root.focus-gear ? @image-url("../assets/controller/settings-focused.svg") : @image-url("../assets/controller/settings.svg"); }
+                TouchArea { clicked => { root.row-clicked(i, true); } }
+            }
+        }
+        for action[i] in root.actions: Rectangle { x: action.x; y: action.y; width: action.w; height: action.h; border-radius: 3px; background: #3a3d42;
+            accessible-role: button; accessible-label: action.label;
+            Text { x: 12px; y: 0px; width: parent.width - 24px; height: parent.height; text: action.label; color: #dcdedf; font-size: 24px; horizontal-alignment: center; vertical-alignment: center; wrap: word-wrap; overflow: elide; font-family: GStyle.loc-font; }
+            TouchArea { clicked => { root.action-clicked(i); } }
+        }
+    }
+}

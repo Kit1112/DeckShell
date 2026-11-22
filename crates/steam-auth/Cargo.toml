@@ -1,0 +1,10 @@
+[package]
+name = "steam-auth"
+version.workspace = true
+edition.workspace = true
+
+# Вход в Steam через IAuthenticationService (QR / имя+пароль / Steam Guard), как стоковый клиент (sp.js 247544, 245778).
+# Токены живут только в памяти процесса и затираются при Drop.
+[dependencies]
+ureq = { version = "2.12", default-features = false, features = ["tls"] }
+num-bigint = "0.4"

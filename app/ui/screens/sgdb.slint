@@ -1,0 +1,257 @@
+// SteamGridDB cover changer (native replacement of the Decky plugin "decky-steamgriddb", route /steamgriddb/<appid>).
+// Full-window overlay opened from the game context menu entry "Сменить картинку..." (before "Свойства..."); all behaviour in src/sgdb/.
+// Layout: tabs (capsule / wide / hero / logo / icon) -> left = side-by-side preview "now | candidate" in context (tile / hero with
+// the real logo position), right = result grid (touch-scrollable, infinite paging). Panels: filters / actions / game picker (SgdbList),
+// docked on-screen keyboard (name search, API key), logo position editor.
+import { Tokens } from "../tokens.slint";
+import { GStyle } from "../generated/style.slint";
+import { PositionedLogo } from "../widgets/logo_layout.slint";
+import { CroppedImage, HeroFrame } from "../widgets/hero_img.slint";
+
+export struct SgdbItem { img: image, has-img: bool, flags: int, tag: string, dims: string, author: string, busy: bool, }   // flags: 1 animated 2 adult 4 humor 8 epilepsy 16 notes
+export struct SgdbRow { label: string, kind: int, on: bool, sub: string, }   // kind: 0 plain, 1 toggle, 2 section header, 3 plain with arrow
+
+export global SgdbState {
+    in property <bool> open;
+    in property <string> title;
+    in property <string> subtitle;        // matched SteamGridDB game / mode line
+    in property <[string]> tabs;
+    in property <int> tab;
+    in property <int> zone;               // 0 tab strip, 1 grid
+    in property <[SgdbItem]> items;
+    in property <int> focus: -1;
+    in property <int> cols: 4;
+    in property <float> ratio: 1.5;       // cell height / width
+    in property <bool> contain;           // logos / icons: show the whole image
+    in property <string> status;          // empty-state / progress line
+    in property <bool> busy;
+    in property <string> chip;            // "офлайн" / "фильтры" pill text
+    in-out property <length> vy;
+    in property <string> hint-line;
+    // preview ("now" | candidate) in context
+    in property <int> pkind;              // = tab
+    in property <image> cur; in property <bool> cur-has;
+    in property <image> cand; in property <bool> cand-has;
+    in property <image> hero; in property <bool> hero-has;
+    in property <image> logo; in property <bool> logo-has;
+    in property <string> pname;
+    in property <string> lab-now;
+    in property <string> lab-new;
+    in property <string> cand-meta;
+    // list panel (filters / actions / games)
+    in property <bool> list-open;
+    in property <string> list-title;
+    in property <[SgdbRow]> list-rows;
+    in property <int> list-idx;
+    in-out property <length> list-vy;
+    in property <bool> list-wide;
+    // keyboard
+    in property <bool> osk-open;
+    in property <string> osk-prompt;
+    in property <string> osk-text;
+    // logo position editor
+    in property <HeroFrame> logo-layout: { zoom: 1, pan-x: -1, pan-y: 0.7 };
+    in property <bool> edit-open;
+    in property <string> edit-info;
+    // hero crop: saved crop of this app (preview) and the crop being edited (hero editor)
+    in property <HeroFrame> saved-crop: { zoom: 1, pan-x: 0, pan-y: 0 };
+    in property <HeroFrame> edit-crop: { zoom: 1, pan-x: 0, pan-y: 0 };
+    in property <bool> hero-edit-open;
+    in property <string> hero-edit-info;  // readout: zoom and pan in percent
+    in property <int> hero-focus;         // focused editor button (D-pad moves it, A presses it)
+    callback tab-clicked(int);
+    callback tile-clicked(int);
+    callback scrolled(length);
+    callback list-clicked(int);
+    callback close();
+    callback dismiss();
+    callback menu();
+    callback hero-clicked(int);          // hero editor buttons: 0 left 1 up 2 down 3 right 4 smaller 5 bigger 6 reset 7 cancel 8 save
+}
+
+component Chip inherits Rectangle {
+    in property <string> text;
+    in property <color> fill: #8a8a8a;
+    in property <color> fg: #ffffff;
+    height: 18px; width: t.preferred-width + 12px; border-radius: 3px; background: root.fill;
+    t := Text { text: root.text; color: root.fg; font-size: 11px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; font-family: GStyle.loc-font; }
+}
+
+// One preview frame: kind 0 capsule tile, 1 wide tile, 2 hero, 3 logo over hero, 4 icon.
+component Frame inherits Rectangle {
+    in property <int> kind;
+    in property <image> main;
+    in property <bool> main-has;
+    in property <string> label;
+    in property <string> name;
+    in property <bool> show-logo-over;       // hero / logo kinds: draw a logo on the hero
+    in property <image> over;
+    in property <bool> over-has;
+    in property <image> back;
+    in property <bool> back-has;
+    in property <HeroFrame> logo-layout: { zoom: 1, pan-x: -1, pan-y: 0.7 };
+    in property <HeroFrame> crop: { zoom: 1, pan-x: 0, pan-y: 0 };
+    in property <bool> focused-look;
+    background: transparent;
+    Text { x: 0px; y: 0px; width: parent.width; height: 18px; text: root.label; color: #8b929a; font-size: 12px; font-weight: 700; letter-spacing: 1px; font-family: GStyle.loc-font; }
+    area := Rectangle { x: 0px; y: 22px; width: root.kind == 0 ? parent.width : parent.width; height: parent.height - 22px; clip: true; border-radius: 4px; background: #151b23;
+        // kinds 0,1,4: the image is the tile; 2: hero strip; 3: hero strip with the candidate logo
+        if root.kind == 0 || root.kind == 1: Rectangle {
+            width: parent.width; height: parent.height;
+            Image { visible: root.main-has; width: parent.width; height: parent.height; source: root.main; image-fit: cover; }
+            if !root.main-has: Text { text: "нет картинки"; color: #5d646c; font-size: 13px; horizontal-alignment: center; vertical-alignment: center; font-family: GStyle.loc-font; }
+        }
+        if root.kind == 2 || root.kind == 3: Rectangle {
+            CroppedImage { visible: root.kind == 2 ? root.main-has : root.back-has; width: parent.width; height: parent.height; src: root.kind == 2 ? root.main : root.back; crop: root.crop; }
+            Rectangle { y: parent.height * 0.45; height: parent.height * 0.55; background: @linear-gradient(180deg, #0b101700 0%, #0b1017e6 100%); }
+            PositionedLogo { width: parent.width; height: parent.height * (633 / 753); src: root.kind == 2 ? root.over : root.main; layout: root.logo-layout; }
+            Rectangle { x: parent.width * 0.04; y: parent.height - 24px; width: 54px; height: 16px; border-radius: 2px; background: #5ba32b; }
+        }
+        if root.kind == 4: Rectangle {
+            Image { visible: root.main-has; x: 14px; y: (parent.height - 56px) / 2; width: 56px; height: 56px; source: root.main; image-fit: contain; }
+            Text { x: 84px; width: parent.width - 94px; text: root.name; color: #dcdedf; font-size: 15px; vertical-alignment: center; overflow: elide; font-family: GStyle.loc-font; }
+        }
+    }
+}
+
+// Button of the hero editor. The focus ring is SgdbState.hero-focus (D-pad moves it, A presses); a tap presses the button directly.
+component HBtn inherits Rectangle {
+    in property <string> text;
+    in property <int> idx;
+    property <bool> focused: SgdbState.hero-focus == root.idx;
+    horizontal-stretch: 1;
+    height: 52px; border-radius: 4px; background: root.focused ? #dcdedf : #2b3340;
+    accessible-role: button; accessible-label: root.text; accessible-description: "button||A,FOCUS,touch,mouse";
+    Text { text: root.text; color: root.focused ? #23262e : #dcdedf; font-size: 18px; horizontal-alignment: center; vertical-alignment: center; font-family: GStyle.loc-font; }
+    TouchArea { clicked => { SgdbState.hero-clicked(root.idx); } }
+}
+
+export component SgdbScreen inherits Rectangle {
+    visible: SgdbState.open;
+    x: 0px; y: 0px;
+    // shared geometry (mirrored in src/sgdb/mod.rs layout())
+    property <length> gx: 440px;
+    property <length> gy: 168px;
+    property <length> gw: root.width - 480px;
+    property <length> gh: root.height - 168px - 70px;
+    property <length> gap: 12px;
+    property <length> cw: (root.gw - root.gap * (SgdbState.cols - 1)) / SgdbState.cols;
+    property <length> ch: root.cw * SgdbState.ratio;
+    property <length> vy: SgdbState.vy;
+    changed vy => { SgdbState.scrolled(self.vy); }
+    Rectangle { background: #0b1017; }
+    TouchArea { }
+    // header
+    Text { x: 40px; y: 58px; width: root.width - 380px; text: SgdbState.title; color: #ffffff; font-size: 26px; font-weight: 500; overflow: elide; font-family: GStyle.loc-font; }
+    Text { x: 40px; y: 92px; width: root.width - 380px; text: SgdbState.subtitle; color: #8b929a; font-size: 14px; overflow: elide; font-family: GStyle.loc-font; }
+    if SgdbState.chip != "": Chip { x: root.width - self.width - 40px; y: 66px; text: SgdbState.chip; fill: #e2a256; fg: #23262e; }
+    // tabs
+    HorizontalLayout { x: 40px; y: 120px; height: 36px; spacing: 8px; alignment: start;
+        for t[i] in SgdbState.tabs: Rectangle { width: tl.preferred-width + 32px; height: 36px; border-radius: 18px;
+            background: SgdbState.tab == i ? (SgdbState.zone == 0 ? #dcdedf : #3d4450) : #1b2129;
+            animate background { duration: 120ms; }
+            accessible-role: button; accessible-label: t; accessible-description: "tab||A,L1,R1,FOCUS,touch,mouse";
+            tl := Text { text: t; color: SgdbState.tab == i && SgdbState.zone == 0 ? #23262e : (SgdbState.tab == i ? #ffffff : #b8bcbf); font-size: 15px; font-weight: 500; horizontal-alignment: center; vertical-alignment: center; font-family: GStyle.loc-font; }
+            TouchArea { clicked => { SgdbState.tab-clicked(i); } } }
+    }
+    // preview pane (now | candidate)
+    pv := Rectangle { x: 40px; y: root.gy; width: 380px; height: root.gh;
+        if SgdbState.pkind == 0 || SgdbState.pkind == 4: HorizontalLayout { spacing: 16px; alignment: start;
+            Frame { width: (pv.width - 16px) / 2; height: SgdbState.pkind == 0 ? ((pv.width - 16px) / 2) * 1.5 + 22px + 24px : 130px; kind: SgdbState.pkind; main: SgdbState.cur; main-has: SgdbState.cur-has; label: SgdbState.lab-now; name: SgdbState.pname; }
+            Frame { width: (pv.width - 16px) / 2; height: SgdbState.pkind == 0 ? ((pv.width - 16px) / 2) * 1.5 + 22px + 24px : 130px; kind: SgdbState.pkind; main: SgdbState.cand; main-has: SgdbState.cand-has; label: SgdbState.lab-new; name: SgdbState.pname; }
+        }
+        if SgdbState.pkind == 1 || SgdbState.pkind == 2 || SgdbState.pkind == 3: VerticalLayout { spacing: 12px; alignment: start;
+            Frame { height: 22px + (SgdbState.pkind == 1 ? pv.width * 0.467 : pv.width * 0.323 * (SgdbState.pkind == 3 ? 1.35 : 1.0)); kind: SgdbState.pkind;
+                main: SgdbState.pkind == 3 ? SgdbState.logo : SgdbState.cur; main-has: SgdbState.pkind == 3 ? SgdbState.logo-has : SgdbState.cur-has;
+                over: SgdbState.logo; over-has: SgdbState.logo-has; back: SgdbState.hero; back-has: SgdbState.hero-has; logo-layout: SgdbState.logo-layout;
+                crop: SgdbState.saved-crop; label: SgdbState.lab-now; name: SgdbState.pname; }
+            Frame { height: 22px + (SgdbState.pkind == 1 ? pv.width * 0.467 : pv.width * 0.323 * (SgdbState.pkind == 3 ? 1.35 : 1.0)); kind: SgdbState.pkind;
+                main: SgdbState.cand; main-has: SgdbState.cand-has;
+                over: SgdbState.logo; over-has: SgdbState.logo-has; back: SgdbState.hero; back-has: SgdbState.hero-has; logo-layout: SgdbState.logo-layout;
+                crop: SgdbState.saved-crop; label: SgdbState.lab-new; name: SgdbState.pname; }
+        }
+        Text { y: parent.height - 70px; width: parent.width; height: 60px; text: SgdbState.cand-meta; color: #8b929a; font-size: 13px; wrap: word-wrap; vertical-alignment: bottom; font-family: GStyle.loc-font; }
+    }
+    // result grid
+    Rectangle { x: root.gx; y: root.gy; width: root.gw; height: root.gh; clip: true;
+        Flickable { width: parent.width; height: parent.height; viewport-y <=> SgdbState.vy; viewport-width: parent.width;
+            viewport-height: Math.ceil(SgdbState.items.length / SgdbState.cols) * (root.ch + root.gap) + 40px;
+            accessible-role: list; accessible-label: "results"; accessible-description: "scroll-region||DPAD_UP,DPAD_DOWN,scroll,touch,mouse";
+            for it[i] in SgdbState.items: Rectangle {
+                x: Math.mod(i, SgdbState.cols) * (root.cw + root.gap);
+                y: Math.floor(i / SgdbState.cols) * (root.ch + root.gap);
+                width: root.cw; height: root.ch; border-radius: 4px; clip: true; background: #1b2129;
+                accessible-role: button; accessible-label: it.dims; accessible-description: "button||A,Y,FOCUS,touch,mouse";
+                if it.has-img: Image { width: parent.width; height: parent.height; source: it.img; image-fit: SgdbState.contain ? contain : cover; }
+                if !it.has-img: Text { text: "…"; color: #5d646c; font-size: 14px; horizontal-alignment: center; vertical-alignment: center; font-family: GStyle.loc-font; }
+                HorizontalLayout { x: 6px; y: 6px; height: 18px; spacing: 4px; alignment: start;
+                    if Math.mod(it.flags, 2) >= 1: Chip { text: it.tag != "" ? it.tag : "ANIM"; fill: #e2a256; fg: #23262e; }
+                    if Math.mod(Math.floor(it.flags / 2), 2) >= 1: Chip { text: "18+"; fill: #e5344c; }
+                    if Math.mod(Math.floor(it.flags / 4), 2) >= 1: Chip { text: "Юмор"; fill: #eec314; fg: #434343; }
+                    if Math.mod(Math.floor(it.flags / 8), 2) >= 1: Chip { text: "Эпилепсия"; fill: #735f9f; }
+                    if Math.mod(Math.floor(it.flags / 16), 2) >= 1: Chip { text: "i"; fill: #8a8a8a; }
+                }
+                if it.busy: Rectangle { background: #000000aa; Text { text: "Применяется…"; color: #ffffff; font-size: 14px; horizontal-alignment: center; vertical-alignment: center; font-family: GStyle.loc-font; } }
+                Rectangle { y: parent.height - 18px; height: 18px; background: #000000a0; visible: SgdbState.focus == i && it.author != "";
+                    Text { x: 6px; width: parent.width - 12px; text: it.author; color: #dcdedf; font-size: 11px; vertical-alignment: center; overflow: elide; font-family: GStyle.loc-font; } }
+                Rectangle { border-width: 3px; border-color: SgdbState.zone == 1 && SgdbState.focus == i ? #dcdedf : transparent; border-radius: 4px; }
+                TouchArea { clicked => { SgdbState.tile-clicked(i); } }
+            }
+        }
+    }
+    if SgdbState.status != "": Text { x: root.gx; y: root.gy + 60px; width: root.gw; height: 120px; text: SgdbState.status; color: #8b929a; font-size: 18px; horizontal-alignment: center; wrap: word-wrap; font-family: GStyle.loc-font; }
+    if SgdbState.busy: Rectangle { x: root.gx + root.gw - 120px; y: root.gy - 24px; width: 120px; height: 18px;
+        Text { text: "Загрузка…"; color: #8b929a; font-size: 12px; horizontal-alignment: right; font-family: GStyle.loc-font; } }
+    // list panel (filters / actions / games): BasicUIContextMenu look, rows 44 px
+    if SgdbState.list-open: Rectangle { background: #00000099;
+        TouchArea { clicked => { SgdbState.dismiss(); } }
+        Rectangle { width: SgdbState.list-wide ? 640px : 460px; height: min(root.height - 150px, 64px + SgdbState.list-rows.length * 44px); x: (root.width - self.width) / 2; y: 74px + (root.height - 150px - self.height) / 2; background: #23262e; clip: true;
+            Text { x: 20px; y: 0px; width: parent.width - 40px; height: 56px; text: SgdbState.list-title; color: #ffffff; font-size: 20px; font-weight: 500; vertical-alignment: center; overflow: elide; font-family: GStyle.loc-font; }
+            Flickable { y: 56px; height: parent.height - 56px; viewport-y <=> SgdbState.list-vy; viewport-height: SgdbState.list-rows.length * 44px;
+                for r[i] in SgdbState.list-rows: Rectangle { y: i * 44px; height: 44px;
+                    background: SgdbState.list-idx == i && r.kind != 2 ? #dcdedf : transparent;
+                    accessible-role: button; accessible-label: r.label; accessible-description: "menu-item||A,B,DPAD_UP,DPAD_DOWN,FOCUS,touch,mouse";
+                    if r.kind == 2: Text { x: 20px; text: r.label; color: #8b929a; font-size: 13px; font-weight: 700; letter-spacing: 1px; vertical-alignment: center; font-family: GStyle.loc-font; }
+                    if r.kind != 2: Text { x: r.kind == 1 ? 58px : 20px; width: parent.width - (r.kind == 1 ? 78px : 40px) - 120px; text: r.label; color: SgdbState.list-idx == i ? #23262e : #b8bcbf; font-size: 17px; vertical-alignment: center; overflow: elide; font-family: GStyle.loc-font; }
+                    if r.kind != 2 && r.sub != "": Text { x: parent.width - 140px; width: 120px; text: r.sub; color: SgdbState.list-idx == i ? #4a5058 : #6d747c; font-size: 13px; horizontal-alignment: right; vertical-alignment: center; font-family: GStyle.loc-font; }
+                    if r.kind == 1: Rectangle { x: 20px; y: 13px; width: 18px; height: 18px; border-radius: 3px; border-width: 2px; border-color: SgdbState.list-idx == i ? #23262e : #8b929a; background: r.on ? (SgdbState.list-idx == i ? #23262e : #1a9fff) : transparent; }
+                    TouchArea { clicked => { SgdbState.list-clicked(i); } } }
+            }
+        }
+    }
+    // hero editor, 1280x800 safe layout: the banner frame (game page aspect) on the left, the readout and the buttons on the right.
+    // Top 80 px belong to the top bar (clock, avatar), the bottom 80 px to the footer hints: the editor sits between them.
+    if SgdbState.hero-edit-open || SgdbState.edit-open: Rectangle { background: #0b1017f0;
+        TouchArea { }
+        Text { x: 40px; y: 88px; width: root.width - 80px; text: SgdbState.edit-open ? "Положение логотипа" : "Положение баннера"; color: #ffffff; font-size: 22px; font-weight: 500; font-family: GStyle.loc-font; }
+        he := Rectangle { x: 40px; y: 132px;
+            width: min(root.width * 0.64, (root.height - 232px) / (Tokens.game-hero-h / root.width));
+            height: self.width * (Tokens.game-hero-h / root.width); clip: true; border-radius: 4px; background: #151b23;
+            CroppedImage { visible: SgdbState.hero-has; width: parent.width; height: parent.height; src: SgdbState.hero; crop: SgdbState.edit-open ? SgdbState.saved-crop : SgdbState.edit-crop; }
+            Rectangle { y: parent.height * 0.45; height: parent.height * 0.55; background: @linear-gradient(180deg, #0b101700 0%, #0b1017e6 100%); }
+            PositionedLogo { width: parent.width; height: parent.height * (633 / 753); src: SgdbState.logo; layout: SgdbState.logo-layout; }
+        }
+        pn := Rectangle { x: he.x + he.width + 36px; y: he.y; width: root.width - (he.x + he.width + 36px) - 40px; height: he.height;
+            Text { x: 0px; y: 0px; width: parent.width; height: 96px; text: SgdbState.hero-edit-info; color: #dcdedf; font-size: 20px; font-weight: 500; vertical-alignment: top; font-family: GStyle.loc-font; }
+            VerticalLayout { x: 0px; y: 112px; width: parent.width; spacing: 10px;
+                HorizontalLayout { spacing: 8px; height: 52px;
+                    HBtn { text: "←"; idx: 0; } HBtn { text: "↑"; idx: 1; } HBtn { text: "↓"; idx: 2; } HBtn { text: "→"; idx: 3; } }
+                HorizontalLayout { spacing: 8px; height: 52px;
+                    HBtn { text: "−"; idx: 4; } HBtn { text: "+"; idx: 5; } }
+                HorizontalLayout { spacing: 8px; height: 52px;
+                    HBtn { text: "Сброс"; idx: 6; } HBtn { text: "Отмена"; idx: 7; } HBtn { text: "Сохранить"; idx: 8; } }
+            }
+            Text { x: 0px; y: 318px; width: parent.width; height: 120px; wrap: word-wrap; color: #8b929a; font-size: 15px; vertical-alignment: top; font-family: GStyle.loc-font;
+                text: "Крестовина — навести на кнопку, A — нажать. Левый стик — сдвиг кадра напрямую.\nСдвиг: −100% левый/верхний край, +100% правый/нижний. LB/RB масштаб · X сброс · B отмена."; }
+        }
+    }
+    // запрос названия/ключа: заголовок и поле над общей виртуальной клавиатурой (screens/osk.slint)
+    if SgdbState.osk-open: Rectangle { background: #000000aa;
+        TouchArea { clicked => { SgdbState.dismiss(); } }
+        Rectangle { x: 40px; y: root.height - 357px - 104px; width: root.width - 80px; height: 96px; background: #1c232b; border-radius: 4px;
+            Text { x: 16px; y: 6px; width: parent.width - 32px; height: 24px; text: SgdbState.osk-prompt; color: #8b929a; font-size: 13px; font-family: GStyle.loc-font; }
+            Rectangle { x: 16px; y: 36px; width: parent.width - 32px; height: 48px; border-radius: 4px; background: #0b1017;
+                Text { x: 14px; width: parent.width - 28px; text: SgdbState.osk-text + "|"; color: #ffffff; font-size: 22px; vertical-alignment: center; overflow: elide; font-family: GStyle.loc-font; } }
+        }
+    }
+}

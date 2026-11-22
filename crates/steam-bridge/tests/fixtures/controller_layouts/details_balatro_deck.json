@@ -1,0 +1,221 @@
+{
+ "eresult": 1,
+ "body": {
+  "publishedfiledetails": [
+   {
+    "result": 1,
+    "publishedfileid": "3417625332",
+    "creator": "76561198000000002",
+    "creator_appid": 241100,
+    "consumer_appid": 241100,
+    "consumer_shortcutid": 0,
+    "filename": "3417625332_controller_config.vdf",
+    "file_size": "15661",
+    "preview_file_size": "0",
+    "file_url": "https://cdn.steamusercontent.com/ugc/2916114047430564/24BE577C459F7A0F9BE8B24DFCC5C30A2409E694/",
+    "preview_url": "",
+    "url": "",
+    "hcontent_file": "2916114047430564",
+    "hcontent_preview": "18446744073709551615",
+    "title": "Haxell's Steam Controller Balatro Bindings",
+    "file_description": "Based on the official Balatro layout. Right trackpad as mouse; left trackpad as left click. Hold left and right back grip buttons to restart the run.",
+    "time_created": 1738261176,
+    "time_updated": 1738261176,
+    "visibility": 0,
+    "flags": 1536,
+    "workshop_file": false,
+    "workshop_accepted": false,
+    "show_subscribe_all": false,
+    "num_comments_public": 0,
+    "banned": false,
+    "ban_reason": "",
+    "banner": "76561197960265728",
+    "can_be_deleted": true,
+    "app_name": "Steam Input Configs",
+    "file_type": 12,
+    "can_subscribe": true,
+    "subscriptions": 0,
+    "favorited": 0,
+    "followers": 0,
+    "lifetime_subscriptions": 0,
+    "lifetime_favorited": 0,
+    "lifetime_followers": 0,
+    "lifetime_playtime": "20011105",
+    "lifetime_playtime_sessions": "4102",
+    "views": 1,
+    "num_children": 0,
+    "num_reports": 0,
+    "previews": [],
+    "tags": [
+     {
+      "tag": "hasactivators",
+      "display_name": "hasactivators"
+     },
+     {
+      "tag": "controller_steamcontroller_gordon",
+      "display_name": "controller_steamcontroller_gordon"
+     },
+     {
+      "tag": "feature_mouse",
+      "display_name": "feature_mouse"
+     },
+     {
+      "tag": "feature_keboard",
+      "display_name": "feature_keboard"
+     },
+     {
+      "tag": "feature_gamepad",
+      "display_name": "feature_gamepad"
+     }
+    ],
+    "children": [],
+    "kvtags": [
+     {
+      "key": "app",
+      "value": "2379780"
+     },
+     {
+      "key": "owner",
+      "value": "414885689"
+     },
+     {
+      "key": "visibility",
+      "value": "public"
+     },
+     {
+      "key": "deleted",
+      "value": "0"
+     },
+     {
+      "key": "autosave",
+      "value": "0"
+     }
+    ],
+    "vote_data": {
+     "score": 0.5384615659713745,
+     "votes_up": 13,
+     "votes_down": 4
+    },
+    "playtime_stats": {
+     "playtime_seconds": "0",
+     "num_sessions": "0"
+    },
+    "language": 0,
+    "maybe_inappropriate_sex": false,
+    "maybe_inappropriate_violence": false,
+    "content_descriptorids": [],
+    "revision_change_number": "1",
+    "revision": 1,
+    "available_revisions": [],
+    "reactions": [],
+    "ban_text_check_result": 0,
+    "author_snapshots": []
+   },
+   {
+    "result": 1,
+    "publishedfileid": "3177015367",
+    "creator": "76561198000000003",
+    "creator_appid": 241100,
+    "consumer_appid": 241100,
+    "consumer_shortcutid": 0,
+    "filename": "3177015367_controller_config.vdf",
+    "file_size": "16006",
+    "preview_file_size": "0",
+    "file_url": "https://cdn.steamusercontent.com/ugc/2446089105223883468/62FF910F9D5280D75C26197AE6BACEA417CDEF12/",
+    "preview_url": "",
+    "url": "",
+    "hcontent_file": "2446089105223883468",
+    "hcontent_preview": "18446744073709551615",
+    "title": "Steam Deck - Sort Hand / Deselect",
+    "file_description": "Use the grip buttons to sort your hand by rank (L4) or suit (R5) and to deselect all cards (L5/R5).",
+    "time_created": 1710041184,
+    "time_updated": 1710041184,
+    "visibility": 0,
+    "flags": 1536,
+    "workshop_file": false,
+    "workshop_accepted": false,
+    "show_subscribe_all": false,
+    "num_comments_public": 0,
+    "banned": false,
+    "ban_reason": "",
+    "banner": "76561197960265728",
+    "can_be_deleted": true,
+    "app_name": "Steam Input Configs",
+    "file_type": 12,
+    "can_subscribe": true,
+    "subscriptions": 0,
+    "favorited": 0,
+    "followers": 0,
+    "lifetime_subscriptions": 0,
+    "lifetime_favorited": 0,
+    "lifetime_followers": 0,
+    "lifetime_playtime": "21137570",
+    "lifetime_playtime_sessions": "5516",
+    "views": 1,
+    "num_children": 0,
+    "num_reports": 0,
+    "previews": [],
+    "tags": [
+     {
+      "tag": "hasactivators",
+      "display_name": "hasactivators"
+     },
+     {
+      "tag": "feature_activator",
+      "display_name": "feature_activator"
+     },
+     {
+      "tag": "feature_gamepad",
+      "display_name": "feature_gamepad"
+     },
+     {
+      "tag": "controller_neptune",
+      "display_name": "controller_neptune"
+     }
+    ],
+    "children": [],
+    "kvtags": [
+     {
+      "key": "app",
+      "value": "2379780"
+     },
+     {
+      "key": "owner",
+      "value": "73963693"
+     },
+     {
+      "key": "visibility",
+      "value": "public"
+     },
+     {
+      "key": "deleted",
+      "value": "0"
+     },
+     {
+      "key": "autosave",
+      "value": "0"
+     }
+    ],
+    "vote_data": {
+     "score": 0.522522509098053,
+     "votes_up": 8,
+     "votes_down": 3
+    },
+    "playtime_stats": {
+     "playtime_seconds": "0",
+     "num_sessions": "0"
+    },
+    "language": 0,
+    "maybe_inappropriate_sex": false,
+    "maybe_inappropriate_violence": false,
+    "content_descriptorids": [],
+    "revision_change_number": "1",
+    "revision": 1,
+    "available_revisions": [],
+    "reactions": [],
+    "ban_text_check_result": 0,
+    "author_snapshots": []
+   }
+  ]
+ }
+}

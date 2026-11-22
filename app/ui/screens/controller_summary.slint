@@ -1,0 +1,50 @@
+// "Посмотреть раскладку" (view layout summary), Steam Deck look.
+// Reference: ~/.cache/deckshell/captures/controller-config/view-layout/07-view-layout.png (1280x800 device px, DPR 1.5).
+// All coordinates are absolute device px; the overlay covers the whole window and paints only the content band (y 60..740).
+// Positions were taken from the stock DOM dump (07-view-layout.dom.json, CSS px x 1.5) and corrected to the stock ink.
+// Glyphs: bundled Deck knockout SVGs from Steam's controller_base/images/api.
+import { GStyle } from "../generated/style.slint";
+
+// cy: vertical centre of the label and icon. icon-x/icon-w: glyph box (height 22 px, centred on cy).
+// fx/fw: focus plate (height 38 px, centred on cy). focusable: rows that take focus. heading: uppercase group title.
+export struct SummaryRow {
+    label: string, glyph: string, icon: image, has-icon: bool, label-x: length, label-w: length, align-right: bool,
+    icon-x: length, icon-w: length, cy: length, heading: bool, focusable: bool, fx: length, fw: length,
+}
+
+export component ControllerSummary inherits Rectangle {
+    in property <[SummaryRow]> rows;
+    in property <image> device;
+    in property <int> focused;
+    // Shown while the bindings are a fixture, not data read from Steam.
+    in property <string> notice;
+    callback clicked(int);
+    background: transparent;
+
+    // Content band between the page title bar and the footer.
+    Rectangle { x: 0px; y: 60px; width: root.width; height: root.height - 120px; background: #0e141b; }
+    if root.notice != "": Text { x: 0px; y: 70px; width: root.width; height: 24px; text: root.notice; color: #e0a95a; font-size: 18px; horizontal-alignment: center; font-family: GStyle.loc-font; overflow: elide; }
+
+    // Steam's own Deck artwork (controller_config_controller_steam_deck.svg, 449 x 181) at the stock size 566 x 228, left edge 357, top 193.
+    Image { x: 357px; y: 193px; width: 566px; height: 228px; source: root.device; image-fit: contain; }
+
+    for row[i] in root.rows: Rectangle {
+        x: 0px; y: 0px; width: root.width; height: root.height;
+        background: transparent;
+        // Focus plate: only on focusable rows, exactly one at a time.
+        if row.focusable: Rectangle { x: row.fx; y: row.cy - 19px; width: row.fw; height: 38px; border-radius: 2px;
+            background: root.focused == i ? #3d4450 : transparent;
+            accessible-role: button; accessible-label: row.label; accessible-enabled: true;
+            TouchArea { clicked => { root.clicked(i); } } }
+        if row.has-icon: Image { x: row.icon-x; y: row.cy - 11px; width: row.icon-w; height: 22px;
+            source: row.icon; image-fit: contain; }
+        if !row.has-icon && row.glyph != "": Rectangle { x: row.icon-x; y: row.cy - 11px; width: row.icon-w; height: 22px; border-radius: 4px; background: #ffffff;
+            Text { width: parent.width; height: parent.height; text: row.glyph; color: #0e141b; font-size: 12px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; font-family: GStyle.loc-font; } }
+        if row.label != "" && !row.heading: Text { x: row.label-x; y: row.cy - 12px; width: row.label-w; height: 24px; text: row.label;
+            color: #dcdedf; font-size: 15.4px; font-family: GStyle.loc-font; vertical-alignment: center;
+            horizontal-alignment: row.align-right ? right : left; overflow: elide; }
+        if row.label != "" && row.heading: Text { x: row.label-x; y: row.cy - 10px; width: row.label-w; height: 20px; text: row.label;
+            color: #8b929a; font-size: 14.5px; font-weight: 700; letter-spacing: 1.4px; font-family: GStyle.loc-font; vertical-alignment: center;
+            horizontal-alignment: row.align-right ? right : left; overflow: elide; }
+    }
+}

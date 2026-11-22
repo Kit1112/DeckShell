@@ -1,0 +1,132 @@
+// Steam main menu popup (STEAM button). Generated look (generated/menus/menus.slint, from the MainMenu dump); this file only wires state.
+// Items/labels come from Rust (loc tokens, icons from steam-assets). Slide: translateX(-288px -> 0) 300 ms cubic-bezier(.16,.86,.43,.99) both ways
+// (docs/cdp/anim/menu-open.json, menu-close.json); the page behind is dimmed.
+import { Tokens } from "../tokens.slint";
+import { MenuItem } from "../widgets/types.slint";
+import { GMenuItem, GMenuGeo } from "../generated/menus/menus.slint";
+
+export global SteamMenuState {
+    in property <bool> open;
+    in property <[MenuItem]> items;
+    in property <int> running-count;
+    in property <[float]> row-y;
+    in property <float> content-h;
+    in property <float> scroll-y;
+    callback user-scrolled(float);
+    in property <int> focus;
+    in property <bool> game-visible;
+    in property <string> game-title;
+    in property <image> game-logo;
+    in property <bool> game-has-logo;
+    in property <[string]> game-items;
+    in property <int> game-focus;
+    callback game-activate(int);
+    callback game-hover(int);
+    callback activate(int);
+    callback hover(int);
+    callback close;
+    // power confirmation dialog (Steam ConfirmModal)
+    in property <bool> confirm-open;
+    in property <bool> confirm-exit;
+    in property <string> confirm-title;
+    in property <string> confirm-description;
+    in property <string> confirm-ok;
+    in property <string> confirm-cancel;
+    in-out property <int> confirm-focus;
+    callback confirm-pick(int);
+}
+
+// Steam ConfirmModal: dimmed window, centered card with the action as the title and two buttons.
+export component PowerConfirm inherits Rectangle {
+    visible: SteamMenuState.confirm-open;
+    background: #000000b0;
+    TouchArea { }
+    Rectangle {
+        // Exit dialog measured in the original Gaming Mode at DPR1.5.
+        width: SteamMenuState.confirm-exit ? 990px : (SteamMenuState.confirm-description != "" ? 680px : 520px); height: SteamMenuState.confirm-exit ? 264px : (SteamMenuState.confirm-description != "" ? 260px : 190px); x: (root.width - self.width) / 2; y: (root.height - self.height) / 2;
+        background: SteamMenuState.confirm-exit ? #0e141b : #23262e; border-radius: SteamMenuState.confirm-exit ? 0px : 4px; border-width: SteamMenuState.confirm-exit ? 3px : 0px; border-color: #23262e; drop-shadow-color: #00000080; drop-shadow-blur: 24px;
+        accessible-role: groupbox; accessible-label: SteamMenuState.confirm-title; accessible-description: "dialog||A,B,DPAD_LEFT,DPAD_RIGHT,touch,mouse";
+        Text { x: SteamMenuState.confirm-exit ? 36px : 32px; y: SteamMenuState.confirm-exit ? 36px : 28px; width: parent.width - 72px; text: SteamMenuState.confirm-title; color: #ffffff; font-size: SteamMenuState.confirm-exit ? 33px : 26px; font-weight: SteamMenuState.confirm-exit ? 700 : 500; }
+        Text { x: SteamMenuState.confirm-exit ? 36px : 32px; y: SteamMenuState.confirm-exit ? 94px : 70px; width: parent.width - 72px; text: SteamMenuState.confirm-description; color: #dcdedf; font-size: SteamMenuState.confirm-exit ? 24px : 18px; wrap: word-wrap; }
+        for lab[i] in [SteamMenuState.confirm-ok, SteamMenuState.confirm-cancel]: Rectangle {
+            x: SteamMenuState.confirm-exit ? 36px + i * ((parent.width - 114px) / 2 + 42px) : 32px + i * ((parent.width - 64px) / 2 + 8px); y: parent.height - (SteamMenuState.confirm-exit ? 99px : 76px); width: SteamMenuState.confirm-exit ? (parent.width - 114px) / 2 : (parent.width - 64px) / 2 - 8px; height: SteamMenuState.confirm-exit ? 60px : 48px; border-radius: 2px;
+            background: SteamMenuState.confirm-exit ? (SteamMenuState.confirm-focus == i ? #1a9fff : #30363c) : (SteamMenuState.confirm-focus == i ? #ffffff : #ffffff1f);
+            accessible-role: button; accessible-label: lab; accessible-description: "button||A,FOCUS,touch,mouse";
+            Text { text: lab; width: parent.width; height: parent.height; horizontal-alignment: center; vertical-alignment: center; font-size: SteamMenuState.confirm-exit ? 24px : 20px; color: !SteamMenuState.confirm-exit && SteamMenuState.confirm-focus == i ? #0e141b : #dcdedf; }
+            TouchArea { clicked => { SteamMenuState.confirm-pick(i); } }
+        }
+    }
+}
+
+export component SteamMenu inherits Rectangle {
+    // The bars are drawn above this component; give their transparent backgrounds
+    // an opaque backing whenever the side menu is open.
+    Rectangle { visible: SteamMenuState.open; x: 0px; y: 0px; width: root.width; height: 60px; background: #000000; }
+    Rectangle { visible: SteamMenuState.open; width: root.width; y: root.height - 60px; height: 60px; background: #000000; }
+    Rectangle {
+        y: 60px; height: root.height - 120px;
+        background: #000000cc; opacity: SteamMenuState.open ? 1 : 0;
+        animate opacity { duration: GMenuGeo.menu-slide; easing: GMenuGeo.menu-ease; }
+        visible: self.opacity > 0.01;
+        TouchArea { clicked => { SteamMenuState.close(); } }
+    }
+    Rectangle {
+        y: 60px; height: root.height - 120px; width: SteamMenuState.game-focus >= 0 ? 66px : 360px;
+        animate width { duration: 320ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
+        x: SteamMenuState.open ? 0px : -self.width;
+        animate x { duration: GMenuGeo.menu-slide; easing: GMenuGeo.menu-ease; }
+        visible: self.x > -self.width;
+        background: Tokens.menu-bg;
+        clip: true;
+        // bottom strip with the 0 -4 10 .25 shadow (node 72 of the dump)
+        Rectangle {
+            y: parent.height - self.height; width: parent.width; height: 48px; background: Tokens.menu-bg;
+            drop-shadow-color: Tokens.menu-bottom-shadow-color; drop-shadow-offset-y: Tokens.menu-bottom-shadow-dy; drop-shadow-blur: Tokens.menu-bottom-shadow-blur;
+        }
+        Flickable {
+            width: parent.width; height: parent.height;
+            content-width: self.width; content-height: max(self.height, SteamMenuState.content-h * 1px);
+            interactive: true;
+            property <float> sy: SteamMenuState.scroll-y;
+            changed sy => { self.content-y = -self.sy * 1px; }
+            property <length> vy: self.content-y;
+            changed vy => { SteamMenuState.user-scrolled(-self.content-y / 1px); }
+            if SteamMenuState.running-count > 0: Rectangle {
+                x: parent.width * 0.05; y: (15 + 72 * SteamMenuState.running-count) * 1px;
+                width: parent.width * 0.9; height: 3px;
+                background: @linear-gradient(90deg, transparent 2%, #3d4450 50%, transparent 98%);
+            }
+            for m[i] in SteamMenuState.items: GMenuItem {
+                x: SteamMenuState.game-focus >= 0 ? -15px : 0px; y: SteamMenuState.row-y[i] * 1px;
+                width: parent.width / 1.25;
+                transform-origin: { x: 0px, y: 0px }; transform-scale: 1.25;
+                label: SteamMenuState.game-focus >= 0 ? "" : m.label; icon: m.icon; color-icon: m.color-icon; indent: m.indent; current: m.current && SteamMenuState.game-focus < 0; focused: SteamMenuState.game-focus < 0 && SteamMenuState.focus == i;
+                meta: "menu-item||A,B,DPAD_UP,DPAD_DOWN,DPAD_LEFT,DPAD_RIGHT,FOCUS,BLUR,touch,mouse";
+                clicked => { SteamMenuState.activate(i); }
+                hovered => { SteamMenuState.hover(i); }
+            }
+        }
+    }
+    Rectangle {
+        visible: SteamMenuState.open && SteamMenuState.game-visible;
+        x: SteamMenuState.game-focus >= 0 ? 66px : 360px; y: 60px; width: 456px;
+        animate x { duration: GMenuGeo.menu-slide; easing: GMenuGeo.menu-ease; }
+        height: root.height - 120px; clip: true;
+        // Opaque approximation of the captured surface; never expose the game through it.
+        background: @linear-gradient(180deg, #37444c 0%, #445660 25%, #192229 62%, #0e1319 80%, #292e34 100%);
+        // Native Gaming Mode capture: logo x262/y91/w260/h72 CSS at DPR1.5.
+        Image { visible: SteamMenuState.game-has-logo; x: 33px; y: 76.5px; width: 390px; height: 108px; source: SteamMenuState.game-logo; image-fit: contain; }
+        Text { visible: !SteamMenuState.game-has-logo; x: 33px; y: 76.5px; width: 390px; height: 108px; text: SteamMenuState.game-title; color: #ffffff; font-size: 33px; font-weight: 800; horizontal-alignment: center; vertical-alignment: center; overflow: clip; }
+        for lab[i] in SteamMenuState.game-items: GMenuItem {
+            x: 0px; // Reduced subset: adjacent supported actions; native has additional rows between them.
+            y: 199.5px + i * 60px; width: parent.width; height: 60px;
+            label: ""; focused: SteamMenuState.game-focus == i;
+            meta: "menu-item||A,B,DPAD_UP,DPAD_DOWN,DPAD_LEFT,FOCUS,touch,mouse";
+            accessible-label: lab;
+            clicked => { SteamMenuState.game-activate(i); }
+            hovered => { SteamMenuState.game-hover(i); }
+            Text { x: 27px; width: parent.width - 54px; height: parent.height; text: lab; vertical-alignment: center; font-size: 24px; color: SteamMenuState.game-focus == i ? #ffffff : #dcdedf; }
+        }
+    }
+
+}

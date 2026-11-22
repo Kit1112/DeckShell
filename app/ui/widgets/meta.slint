@@ -1,0 +1,16 @@
+// Parity-tree metadata convention (read by app/src/dumptree.rs, format context/archive/docs/parity/deckshell-tree-format.md).
+//   accessible-label       = text exactly as rendered
+//   accessible-description = "<ledger role>|<loc token or empty>|<handlers>"
+//   handlers               = comma list of gamepad buttons (A B X Y L1 R1 START DPAD_* FOCUS BLUR) and flags
+//                            touch mouse scroll long_press keyboard
+// Only list what the element really reacts to (src/input.rs actions routed by app.rs/screens/*.rs or a TouchArea/Flickable).
+export global DS {
+    out property <string> dpad: "DPAD_UP,DPAD_DOWN,DPAD_LEFT,DPAD_RIGHT";
+    out property <string> ptr: "touch,mouse";
+    // library / search grid tile: A open game, START (menu button) open game, X/Y filter+sort, L1/R1 tab switch; hold = context (game page)
+    out property <string> tile: "A,B,X,Y,START,L1,R1,DPAD_UP,DPAD_DOWN,DPAD_LEFT,DPAD_RIGHT,FOCUS,BLUR,touch,mouse,long_press";
+    // list rows in menus / sort / settings rail: A activate, B back, up/down move
+    out property <string> list: "A,B,DPAD_UP,DPAD_DOWN,FOCUS,BLUR,touch,mouse";
+    // page-wide root: B goes back (history), D-pad left opens the Steam menu, A activates
+    out property <string> page-root: "B,A,DPAD_LEFT,FOCUS,BLUR,touch,mouse";
+}

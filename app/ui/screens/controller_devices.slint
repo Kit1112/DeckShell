@@ -1,0 +1,183 @@
+export struct DeviceRow {
+    label: string,
+    detail: string,
+    value: string,
+    kind: int,
+    enabled: bool,
+    glyph: image,
+}
+
+export struct DeviceAxis {
+    label: string,
+    value: string,
+    x: float,
+    y: float,
+    radius: float,
+    pair: bool,
+    ready: bool,
+}
+
+export global ControllerDevicesState {
+    in property <bool> shown;
+    in property <bool> full;
+    in property <string> title;
+    in property <string> subtitle;
+    in property <string> status;
+    in property <[DeviceRow]> rows;
+    in property <[DeviceAxis]> axes;
+    in property <int> focus: -1;
+    in property <bool> modal;
+    in property <string> modal-title;
+    in property <string> modal-description;
+    in property <[DeviceRow]> choices;
+    in property <int> choice-focus: -1;
+    callback choose(int);
+    callback activate(int);
+    callback back();
+}
+
+component DeviceLine inherits Rectangle {
+    in property <DeviceRow> entry;
+    in property <bool> focused;
+    callback activated();
+    min-height: root.entry.kind == 0 ? 36px : root.entry.detail == "" ? 54px : 80px;
+    preferred-height: self.min-height;
+    border-radius: 6px;
+    border-width: root.focused ? 2px : 0px;
+    border-color: #92d0ff;
+    background: root.entry.kind == 0 ? transparent : root.focused ? #304961 : #232b36;
+    Image {
+        visible: root.entry.glyph.width > 0; x: 14px; width: 26px; height: 26px;
+        y: (parent.height - self.height) / 2; source: root.entry.glyph; image-fit: contain;
+    }
+    Text {
+        x: root.entry.glyph.width > 0 ? 48px : 14px;
+        width: parent.width - self.x - (root.entry.value == "" ? 14px : 205px);
+        height: root.entry.detail == "" ? parent.height : 44px;
+        text: root.entry.label; vertical-alignment: center; overflow: elide;
+        color: root.entry.kind == 0 ? #a2bbce : #eff4f8;
+        font-size: root.entry.kind == 0 ? 16px : 20px;
+        font-weight: root.entry.kind == 0 ? 700 : 500;
+    }
+    if root.entry.detail != "": Text {
+        x: 14px; y: 43px; width: parent.width - 28px; height: parent.height - self.y - 5px;
+        text: root.entry.detail; color: #aebdc9; font-size: 15px; wrap: word-wrap;
+    }
+    if root.entry.value != "": Text {
+        x: parent.width - 199px; width: 185px;
+        height: root.entry.detail == "" ? parent.height : 44px;
+        text: root.entry.value; horizontal-alignment: right; vertical-alignment: center;
+        color: root.entry.enabled ? #a9dcff : #abb6bf;
+        font-size: 17px; overflow: elide;
+    }
+    if root.entry.enabled: TouchArea {
+        accessible-role: button; accessible-label: root.entry.label;
+        accessible-description: root.entry.value + " " + root.entry.detail;
+        clicked => { root.activated(); }
+        accessible-action-default => { root.activated(); }
+    }
+}
+
+component AxisCard inherits Rectangle {
+    in property <DeviceAxis> axis;
+    height: root.axis.pair ? 132px : 72px;
+    background: #232b36;
+    border-radius: 6px;
+    accessible-role: text;
+    accessible-label: root.axis.label;
+    accessible-description: root.axis.value;
+    Text {
+        x: 14px; y: 10px; width: parent.width - (root.axis.pair ? 118px : 28px);
+        text: root.axis.label; color: #eff4f8; font-size: 17px; overflow: elide;
+    }
+    Text { x: 14px; y: 37px; text: root.axis.value; color: #a9dcff; font-size: 17px; }
+    if root.axis.pair: Rectangle {
+        x: parent.width - 104px; y: 18px; width: 88px; height: 88px;
+        border-width: 1px; border-color: #8c9eaf; border-radius: 44px;
+        Rectangle { x: 43px; width: 1px; background: #607183; }
+        Rectangle { y: 43px; height: 1px; background: #607183; }
+        if root.axis.radius > 0: Rectangle {
+            width: parent.width * root.axis.radius; height: self.width;
+            x: (parent.width - self.width) / 2; y: self.x;
+            border-width: 1px; border-color: #70abd3; border-radius: self.width / 2;
+            background: #70abd330;
+        }
+        if root.axis.ready: Rectangle {
+            x: 39px + clamp(root.axis.x, -1, 1) * 38px;
+            y: 39px - clamp(root.axis.y, -1, 1) * 38px;
+            width: 10px; height: 10px; border-radius: 5px; background: #a9dcff;
+        }
+    }
+    if !root.axis.pair && root.axis.ready: Rectangle {
+        x: parent.width / 2; y: 42px; width: parent.width / 2 - 14px; height: 6px;
+        background: #455567; border-radius: 3px;
+        Rectangle { width: parent.width * clamp(root.axis.x, 0, 1); height: parent.height; background: #a9dcff; border-radius: 3px; }
+    }
+}
+
+export component ControllerDevicesPage inherits Rectangle {
+    in property <bool> active;
+    background: #191f28;
+    viewport := Flickable {
+        content-width: self.width;
+        content-height: stack.preferred-height + 28px;
+        property <string> page-title: ControllerDevicesState.title;
+        changed page-title => { self.content-y = 0px; }
+        stack := VerticalLayout {
+            x: 24px; y: 22px; width: viewport.width - 48px;
+            spacing: 8px;
+            HorizontalLayout {
+                spacing: 12px;
+                if ControllerDevicesState.full: Rectangle {
+                    width: 42px; height: 38px; border-radius: 5px; background: #273847;
+                    Text { text: "‹"; color: #fff; font-size: 30px; horizontal-alignment: center; vertical-alignment: center; }
+                    TouchArea { clicked => { ControllerDevicesState.back(); } }
+                }
+                Text {
+                    text: ControllerDevicesState.title; color: #fff; font-size: 30px; font-weight: 700;
+                    overflow: elide; vertical-alignment: center;
+                }
+            }
+            if ControllerDevicesState.subtitle != "": Text {
+                text: ControllerDevicesState.subtitle; color: #b6c8d9; font-size: 17px; wrap: word-wrap;
+            }
+            if ControllerDevicesState.status != "": Text {
+                text: ControllerDevicesState.status; color: #efc88e; font-size: 17px; wrap: word-wrap;
+            }
+            for axis in ControllerDevicesState.axes: AxisCard { axis: axis; }
+            for row[i] in ControllerDevicesState.rows: DeviceLine {
+                entry: row; focused: root.active && !ControllerDevicesState.modal && ControllerDevicesState.focus == i;
+                changed focused => {
+                    if (self.focused) {
+                        let top = self.y + stack.y;
+                        let bottom = top + self.height;
+                        viewport.content-y = -clamp(min(top, max(-viewport.content-y, bottom - viewport.height)), 0px, max(0px, viewport.content-height - viewport.height));
+                    }
+                }
+                activated => { ControllerDevicesState.activate(i); }
+            }
+        }
+    }
+
+}
+
+export component ControllerDevicesModal inherits Rectangle {
+    background: #000000b0;
+    TouchArea { }
+    Rectangle {
+        x: (parent.width - self.width) / 2; y: max(16px, (parent.height - self.height) / 2);
+        width: min(560px, parent.width - 48px); height: content.preferred-height + 36px;
+        background: #192630; border-color: #496585; border-width: 1px; border-radius: 7px;
+        content := VerticalLayout {
+            x: 18px; y: 18px; width: parent.width - 36px; spacing: 6px;
+            Text { text: ControllerDevicesState.modal-title; color: #fff; font-size: 24px; font-weight: 700; }
+            if ControllerDevicesState.modal-description != "": Text {
+                text: ControllerDevicesState.modal-description; wrap: word-wrap; color: #c0d2e2; font-size: 17px;
+            }
+            for row[i] in ControllerDevicesState.choices: DeviceLine {
+                entry: row; focused: ControllerDevicesState.choice-focus == i;
+                activated => { ControllerDevicesState.choose(i); }
+            }
+        }
+    }
+}

@@ -1,0 +1,443 @@
+import { ControllerLayoutMenu } from "controller_menu.slint";
+// /routes/controller/<appid> - Steam Deck controller settings page (context/archive/docs/controller/SPEC.md). Geometry: CSS px x 1.2 from docs/controller/capture/deck_all.tsv.
+import { ControllerSummary, SummaryRow } from "controller_summary.slint";
+export { SummaryRow }
+import { Tokens } from "../tokens.slint";
+import { GStyle } from "../generated/style.slint";
+import { Icons } from "../widgets/icon.slint";
+import { Toggle } from "../widgets/toggle.slint";
+import { ControllerShoulderHint } from "controller_picker.slint";
+import { ControllerConfigCard, ControllerConfigCardView, ControllerBrowserTab, ControllerBrowserView } from "controller_browser.slint";
+export { ControllerConfigCard, ControllerBrowserTab }
+import { ControllerEditorRow, ControllerEditorSection, ControllerEditorAction, ControllerEditorView } from "controller_editor.slint";
+export { ControllerEditorRow, ControllerEditorSection, ControllerEditorAction }
+import { ControllerPickerKey, ControllerPickerView } from "controller_picker.slint";
+export { ControllerPickerKey }
+import { ControllerSettingRow, ControllerSettingsView } from "controller_settings.slint";
+export { ControllerSettingRow }
+import { PadRow, ChoiceItem, ControllerPadView, ControllerChoiceList } from "controller_pad.slint";
+export { PadRow, ChoiceItem }
+
+// kind: 0 toggle row, 1 drop-down row (value on the right + gear), 2 slider row (value badge + bar), 3 calibrate button row
+export struct CRow { kind: int, label: string, value: string, on: bool, frac: float, gear: bool, y: length, h: length, }
+
+export global ControllerState {
+    in property <bool> open;
+    in property <int> help-page;
+    in property <string> help-title;
+    in property <string> help-text;
+    in property <image> help-image;
+    in property <int> menu-page;
+    in property <int> menu-focus;
+    in property <string> menu-error;
+    in property <[string]> menu-choices;
+    in property <string> menu-activation;
+    in property <string> menu-info-name;
+    in property <string> menu-info-author;
+    in property <string> menu-info-url;
+    in property <string> menu-info-id;
+    in property <string> menu-info-link;
+    in property <string> menu-info-link-status;
+    in property <string> menu-info-description;
+    callback menu-selected(int);
+    in property <bool> browser-open;
+    in property <bool> browser-preview-open;
+    in property <bool> browser-preview-apply;
+    in property <bool> browser-preview-install;
+    in property <string> browser-preview-title;
+    in property <string> browser-preview-description;
+    callback browser-preview-action(bool);
+    in property <bool> browser-download-visible;
+    in property <bool> browser-download-ready;
+    callback browser-download-clicked();
+    in property <bool> summary-open;
+    in property <int> summary-focus;
+    in property <[SummaryRow]> summary-rows;
+    in property <image> summary-device;
+    in property <string> summary-notice;
+    callback summary-clicked(int);
+    // Fixture-only until list data and dialog geometry are available.
+    in property <bool> settings-fixture-open;
+    // Страница настроек источника (кадры controls/05–11) и стоковый выпадающий список (03, 04).
+    in property <bool> editor-help;
+    in property <bool> pad-open;
+    in property <bool> pad-two-line;
+    in property <bool> pad-number-open;
+    in property <string> pad-number;
+    callback pad-number-clicked(bool);
+    callback quick-gear-clicked(int);
+    in property <[PadRow]> pad-rows;
+    in property <[string]> pad-sections;
+    in property <int> pad-section;
+    in property <int> pad-focus: -1;
+    in property <bool> pad-rail;
+    in property <bool> pad-slider;
+    in property <length> pad-scroll;
+    in property <length> pad-content-height;
+    in property <string> pad-source;
+    in property <string> pad-subtitle;
+    callback pad-row-clicked(int);
+    callback pad-section-clicked(int);
+    in property <bool> choice-open;
+    in property <[ChoiceItem]> choice-items;
+    in property <int> choice-focus;
+    in property <length> choice-width: 420px;
+    in property <length> choice-height: 399px;
+    callback choice-selected(int);
+    in property <[ControllerSettingRow]> setting-rows;
+    in property <string> setting-title;
+    in property <int> setting-section;
+    in property <int> setting-focus: -1;
+    in property <length> setting-scroll;
+    callback setting-section-clicked(int);
+    callback setting-row-clicked(int);
+    in property <bool> picker-fixture-open;
+    in property <[ControllerPickerKey]> picker-keys;
+    in property <[string]> picker-tabs;
+    in property <int> picker-focus;
+    in property <int> editor-focus-row: -1;
+    in property <bool> editor-focus-gear;
+    callback editor-section-clicked(int);
+    callback editor-row-clicked(int, bool);
+    callback picker-key-clicked(int);
+    callback picker-tab-clicked(int);
+    in property <int> picker-fixture-tab: 2;
+    in property <string> picker-fixture-title: "Выберите команду клавиатуры: Лицевые кнопки → A";
+    in property <bool> command-dialog-open;
+    in property <string> command-dialog-title;
+    in property <[string]> command-dialog-rows;
+    in property <int> command-dialog-focus;
+    callback command-dialog-select(int);
+    callback command-dialog-step(int,int);
+    in property <string> editor-status;
+    in property <string> setting-source;
+    in property <length> setting-content-height;
+    in property <bool> editor-can-undo;
+    in property <length> editor-scroll;
+    callback editor-undo();
+    in property <bool> editor-fixture-open;
+    in property <string> editor-title;
+    in property <string> editor-group-title;
+    in property <int> editor-active-section;
+    in property <[ControllerEditorSection]> editor-sections;
+    in property <[ControllerEditorRow]> editor-rows;
+    in property <[ControllerEditorAction]> editor-actions;
+    in property <length> editor-content-height;
+    in property <length> editor-rows-y: 147px;
+    in property <bool> browser-fixture-open;
+    in property <bool> browser-fixture-search;
+    in property <[ControllerBrowserTab]> browser-tabs;
+    in property <[ControllerConfigCard]> browser-cards;
+    in property <int> browser-active-tab;
+    in property <int> browser-focused-card: -1;
+    in property <bool> browser-tab-focused;
+    in property <bool> browser-search-visible;
+    in property <bool> browser-search-focused;
+    in property <string> browser-query;
+    in property <int> browser-load-state: 2;
+    in property <string> browser-message: "Список раскладок сейчас недоступен.";
+    in property <string> browser-page-title: "Загрузить раскладку";
+    in property <string> browser-page-subtitle;
+    in property <length> browser-content-height: 160px;
+    in-out property <length> browser-scroll-y;
+    callback browser-tab-clicked(int);
+    callback browser-card-clicked(int);
+    callback browser-search-clicked();
+    in property <bool> card-fixture-open;
+    in property <ControllerConfigCard> card-fixture;
+    in property <bool> card-fixture-focused;
+    in property <string> title;
+    in property <string> author;
+    in property <string> layout-name;
+    // Root geometry (device px), computed in Rust from the stock frames of 20.11.
+    in property <length> geo-title-y: 82px;
+    in property <length> geo-card-y: 135px;
+    in property <length> geo-card-h: 80px;
+    in property <bool> geo-banner;
+    in property <length> geo-banner-y: 216px;
+    in property <length> geo-btn-y: 291px;
+    in property <length> geo-band-end: 395px;
+    in property <length> geo-head-y: 419px;
+    in property <length> geo-rows-y: 464px;
+    in property <length> geo-list-h: 274px;
+    in property <bool> foc-gear;
+    in property <bool> quick-slider;
+    in property <int> foc;            // 0 Steam Deck tab, 1 X360 tab, 2 help, 3 layout card, 4 view, 5 edit, 6 gear, 7+i = rows[i]
+    in property <bool> x360-connected;
+    in property <int> tab: 1;         // selected controller type: 0 Steam Deck, 1 X360
+    in property <[CRow]> rows;
+    in property <length> content-h: 600px;
+    in-out property <length> vy;
+    callback clicked(int);
+    callback back();
+}
+
+component Btn inherits Rectangle {
+    in property <bool> enabled: true;
+    in property <string> text;
+    in property <bool> foc;
+    in property <bool> icon: false;
+    callback clicked();
+    border-radius: 2px;
+    background: root.foc ? #1a9fff : #2e3236;
+    accessible-role: button; accessible-label: root.text; accessible-enabled: root.enabled;
+    opacity: root.enabled ? 1 : 0.4;
+    if root.icon: Image { width: 36px; height: 36px; source: Icons.tinted(@image-url("../assets/controller/settings.svg"), root.foc ? #ffffff : #dcdedf); }
+    if !root.icon: Text { text: root.text; color: root.foc ? #ffffff : #dcdedf; font-size: 24px; horizontal-alignment: center; vertical-alignment: center; font-family: GStyle.loc-font; }
+    TouchArea { enabled: root.enabled; clicked => { root.clicked(); } }
+}
+
+component CControllerGlyph inherits Image {
+    in property <bool> xbox;
+    in property <color> fg: #ffffff;
+    source: Icons.tinted(root.xbox ? Icons.configurator-xbox : Icons.configurator-deck, root.fg);
+    image-fit: contain;
+}
+
+// Controller type tab: pill 218 x 51 (Steam Deck) or 279 x 51 (X360); 18 px uppercase label at +72 px.
+component CTab inherits Rectangle {
+    in property <string> label;
+    in property <int> kind;
+    in property <bool> selected;
+    in property <bool> focused;
+    callback clicked();
+    border-radius: 25.5px;
+    background: root.focused ? #ffffff : (root.selected ? #262626 : transparent);
+    accessible-role: tab; accessible-label: root.label; accessible-enabled: true;
+    CControllerGlyph { x: 24px; y: (parent.height - 36px) / 2; width: 36px; height: 36px; xbox: root.kind == 1; fg: root.focused ? #0e141b : #dcdedf; }
+    Text { x: 72px; width: parent.width - 80px; height: parent.height; text: root.label; color: root.focused ? #0e141b : #dcdedf; font-size: 18px; letter-spacing: 0.3px; vertical-alignment: center; overflow: elide; font-family: GStyle.loc-font; }
+    TouchArea { clicked => { root.clicked(); } }
+}
+
+export component ControllerScreen inherits Rectangle {
+    visible: ControllerState.open;
+    background: ControllerState.open ? #1b1d23 : transparent;
+    // Root page, Gaming Mode captures root/03, 05, 06, 40m and quick-settings/09 (device px = CSS x 1.5).
+    // Focus indices: 0 Steam Deck tab, 1 X360 tab, 2 help, 3 layout card, 4 view, 5 edit, 6 gear, 7+i quick-settings row i.
+    if ControllerState.open && !ControllerState.browser-open && !ControllerState.summary-open && !ControllerState.card-fixture-open && !ControllerState.editor-fixture-open && !ControllerState.picker-fixture-open && !ControllerState.settings-fixture-open && !ControllerState.pad-open && !ControllerState.browser-fixture-open: Rectangle {
+        background: #000000;
+        TouchArea { }
+        // Top band is black; the layout panel is darker blue-black, the quick-settings panel lighter.
+        Rectangle { x: 0px; y: 60px; width: root.width; height: ControllerState.geo-band-end - 60px; background: #0a0e13; }
+        Rectangle { x: 0px; y: ControllerState.geo-band-end; width: root.width; height: 738px - ControllerState.geo-band-end; background: #0e141b; }
+
+        // Controller type tabs exist only while a second (physical X360) controller is connected: the Deck alone shows none (stock frames 20.11).
+        if ControllerState.x360-connected: ControllerShoulderHint { x: 36px; y: 79px; }
+        if ControllerState.x360-connected: ControllerShoulderHint { x: 1196px; y: 79px; right: true; }
+        if ControllerState.x360-connected: CTab { x: 390px; y: 78px; width: 218px; height: 51px; label: "STEAM DECK"; kind: 0; selected: ControllerState.tab == 0; focused: ControllerState.foc == 0;
+            clicked => { ControllerState.clicked(0); } }
+        if ControllerState.x360-connected: CTab { x: 612px; y: 78px; width: 279px; height: 51px; label: "X360 CONTROLLER"; kind: 1; selected: ControllerState.tab == 1; focused: ControllerState.foc == 1;
+            clicked => { ControllerState.clicked(1); } }
+
+        Text { x: 205px; y: ControllerState.geo-title-y; width: 600px; height: 34px; text: "Текущая раскладка"; color: #ffffff; font-size: 27px; font-family: GStyle.loc-font; vertical-alignment: top; }
+        // Help opens the Steam Input introduction on demand.
+        Rectangle { x: 1016px; y: ControllerState.geo-title-y - 6px; width: 60px; height: 45px; border-radius: 2px; background: ControllerState.foc == 2 ? #ffffff : #2f3237;
+            accessible-role: button; accessible-label: "Система ввода Steam"; accessible-enabled: true;
+            Rectangle { x: 15px; y: 7px; width: 30px; height: 30px; border-radius: 15px; background: ControllerState.foc == 2 ? #2e3236 : #ffffff;
+                Text { text: "?"; color: ControllerState.foc == 2 ? #ffffff : #2e3236; font-size: 22px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; font-family: GStyle.loc-font; } }
+            TouchArea { clicked => { ControllerState.clicked(2); } } }
+
+        // Current layout card: 870 wide, #2e3236 (white when focused); height follows the author line and the wrapped name.
+        Rectangle { x: 206px; y: ControllerState.geo-card-y; width: 870px; height: ControllerState.geo-card-h; border-radius: 4px; background: ControllerState.foc == 3 ? #ffffff : #2e3236;
+            accessible-role: button; accessible-label: ControllerState.layout-name; accessible-enabled: true;
+            CControllerGlyph { x: 36px; y: (parent.height - 48px) / 2; width: 48px; height: 48px; xbox: ControllerState.tab == 1; fg: ControllerState.foc == 3 ? #0e141b : #dcdedf; }
+            if ControllerState.author != "": Text { x: 102px; y: 12px; width: 700px; height: 20px; text: ControllerState.author; color: ControllerState.foc == 3 ? #676e7b : #8b929a; font-size: 17px; font-family: GStyle.loc-font; vertical-alignment: top; overflow: elide; }
+            Text { x: 102px; y: ControllerState.author != "" ? 36px : 25px; width: 600px; height: parent.height - self.y - 8px; text: ControllerState.layout-name; wrap: word-wrap; color: ControllerState.foc == 3 ? #0e141b : #dcdedf; font-size: 23.6px; font-family: GStyle.loc-font; vertical-alignment: top; overflow: elide; }
+            Path { x: 817px; y: (parent.height - 21px) / 2; width: 11px; height: 21px; commands: "M 0 0 L 11 10.5 L 0 21 Z"; fill: ControllerState.foc == 3 ? #0e141b : #ffffff; }
+            TouchArea { clicked => { ControllerState.clicked(3); } } }
+        // Hint plate for games without an official layout (the current layout is a stock template).
+        if ControllerState.geo-banner: Rectangle { x: 206px; y: ControllerState.geo-banner-y; width: 870px; height: 60px; background: #3d434f;
+            Text { x: 16px; y: 7px; width: parent.width - 32px; height: 24px; text: "Если у игры нет официальной поддержки контроллера, вы можете воспользоваться"; color: #dcdedf; font-size: 18px; font-family: GStyle.loc-font; overflow: elide; }
+            Text { x: 16px; y: 31px; width: parent.width - 32px; height: 24px; text: "раскладками от сообщества"; color: #ffffff; font-size: 18px; font-weight: 700; font-family: GStyle.loc-font; } }
+
+        // Actions row: 390 x 60 buttons and a 60 x 60 gear, all #2e3236; focused = #1a9fff.
+        Btn { x: 206px; y: ControllerState.geo-btn-y; width: 390px; height: 60px; text: "Посмотреть раскладку"; foc: ControllerState.foc == 4; clicked => { ControllerState.clicked(4); } }
+        Btn { x: 610px; y: ControllerState.geo-btn-y; width: 390px; height: 60px; text: "Изменить раскладку"; foc: ControllerState.foc == 5; clicked => { ControllerState.clicked(5); } }
+        Btn { x: 1016px; y: ControllerState.geo-btn-y; width: 60px; height: 60px; text: "Настройки"; icon: true; foc: ControllerState.foc == 6; clicked => { ControllerState.clicked(6); } }
+
+        Text { x: 220px; y: ControllerState.geo-head-y; width: 600px; height: 30px; text: "БЫСТРЫЕ НАСТРОЙКИ"; color: #ffffff; font-size: 24px; letter-spacing: 1.45px; font-family: GStyle.loc-font; vertical-alignment: top; }
+        Flickable { x: 221px; y: ControllerState.geo-rows-y; width: 840px; height: ControllerState.geo-list-h; viewport-y <=> ControllerState.vy; viewport-height: ControllerState.content-h; accessible-role: list; accessible-label: "quick settings";
+            for r[i] in ControllerState.rows: Rectangle { x: 0px; y: r.y; width: parent.width; height: r.h; border-radius: 2px;
+                background: ControllerState.foc == 7 + i ? #383a41 : #23262e;
+                accessible-role: button; accessible-label: r.label; accessible-enabled: true; accessible-description: "button";
+                Text { x: 18px; y: 0px; width: r.kind == 1 ? 420px : parent.width - 140px; height: r.kind == 2 ? 52px : parent.height; text: r.label; color: #dcdedf; font-size: 23.8px; vertical-alignment: center; overflow: elide; font-family: GStyle.loc-font; }
+                if r.kind == 0: Toggle { x: parent.width - 81px; y: (parent.height - self.height) / 2;
+                    on: r.on ? 1 : 0; focused: ControllerState.foc == 7 + i; }
+                if r.kind == 1: Rectangle { x: parent.width - 393px; y: 18px; width: r.gear ? 300px : 375px; height: 60px; border-radius: 2px; background: #44464d;
+                    border-width: ControllerState.foc == 7 + i && !ControllerState.foc-gear ? 2px : 0px; border-color: #b2b3b6;
+                    Text { x: 24px; width: parent.width - 70px; height: parent.height; text: r.value; color: #dcdedf; font-size: 24px; vertical-alignment: center; overflow: elide; font-family: GStyle.loc-font; }
+                    Path { x: parent.width - 43px; y: 25px; width: 18px; height: 10px; commands: "M 0 0 L 18 0 L 9 10 Z"; fill: #dcdedf; } }
+                if r.kind == 1 && r.gear: Rectangle { x: parent.width - 78px; y: 18px; width: 60px; height: 60px; border-radius: 2px; background: ControllerState.foc == 7 + i && ControllerState.foc-gear ? #1a9fff : #44464d;
+                    Image { width: 36px; height: 36px; source: Icons.tinted(@image-url("../assets/controller/settings.svg"),
+                            ControllerState.foc == 7 + i && ControllerState.foc-gear ? #ffffff : #dcdedf); } }
+                if r.kind == 2 && r.frac >= 0: Rectangle { x: 18px; y: 60px; width: parent.width - 36px; height: 6px; border-radius: 3px; background: #ffffff26;
+                    Rectangle { width: parent.width * r.frac; border-radius: 3px; background: Tokens.accent; } }
+                if r.kind == 2: Text { x: parent.width - 150px; y: 0px; width: 132px; height: 52px; text: r.value; color: ControllerState.foc == 7 + i && ControllerState.quick-slider ? Tokens.accent : #a9b1bb; font-size: 24px; horizontal-alignment: right; vertical-alignment: center; font-family: GStyle.loc-font; }
+                if r.kind == 3: Rectangle { x: parent.width - 213px; y: 10px; width: 192px; height: 48px; border-radius: 2px; background: #44464d;
+                    Text { text: r.value; color: #dcdedf; font-size: 24px; horizontal-alignment: center; vertical-alignment: center; font-family: GStyle.loc-font; } }
+                TouchArea { clicked => { ControllerState.clicked(7 + i); } }
+                if r.kind == 1 && r.gear: TouchArea { x: parent.width - 78px; y: 18px; width: 60px; height: 60px;
+                    clicked => { ControllerState.quick-gear-clicked(7 + i); } }
+            }
+        }
+    }
+    if ControllerState.open && ControllerState.summary-open: ControllerSummary {
+        width: root.width; height: root.height; rows: ControllerState.summary-rows; device: ControllerState.summary-device; focused: ControllerState.summary-focus; notice: ControllerState.summary-notice;
+        clicked(i) => { ControllerState.summary-clicked(i); }
+    }
+    if ControllerState.open && ControllerState.card-fixture-open: ControllerConfigCardView {
+        x: (root.width - 846px) / 2; y: 220px; width: 846px;
+        data: ControllerState.card-fixture; focused: ControllerState.card-fixture-focused;
+    }
+
+    if ControllerState.open && ControllerState.editor-fixture-open && !ControllerState.picker-fixture-open && !ControllerState.summary-open: ControllerEditorView {
+        x: 0px; y: 60px; width: root.width; height: root.height - 120px;
+        status: ControllerState.editor-status; help: ControllerState.editor-help; can-undo: ControllerState.editor-can-undo; scroll: ControllerState.editor-scroll; undo => { ControllerState.editor-undo(); }
+        title: ControllerState.editor-title; group-title: ControllerState.editor-group-title; sections: ControllerState.editor-sections;
+        rows: ControllerState.editor-rows; actions: ControllerState.editor-actions; content-height: ControllerState.editor-content-height; rows-y: ControllerState.editor-rows-y; active-section: ControllerState.editor-active-section;
+        focus-row: ControllerState.editor-focus-row; focus-gear: ControllerState.editor-focus-gear;
+        section-clicked(i) => { ControllerState.editor-section-clicked(i); }
+        row-clicked(i, gear) => { ControllerState.editor-row-clicked(i, gear); }
+    }
+
+    if ControllerState.open && ControllerState.picker-fixture-open: ControllerPickerView {
+        x: 0px; y: 60px; width: root.width; height: root.height - 120px;
+        tabs: ControllerState.picker-tabs;
+        status: ControllerState.editor-status; active-tab: ControllerState.picker-fixture-tab; focus-key: ControllerState.picker-focus; title: ControllerState.picker-fixture-title;
+        keys: ControllerState.picker-keys;
+        key-clicked(i) => { ControllerState.picker-key-clicked(i); }
+        tab-clicked(i) => { ControllerState.picker-tab-clicked(i); }
+    }
+
+    if ControllerState.open && ControllerState.command-dialog-open: Rectangle {
+        x: 0px; y: 60px; width: root.width; height: root.height - 120px; background: #000000c0;
+        Rectangle { x: 250px; y: 90px; width: root.width - 500px; height: 130px + ControllerState.command-dialog-rows.length * 72px; background: #252b35;
+            Text {x: 24px; y: 20px; width: parent.width - 48px; height: 50px; text: ControllerState.command-dialog-title; color: white; font-size: 25px; wrap: word-wrap;}
+            for row[i] in ControllerState.command-dialog-rows: Rectangle {x: 24px; y: 90px + i*72px; width: parent.width - 48px; height: 62px; background: ControllerState.command-dialog-focus==i ? #ffffff : #3d4552;
+                Text {x: 50px; width: parent.width - 100px; height: parent.height; text: row; color: ControllerState.command-dialog-focus==i ? #17191f : white; font-size: 21px; horizontal-alignment: center; vertical-alignment: center;wrap: word-wrap;}
+                TouchArea {x: 50px; width: parent.width - 100px; clicked => {ControllerState.command-dialog-select(i);}}
+                TouchArea {x: 0px; width: 50px; clicked => {ControllerState.command-dialog-step(i,-1);}}
+                TouchArea {x: parent.width - 50px; width: 50px; clicked => {ControllerState.command-dialog-step(i,1);}}
+            }
+        }
+    }
+
+    if ControllerState.open && ControllerState.pad-open: Rectangle {
+        x: 0px; y: 60px; width: root.width; height: root.height - 60px;
+        background: @linear-gradient(105deg, #2b2d31 0%, #191d22 60%, #171b21 100%);
+    }
+    if ControllerState.open && ControllerState.pad-open: ControllerPadView {
+        x: 0px; y: 60px; width: root.width; height: root.height - (ControllerState.pad-two-line ? 174px : 122px);
+        sections: ControllerState.pad-sections; rows: ControllerState.pad-rows; content-height: ControllerState.pad-content-height; scroll-y: ControllerState.pad-scroll;
+        active-section: ControllerState.pad-section; focused-row: ControllerState.pad-focus; rail-focus: ControllerState.pad-rail; slider-active: ControllerState.pad-slider;
+        source: ControllerState.pad-source; subtitle: ControllerState.pad-subtitle;
+        section-clicked(i) => { ControllerState.pad-section-clicked(i); }
+        row-clicked(i) => { ControllerState.pad-row-clicked(i); }
+    }
+
+    if ControllerState.open && ControllerState.pad-number-open: Rectangle {
+        background: #000000a0;
+        TouchArea { }
+        Rectangle { x: (parent.width - 510px) / 2; y: 105px; width: 510px; height: 204px; background: #23262e;
+            Text { x: 24px; y: 11px; height: 46px; text: "Изменить значение"; color: white; font-size: 25px; vertical-alignment: center; font-family: GStyle.loc-font; }
+            Rectangle { x: 24px; y: 64px; width: 462px; height: 56px; background: white;
+                Text { x: 16px; width: 430px; height: 56px; text: ControllerState.pad-number; color: #0e141b; font-size: 26px; vertical-alignment: center; font-family: GStyle.loc-font; }
+            }
+            for label[i] in ["Готово", "Отмена"]: Rectangle { x: 24px + i * 240px; y: 138px; width: 222px; height: 49px; background: #44464d;
+                Text { text: label; color: white; font-size: 22px; horizontal-alignment: center; vertical-alignment: center; font-family: GStyle.loc-font; }
+                TouchArea { clicked => { ControllerState.pad-number-clicked(i == 0); } }
+            }
+        }
+    }
+
+    if ControllerState.open && ControllerState.settings-fixture-open: ControllerSettingsView {
+        x: 0px; y: 60px; width: root.width; height: root.height - 120px;
+        sections: ["Чувствительность", "Вывод", "Мёртвые зоны", "Внешнее кольцо", "Тактильная отдача"];
+        rows: ControllerState.setting-rows; content-height: ControllerState.setting-content-height; scroll-y: ControllerState.setting-scroll; active-section: ControllerState.setting-section; focused-row: ControllerState.setting-focus;
+        section-clicked(i) => { ControllerState.setting-section-clicked(i); }
+        row-clicked(i) => { ControllerState.setting-row-clicked(i); }
+        title: ControllerState.setting-title; source: ControllerState.setting-source; status: ControllerState.editor-status;
+    }
+
+    if ControllerState.open && ControllerState.browser-fixture-open: ControllerBrowserView {
+        x: 0px; y: 60px; width: root.width; height: root.height - 120px;
+        tabs: ControllerState.browser-tabs; cards: ControllerState.browser-cards; active-tab: 1; focused-card: 0;
+        load-state: 1; title: "Раскладки сообщества"; subtitle: ControllerState.browser-page-subtitle; content-height: 600px;
+        search-visible: ControllerState.browser-fixture-search; search-focused: ControllerState.browser-fixture-search;
+    }
+
+    if ControllerState.open && ControllerState.browser-open: ControllerBrowserView {
+        x: 0px; y: 60px; width: root.width; height: root.height - 120px;
+        tabs: ControllerState.browser-tabs; cards: ControllerState.browser-cards;
+        active-tab: ControllerState.browser-active-tab; focused-card: ControllerState.browser-focused-card;
+        tab-focused: ControllerState.browser-tab-focused; search-visible: ControllerState.browser-search-visible;
+        search-focused: ControllerState.browser-search-focused; query: ControllerState.browser-query;
+        load-state: ControllerState.browser-load-state; title: ControllerState.browser-page-title; subtitle: ControllerState.browser-page-subtitle;
+        message: ControllerState.browser-message; content-height: ControllerState.browser-content-height;
+        scroll-y <=> ControllerState.browser-scroll-y;
+        tab-clicked(i) => { ControllerState.browser-tab-clicked(i); }
+        card-clicked(i) => { ControllerState.browser-card-clicked(i); }
+        search-clicked => { ControllerState.browser-search-clicked(); }
+        download-visible: ControllerState.browser-download-visible;
+        download-ready: ControllerState.browser-download-ready;
+        download-clicked => { ControllerState.browser-download-clicked(); }
+    }
+
+    if ControllerState.open && ControllerState.browser-open && ControllerState.browser-preview-open: Rectangle {
+        background: #000000b8;
+        TouchArea { }
+        Rectangle {
+            x: (parent.width - 846px) / 2; y: 195px; width: 846px; height: 380px; background: #20232b;
+            Text { x: 24px; y: 22px; width: parent.width - 48px; text: "Предпросмотр раскладки"; color: #9fc9e5; font-size: 20px; font-family: GStyle.loc-font; }
+            Text { x: 24px; y: 64px; width: parent.width - 48px; height: 70px; text: ControllerState.browser-preview-title; color: white; font-size: 29px; wrap: word-wrap; overflow: elide; font-family: GStyle.loc-font; }
+            Text { x: 24px; y: 146px; width: parent.width - 48px; height: 135px; text: ControllerState.browser-preview-description; color: #dcdedf; font-size: 21px; wrap: word-wrap; overflow: elide; font-family: GStyle.loc-font; }
+            if ControllerState.browser-preview-apply: Rectangle {
+                x: 24px; y: 297px; width: 530px; height: 58px; background: #ffffff;
+                Text { text: ControllerState.browser-preview-install ? "X  Загрузить и применить" : "X  Применить раскладку"; color: #0e141b; font-size: 22px; horizontal-alignment: center; vertical-alignment: center; font-family: GStyle.loc-font; }
+                TouchArea { clicked => { ControllerState.browser-preview-action(true); } }
+            }
+            if !ControllerState.browser-preview-apply: Text { x: 24px; y: 297px; width: 530px; height: 58px; text: "Демоданные · применение отключено"; color: #b8bcbf; font-size: 22px; vertical-alignment: center; font-family: GStyle.loc-font; }
+            Rectangle {
+                x: parent.width - 235px; y: 297px; width: 211px; height: 58px; background: #3d4552;
+                Text { text: "B  Назад"; color: white; font-size: 22px; horizontal-alignment: center; vertical-alignment: center; font-family: GStyle.loc-font; }
+                TouchArea { clicked => { ControllerState.browser-preview-action(false); } }
+            }
+        }
+    }
+
+    if ControllerState.open && ControllerState.choice-open: ControllerChoiceList {
+        x: 0px; y: 60px; width: root.width; height: root.height - 120px;
+        items: ControllerState.choice-items; cursor: ControllerState.choice-focus; list-width: ControllerState.choice-width; list-height: ControllerState.choice-height;
+        selected(i) => { ControllerState.choice-selected(i); }
+    }
+
+    if ControllerState.open && ControllerState.menu-page > 0: ControllerLayoutMenu {
+        width: root.width; height: root.height; page: ControllerState.menu-page; focus-index: ControllerState.menu-focus;
+        layout-name: ControllerState.menu-info-name; url: ControllerState.menu-info-url; layout-id: ControllerState.menu-info-id; link: ControllerState.menu-info-link; link-status: ControllerState.menu-info-link-status; description: ControllerState.menu-info-description; author: ControllerState.menu-info-author; error-text: ControllerState.menu-error; choices: ControllerState.menu-choices; activation-value: ControllerState.menu-activation;
+        selected(i) => { ControllerState.menu-selected(i); }
+    }
+
+    if ControllerState.open && ControllerState.help-page > 0: Rectangle {
+        y: 60px; height: parent.height - 122px;
+        background: #03070bb8;
+        TouchArea { }
+        Rectangle {
+            width: 870px; height: ControllerState.help-page == 1 ? 540px : 310px;
+            background: #20232b; border-radius: 4px;
+            Text {
+                x: 32px; y: 24px; width: parent.width - 64px;
+                text: ControllerState.help-title; color: #ffffff; font-size: 30px;
+                font-family: GStyle.loc-font;
+            }
+            Text {
+                x: 32px; y: 84px; width: parent.width - 64px;
+                text: ControllerState.help-text; color: #dcdedf; font-size: 21px;
+                font-family: GStyle.loc-font; wrap: word-wrap;
+            }
+            if ControllerState.help-page == 1: Image {
+                x: 32px; y: 240px; width: parent.width - 64px; height: 275px;
+                source: ControllerState.help-image; image-fit: contain;
+            }
+        }
+    }
+}

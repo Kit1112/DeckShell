@@ -1,0 +1,149 @@
+// /routes/library/app/<id> - hero (shared Backdrop) + logo + play bar + plugin elements + tab pills + tab content.
+// All geometry/colours/type of the bar, logo, HLTB, badge and tabs are GENERATED from the Steam dumps (ui/generated/game/game.slint,
+// tools/compile-ui/game.mjs); this file only composes them (page scroll, tab content, context menu) and carries the parity metadata.
+import { PositionedLogo } from "../widgets/logo_layout.slint";
+import { HeroFrame } from "../widgets/hero_img.slint";
+import { Tokens } from "../tokens.slint";
+import { Shell } from "../shell.slint";
+import { DS } from "../widgets/meta.slint";
+import { GGameBar, GGameLogo, GGameHltb, GGameBadge, GGameTabs, GGameGeo, GHltbRow } from "../generated/game/game.slint";
+import { GStyle } from "../generated/style.slint";
+
+export struct GRow { kind: int, a: string, b: string, token: string, }   // kind: 0 section header, 1 sub-label, 2 key/value, 3 button
+
+export global GameState {
+    in property <string> name;
+    in property <image> logo;
+    in property <bool> logo-has;
+    in property <HeroFrame> logo-layout: { zoom: 1, pan-x: -1, pan-y: 0.7 };
+    in property <image> capsule;
+    in property <bool> capsule-has;
+    in property <string> primary;   // Играть / Установить / Обновить / Возобновить (loc GameAction_*)
+    in property <bool> playable;    // green play button vs blue install/update
+    in property <string> k1; in property <string> v1;
+    in property <string> k2; in property <string> v2;
+    in property <string> k3; in property <string> v3;
+    in property <int> focus;        // bar: 0 primary, 1 controller, 2 gear (valid while zone == 0)
+    in property <int> zone;         // 0 bar, 1 tab pills (page scrolled), 2 tab content
+    in property <int> tab;          // 0 activity, 1 yours, 2 community, 3 about
+    in property <[string]> tabs;
+    in property <[string]> tab-tokens;
+    in property <[GRow]> rows;
+    in property <int> crow;         // focused content row (zone 2)
+    in property <length> crow-y;    // y of the focused row inside the content (Rust, same row heights as below)
+    in property <[GHltbRow]> hltb;
+    in property <string> badge;
+    in property <bool> menu-open;
+    in property <[string]> menu-items;
+    in property <[bool]> menu-sub;     // row opens a submenu (chevron)
+    in property <[bool]> menu-dis;     // row disabled
+    in property <bool> menu-wide;
+    in property <string> menu-title;   // game name / submenu label
+    in property <int> menu-idx;
+    callback button(int);
+    callback tab-clicked(int);
+    callback row-clicked(int);
+    callback menu-clicked(int);
+    callback scroll-top();
+    callback badge-clicked();
+}
+
+component Row inherits Rectangle {
+    in property <GRow> r;
+    in property <bool> focused;
+    callback clicked();
+    height: r.kind == 0 ? 46px : r.kind == 1 ? 30px : r.kind == 2 ? 34px : 52px;
+    if r.kind == 0: Text { x: 0px; y: 0px; height: 38px; text: r.a; color: GGameGeo.section-text; font-family: GStyle.loc-font; font-size: GGameGeo.section-size; font-weight: 500; vertical-alignment: center; }
+    if r.kind == 1: Text { x: 0px; height: parent.height; text: r.a; color: GGameGeo.sub-text; font-family: GStyle.loc-font; font-size: GGameGeo.sub-size; font-weight: 500; vertical-alignment: center; }
+    if r.kind == 2: Rectangle {
+        Text { x: 0px; height: parent.height; text: r.a; color: GGameGeo.sub-text; font-family: GStyle.loc-font; font-size: 16.8px; font-weight: 500; vertical-alignment: center; }
+        Text { x: 260px; width: parent.width - 260px; height: parent.height; text: r.b; color: #dcdedf; font-family: GStyle.loc-font; font-size: 16.8px; font-weight: 500; vertical-alignment: center; overflow: elide; }
+    }
+    if r.kind == 3: Rectangle {
+        y: 4px; height: parent.height - 8px; border-radius: 2.4px;
+        background: root.focused ? #dcdedf : GGameGeo.card-bg;
+        animate background { duration: 120ms; }
+        accessible-role: button; accessible-label: r.a; accessible-description: "button|" + r.token + "|A,FOCUS,touch,mouse";
+        Text { x: 19px; height: parent.height; text: r.a; color: root.focused ? #23262e : #ffffff; font-family: GStyle.loc-font; font-size: 16.8px; font-weight: 500; vertical-alignment: center; }
+        TouchArea { clicked => { root.clicked(); } }
+    }
+}
+
+export component GameScreen inherits Rectangle {
+    // Page behaviour (route fade) re-implemented here: this route's row/scroll-region nodes sit at the tab strip (y 627 css), not full screen
+    in property <bool> shown: Shell.page == 2;
+    opacity: 0;
+    visible: self.opacity > 0.01;
+    states [
+        on when root.shown: {
+            opacity: 1;
+            in { animate opacity { duration: Tokens.dur-page-in; delay: Tokens.dur-page-in-delay; easing: Tokens.ease-in-page; } }
+            out { animate opacity { duration: Tokens.dur-page-out; easing: Tokens.ease-out-page; } }
+        }
+    ]
+    Rectangle { x: 0px; y: 0px; width: parent.width; height: parent.height; accessible-role: button; accessible-description: "button||" + DS.page-root; }
+    // row||0 / scroll-region||0: the tab strip + content column (Steam: 1068 x 628 css from y 627)
+    Rectangle { y: GGameGeo.tabs-y - root.off; width: root.width; height: 753.6px; accessible-role: groupbox; accessible-description: "row||B,L1,R1,FOCUS,BLUR"; }
+    Rectangle { y: GGameGeo.tabs-y - root.off; width: root.width; height: 753.6px; accessible-role: list; accessible-description: "scroll-region||DPAD_UP,scroll,touch,mouse"; }
+    property <bool> scrolled: GameState.zone > 0;
+    property <length> off: scrolled ? GGameGeo.scroll : 0px;
+    animate off { duration: 300ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
+    // hero image node of the Steam tree (long-press = context menu)
+    Rectangle { x: 0px; y: 0px - root.off; width: root.width; height: GGameGeo.bar-y; accessible-role: image; accessible-description: "image||long_press"; }
+    // page background below the hero + tab content
+    Rectangle { y: GGameGeo.tabs-y - root.off; height: root.height - self.y; background: GGameGeo.page-bg; }
+    // logo + plugin elements ride the page
+    Rectangle { y: 0px - root.off; height: root.height; width: root.width;
+        if GameState.logo-has: PositionedLogo { width: parent.width; height: parent.width * (633 / 1280); src: GameState.logo; layout: GameState.logo-layout; }
+        if !GameState.logo-has: GGameLogo { width: parent.width; height: parent.height; source: GameState.logo; has-art: false; name: GameState.name; }
+        GGameHltb { page-w: root.width; rows: GameState.hltb; meta: "list|hltb|"; }
+        GGameBadge { page-w: root.width; text: GameState.badge; meta: "button||A,touch,mouse"; clicked => { GameState.badge-clicked(); } }
+        GGameBar { y: 0px; width: parent.width; height: parent.height;
+            primary: GameState.primary; playable: GameState.playable; fidx: GameState.zone == 0 && !GameState.menu-open ? GameState.focus : -1;
+            k1: GameState.k1; v1: GameState.v1; k2: GameState.k2; v2: GameState.v2; k3: GameState.k3; v3: GameState.v3;
+            meta-button: "button|#sale_playnow|A,FOCUS,touch,mouse"; meta-ctrl: "button|#appoverlay_controllersettings|A,FOCUS,touch,mouse"; meta-gear: "button|#button_manage|A,FOCUS,touch,mouse";
+            clicked(i) => { GameState.button(i); } }
+    }
+    // tab row (pills) at its page position; sticky under the top bar once scrolled
+    GGameTabs { x: 0px; y: GGameGeo.tabs-y - root.off; width: root.width; labels: GameState.tabs; tokens: GameState.tab-tokens; selected: GameState.tab; focused: GameState.zone == 1;
+        meta-row: "row||L1,R1,DPAD_LEFT,DPAD_RIGHT,FOCUS,BLUR"; meta: "tab||A,L1,R1,FOCUS,BLUR,touch,mouse";
+        clicked(i) => { GameState.tab-clicked(i); } }
+    // top bar strip over the page background once scrolled (hero + bar are gone)
+    Rectangle { y: 0px; height: GGameGeo.top-bar-h; background: GGameGeo.page-bg; opacity: root.scrolled ? 1 : 0; visible: self.opacity > 0.01; animate opacity { duration: 300ms; } }
+    // Steam's footer (backdrop blur 100px) swallows the peeking pills; we have no backdrop blur, so cover the strip until the page scrolls
+    Rectangle { y: root.height - 50.2px; height: 50.2px; background: GGameGeo.page-bg; opacity: root.scrolled ? 0 : 1; visible: self.opacity > 0.01; animate opacity { duration: 300ms; } }
+    // tab content (touch-scrollable)
+    flick := Flickable {
+        x: 0px; y: GGameGeo.tabs-y - root.off + GGameGeo.tabs-h; width: root.width; height: root.height - self.y;
+        viewport-height: content.preferred-height + 120px;
+        accessible-role: list; accessible-label: "tab content"; accessible-description: "scroll-region||DPAD_UP,DPAD_DOWN,scroll,touch,mouse";
+        content := VerticalLayout { x: GGameGeo.pad-x + (cap.visible ? 196px : 0px); width: root.width - 2 * GGameGeo.pad-x - (cap.visible ? 196px : 0px); y: cap.visible ? 93.6px : 20px; alignment: start;
+            for r[i] in GameState.rows: Row { r: r; focused: GameState.zone == 2 && GameState.crow == i; clicked => { GameState.row-clicked(i); } }
+        }
+        cap := Image { visible: GameState.capsule-has && GameState.tab == 3; x: GGameGeo.pad-x; y: 93.6px; width: 172.8px; height: 258px; source: GameState.capsule; image-fit: cover;
+            accessible-role: image; accessible-description: "image||touch,mouse,long_press"; }
+    }
+    property <length> want-y: GameState.crow-y;
+    changed want-y => { flick.viewport-y = min(0px, max(flick.height - flick.viewport-height, 120px - root.want-y)); }
+    // "scroll to top" bar (generic_scrolltotop) while the page is scrolled
+    Rectangle { x: 0px; y: root.scrolled ? 760.2px : 796.8px; width: root.width; height: 40.8px;
+        animate y { duration: 300ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
+        accessible-role: button; accessible-label: "Прокрутить вверх"; accessible-description: "button|#generic_scrolltotop|touch,mouse";
+        Rectangle { x: (parent.width - self.width) / 2; y: 12px; width: 244px; height: 30px; border-radius: 4px; background: #145ddae6; opacity: root.scrolled ? 1 : 0;
+            Text { text: "Прокрутить вверх"; color: GGameGeo.link; font-family: GStyle.loc-font; font-size: 14.4px; horizontal-alignment: center; vertical-alignment: center; } }
+        TouchArea { enabled: root.scrolled; clicked => { GameState.scroll-top(); } }
+    }
+    // context menu (gear / START): BasicUIContextMenu 314x395 css centred, rows 48 css, bg #23262e, text #b8bcbf, focus = light row
+    if GameState.menu-open: Rectangle { y: GGameGeo.top-bar-h; height: root.height - self.y; background: #00000099;
+        TouchArea { clicked => { GameState.menu-clicked(-1); } }
+        Rectangle { width: GameState.menu-wide ? 470px : 377px; height: 57.6px + GameState.menu-items.length * 57.6px; x: (root.width - self.width) / 2; y: (parent.height - self.height) / 2; background: #23262e; clip: true;
+            TouchArea { }
+            Text { x: 17px; y: 0px; width: parent.width - 34px; height: 57.6px; text: GameState.menu-title; color: #ffffff; font-family: GStyle.loc-font; font-size: 19.2px; font-weight: 700; vertical-alignment: center; overflow: elide; }
+            for it[i] in GameState.menu-items: Rectangle { y: 57.6px + i * 57.6px; height: 57.6px; background: GameState.menu-idx == i && !GameState.menu-dis[i] ? #dcdedf : transparent;
+                accessible-role: button; accessible-label: it; accessible-description: "menu-item||A,B,DPAD_UP,DPAD_DOWN,FOCUS,touch,mouse";
+                Text { x: 17px; width: parent.width - 60px; text: it; color: GameState.menu-dis[i] ? #5d636b : GameState.menu-idx == i ? #23262e : #b8bcbf; font-family: GStyle.loc-font; font-size: 19.2px; vertical-alignment: center; overflow: elide; }
+                if GameState.menu-sub[i]: Text { x: parent.width - 36px; width: 24px; text: ">"; color: GameState.menu-idx == i ? #23262e : #b8bcbf; font-size: 19.2px; font-weight: 700; vertical-alignment: center; horizontal-alignment: center; }
+                TouchArea { enabled: !GameState.menu-dis[i]; clicked => { GameState.menu-clicked(i); } } }
+        }
+    }
+}

@@ -1,0 +1,149 @@
+import { ControllerShoulderHint } from "controller_picker.slint";
+// Layout chooser workbench. Card measurements derive from Steam sp.css;
+// surrounding dialog geometry remains provisional until Gaming Mode capture.
+import { GStyle } from "../generated/style.slint";
+
+export struct ControllerConfigCard {
+    y: length,
+    title: string,
+    author: string,
+    description: string,
+    title-font: string,
+    title-prefix: string,
+    title-prefix-font: string,
+    title-prefix-width: length,
+    author-font: string,
+    description-font: string,
+    status: string,
+    revision: string,
+    updated: string,
+    revision-glyph: image,
+    revision-glyph-focused: image,
+    updated-glyph: image,
+    updated-glyph-focused: image,
+    votes: string,
+    playtime: string,
+    playtime-number: string,
+    playtime-number-width: length,
+    status-glyph: image,
+    status-glyph-focused: image,
+    vote-glyph: image,
+    vote-glyph-focused: image,
+    time-glyph: image,
+    time-glyph-focused: image,
+    glyph: image,
+    focused-glyph: image,
+    description-height: length,
+    selected: bool,
+    recommended: bool,
+}
+
+export component ControllerConfigCardView inherits Rectangle {
+    in property <ControllerConfigCard> data;
+    in property <bool> focused;
+    callback clicked();
+    // Stock CSS: 24px body and 30px title lines. Natural em heights are
+    // 1.43 for Motiva and 1.1640625 for the explicit Cyrillic face.
+    property <bool> has-meta: data.status != "" || data.votes != "" || data.playtime != "" || data.revision != "" || data.updated != "";
+    property <length> meta-height: root.has-meta ? 30px : data.author != "" ? 24px : 0px;
+    height: 12px + meta-height + 34.5px + (data.description != "" ? (data.description-height > 0px ? data.description-height : 24px) : 0px) + 15px;
+    background: focused ? #ffffff : #23262e;
+    border-radius: 3px;
+    accessible-role: button;
+    accessible-label: data.title;
+    if data.selected || data.recommended: Rectangle {
+        x: 0px; y: 0px; height: parent.height; width: 3px; background: data.selected ? #1a9fff : #8b929a;
+    }
+    // Supplied as already prepared pixels to avoid runtime colorization.
+    Image { x: (data.selected || data.recommended) ? 39px : 36px; y: (parent.height - 36px) / 2; width: 36px; height: 36px; source: root.focused ? data.focused-glyph : data.glyph; image-fit: contain; }
+    if data.author != "": Text { x: (data.selected || data.recommended) ? 99px : 96px; y: 12px + (root.meta-height == 30px ? 6px : 0px); width: parent.width - 108px - (root.has-meta ? 470px : 0px); height: 24px;
+        text: data.author; color: root.focused ? #23262e : #b8bcbf;
+        font-size: 18px; font-family: data.author-font == "" ? GStyle.loc-font : data.author-font; line-height-factor: data.author-font == "Motiva Sans" ? 0.93240093 : 1.14541387; overflow: elide; }
+    if root.has-meta: HorizontalLayout { x: parent.width - 611px; y: 12px; width: 600px; height: 30px; alignment: end; spacing: 0px;
+        if data.revision != "": Image { width: 27px; height: 27px; source: root.focused ? data.revision-glyph-focused : data.revision-glyph; image-fit: contain; }
+        if data.revision != "": Text { max-width: 300px; overflow: elide; text: data.revision; color: root.focused ? #23262e : #8b929a; font-size: 15px; vertical-alignment: center; font-family: GStyle.loc-font; }
+        if data.revision != "" && data.status != "": Rectangle { width: 30px; }
+        if data.status-glyph.width > 0: Image { width: 27px; height: 27px; source: root.focused ? data.status-glyph-focused : data.status-glyph; image-fit: contain; }
+        if data.status-glyph.width > 0: Rectangle { width: 6px; }
+        if data.status != "": Text { max-width: 150px; overflow: elide; text: data.status; color: root.focused ? #23262e : #8b929a; font-size: 15px; letter-spacing: 0.75px; vertical-alignment: center; font-family: GStyle.loc-font; }
+        if data.status != "" && (data.votes != "" || data.playtime != ""): Rectangle { width: 30px; }
+        if data.votes != "" && data.vote-glyph.width > 0: Image { width: 27px; height: 27px; source: root.focused ? data.vote-glyph-focused : data.vote-glyph; image-fit: contain; }
+        if data.votes != "" && data.vote-glyph.width > 0: Rectangle { width: 6px; }
+        if data.votes != "": Text { max-width: 60px; overflow: elide; text: data.votes; color: root.focused ? #23262e : #8b929a; font-size: 15px; letter-spacing: 0.75px; vertical-alignment: center; font-family: "Motiva Sans"; }
+        if data.votes != "" && data.playtime != "": Rectangle { width: 30px; }
+        if data.time-glyph.width > 0: Image { width: 27px; height: 27px; source: root.focused ? data.time-glyph-focused : data.time-glyph; image-fit: contain; }
+        if data.time-glyph.width > 0: Rectangle { width: 6px; }
+        if data.playtime-number != "": Text { width: data.playtime-number-width; text: data.playtime-number; color: root.focused ? #23262e : #8b929a; font-size: 15px; letter-spacing: 0.75px; vertical-alignment: center; font-family: "Motiva Sans"; }
+        if data.playtime != "": Text { max-width: 170px; overflow: elide; text: data.playtime-number == "" ? data.playtime : "Ч. СЫГРАНО"; color: root.focused ? #23262e : #8b929a; font-size: 15px; letter-spacing: 0.75px; vertical-alignment: center; font-family: GStyle.loc-font; }
+        if data.updated != "" && data.status != "": Rectangle { width: 30px; }
+        if data.updated != "": Image { width: 27px; height: 27px; source: root.focused ? data.updated-glyph-focused : data.updated-glyph; image-fit: contain; }
+        if data.updated != "": Rectangle { width: 6px; }
+        if data.updated != "": Text { max-width: 260px; overflow: elide; text: data.updated; color: root.focused ? #23262e : #8b929a; font-size: 15px; letter-spacing: 0.75px; vertical-alignment: center; font-family: GStyle.loc-font; }
+    }
+    if data.title-prefix != "": Text { x: (data.selected || data.recommended) ? 99px : 96px; y: 12px + root.meta-height; width: data.title-prefix-width; height: 30px;
+        text: data.title-prefix; color: root.focused ? #000000 : #ffffff; font-size: 24px;
+        font-family: data.title-prefix-font; line-height-factor: data.title-prefix-font == "Motiva Sans" ? 0.87412587 : 1.0738255; }
+    Text { x: ((data.selected || data.recommended) ? 99px : 96px) + data.title-prefix-width; y: 12px + root.meta-height; width: parent.width - 108px - data.title-prefix-width; height: 30px;
+        text: data.title; color: root.focused ? #000000 : #ffffff;
+        font-size: 24px; font-family: data.title-font == "" ? GStyle.loc-font : data.title-font; line-height-factor: data.title-font == "Motiva Sans" ? 0.87412587 : 1.0738255; overflow: elide; }
+    if data.description != "": Text { x: (data.selected || data.recommended) ? 99px : 96px; y: 46.5px + root.meta-height; width: parent.width - (data.selected || data.recommended ? 111px : 108px); height: data.description-height > 0px ? data.description-height : 24px;
+        text: data.description; color: root.focused ? #23262e : #b8bcbf;
+        font-size: 18px; font-family: data.description-font == "" ? GStyle.loc-font : data.description-font; line-height-factor: data.description-font == "Motiva Sans" ? 0.93240093 : 1.14541387; wrap: word-wrap; overflow: elide; }
+    TouchArea { clicked => { root.clicked(); } }
+}
+
+// Modal shell from Gaming Mode chooser. Tab/card models and scroll are owned
+// by Rust; load-state distinguishes loading, empty and request failure.
+export struct ControllerBrowserTab { label: string, x: length, w: length, glyph: image, focused-glyph: image, }
+export component ControllerBrowserView inherits Rectangle {
+    in property <[ControllerBrowserTab]> tabs;
+    in property <[ControllerConfigCard]> cards;
+    in property <int> active-tab;
+    in property <int> focused-card: -1;
+    in property <bool> tab-focused;
+    in property <bool> search-visible;
+    in property <bool> search-focused;
+    in property <string> query;
+    in property <int> load-state; // 0 loading, 1 ready, 2 error
+    in property <string> title;
+    in property <string> subtitle;
+    in property <string> message;
+    in property <length> content-height;
+    in-out property <length> scroll-y;
+    callback tab-clicked(int);
+    callback card-clicked(int);
+    callback search-clicked();
+    in property <bool> download-visible;
+    in property <bool> download-ready;
+    callback download-clicked();
+    background: #0e141b;
+    ControllerShoulderHint { x: 36px; y: 19px; }
+    ControllerShoulderHint { x: 1197px; y: 19px; right: true; }
+    for tab[i] in root.tabs: Rectangle { x: tab.x; y: 18px; width: tab.w; height: 51px; border-radius: 26px;
+        background: root.active-tab == i ? (root.tab-focused ? #ffffff : #2b3036) : transparent;
+        accessible-role: button; accessible-label: tab.label;
+        Image { x: 24px; y: 7.5px; width: 36px; height: 36px; source: root.active-tab == i && root.tab-focused ? tab.focused-glyph : tab.glyph; image-fit: contain; }
+        Text { x: tab.glyph.width > 0 ? 72px : 24px; y: 0px; width: parent.width - self.x - 24px; height: parent.height; text: tab.label; color: root.active-tab == i && root.tab-focused ? #17191f : #dcdedf; font-size: 18px; letter-spacing: 0.75px; font-weight: 700; horizontal-alignment: left; vertical-alignment: center; overflow: elide; font-family: GStyle.loc-font; }
+        TouchArea { clicked => { root.tab-clicked(i); } }
+    }
+    Flickable { x: (parent.width - 846px) / 2; y: 100px; width: 846px; height: parent.height - 100px; viewport-height: root.content-height; viewport-y <=> root.scroll-y;
+        if !root.search-visible: Text { x: 0px; y: 3px; width: parent.width; height: 37px; text: root.title; overflow: elide; color: #ffffff; font-size: 24px; font-family: GStyle.loc-font; }
+        if !root.search-visible && root.subtitle != "": Text { x: 0px; y: 47px; width: parent.width; height: 24px; text: root.subtitle; color: #b8bcbf; font-size: 18px; font-family: GStyle.loc-font; }
+        if root.load-state != 1 || root.cards.length == 0: Text { x: 0px; y: root.search-visible ? 101px : 46px; width: parent.width; height: 72px; text: root.message; color: #b8bcbf; font-size: 18px; wrap: word-wrap; font-family: GStyle.loc-font; }
+        if root.load-state == 1: Rectangle { x: 0px; y: 0px; width: parent.width; height: root.content-height;
+            for card[i] in root.cards: ControllerConfigCardView { x: 0px; y: card.y; width: parent.width; data: card; focused: root.focused-card == i; clicked => { root.card-clicked(i); } }
+        }
+        if root.search-visible: Rectangle { x: 0px; y: 5px; width: parent.width; height: 60px; background: root.search-focused ? #ffffff : #20252b;
+            accessible-role: button; accessible-label: "Поиск";
+            Text { x: 24px; y: 0px; width: parent.width - 48px; height: parent.height; text: root.query == "" ? "Поиск" : root.query; color: root.search-focused ? #687482 : #dcdedf; font-size: 24px; font-italic: root.query == ""; vertical-alignment: center; overflow: elide; font-family: GStyle.loc-font; }
+            TouchArea { clicked => { root.search-clicked(); } }
+        }
+    }
+    if root.download-visible: Rectangle { x: parent.width - 42px; y: parent.height - 41px; width: 36px; height: 36px;
+        border-radius: 18px; background: #000000; opacity: root.download-ready ? 1 : 0.65;
+        accessible-role: button; accessible-enabled: root.download-ready; accessible-label: "Загрузить раскладку";
+        Image { x: 8px; y: 8px; width: 20px; height: 20px; source: @image-url("../assets/controller/download.svg"); }
+        TouchArea { enabled: root.download-ready; clicked => { root.download-clicked(); } }
+    }
+
+}

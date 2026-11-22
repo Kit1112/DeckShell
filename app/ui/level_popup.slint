@@ -1,0 +1,14 @@
+// A passive gamescope EXTERNAL_OVERLAY; never a STEAM_OVERLAY/input surface.
+import { LevelBar } from "widgets/level_bar.slint";
+export component LevelPopupWindow inherits Window {
+    title: "DeckShell Level";
+    no-frame: true;
+    background: transparent;
+    width: 1280px;
+    height: 800px;
+    in property <int> kind;
+    in property <float> value;
+    in property <image> glyph;
+    in property <bool> shown;
+    LevelBar { kind: root.kind; value: root.value; icon: root.glyph; shown: root.shown; }
+}

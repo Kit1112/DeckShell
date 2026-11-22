@@ -1,0 +1,47 @@
+// Command picker surface. Geometry comes from the Gaming Mode keyboard tab;
+// item positions and labels must come from the active command model.
+import { GStyle } from "../generated/style.slint";
+import { Icons } from "../widgets/icon.slint";
+export struct ControllerPickerKey { label: string, x: length, y: length, w: length, h: length, center: bool, bottom: bool, glyph: image, focused-glyph: image, glyph-only: bool, }
+export component ControllerShoulderHint inherits Image {
+    in property <bool> right;
+    width: 48px; height: 48px;
+    source: root.right ? @image-url("../../assets/hotkeys/sd_r1.svg") : @image-url("../../assets/hotkeys/sd_l1.svg");
+    image-fit: contain;
+}
+
+export component ControllerPickerView inherits Rectangle {
+    in property <[string]> tabs;
+    in property <[ControllerPickerKey]> keys;
+    in property <int> active-tab;
+    in property <int> focus-key;
+    in property <string> title;
+    in property <string> status;
+    callback key-clicked(int);
+    callback tab-clicked(int);
+    background: #0e141b;
+    Rectangle { x: 0px; y: 0px; width: parent.width; height: 88px; background: #050708;
+        for tab[i] in root.tabs: Rectangle { x: 95px + i * ((root.width - 190px) / root.tabs.length); y: 18px; width: (root.width - 190px) / root.tabs.length - 5px; height: 50px; border-radius: 25px;
+            background: root.active-tab == i ? #25272b : transparent;
+            TouchArea { clicked => { root.tab-clicked(i); } }
+            Text { x: 0px; y: 0px; width: parent.width; height: parent.height; text: tab; color: #dcdedf; font-size: 16px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; wrap: word-wrap; overflow: elide; font-family: GStyle.loc-font; }
+        }
+    }
+    ControllerShoulderHint { x: 36px; y: 19px; }
+    ControllerShoulderHint { x: 1197px; y: 19px; right: true; }
+    Text { x: 0px; y: 78px; width: parent.width; height: 55px; text: root.title; color: #ffffff; font-size: 27px; horizontal-alignment: center; vertical-alignment: center; overflow: elide; font-family: GStyle.loc-font; }
+    Text { x: 30px; y: parent.height - 25px; width: parent.width - 60px; height: 25px; text: root.status; color: #9fc9e5; font-size: 17px; overflow: elide; }
+    if root.active-tab == 0: Image {
+        x: (root.width - self.width) / 2; y: 227px; width: 450px; height: 293px;
+        source: Icons.tinted(@image-url("../assets/controller/GenericGamepad.svg"), #89929b);
+        image-fit: contain;
+    }
+    for key[i] in root.keys: Rectangle { x: key.x; y: key.y; width: key.w; height: key.h; border-radius: 3px;
+        accessible-role: button; accessible-label: key.label;
+        background: root.focus-key == i ? #ffffff : #38414d;
+        border-width: root.focus-key == i ? 3px : 0px; border-color: #9cb7ca;
+        Image { x: key.glyph-only ? (parent.width - self.width)/2 : 8px; y: (parent.height - self.height) / 2; width: key.glyph-only ? Math.min(40px, parent.width - 8px) : 30px; height: self.width; source: root.focus-key == i ? key.focused-glyph : key.glyph; image-fit: contain; }
+        Text { visible: !key.glyph-only; x: key.glyph.width > 0 ? 40px : 8px; y: 0px; width: parent.width - self.x - 6px; height: parent.height - (key.bottom ? 8px : 0px); text: key.label; color: root.focus-key == i ? #101820 : #ffffff; font-size: key.glyph.width > 0 ? 16px : 20px; horizontal-alignment: key.center ? center : left; vertical-alignment: key.bottom ? bottom : center; wrap: word-wrap; overflow: elide; font-family: GStyle.loc-font; }
+        TouchArea { clicked => { root.key-clicked(i); } }
+    }
+}

@@ -1,0 +1,50 @@
+// /routes/search - search page: tab pills (ВСЁ / БИБЛИОТЕКА / ...) + results grid of 192x140 css cards (image 192x90 + "В БИБЛИОТЕКЕ" caption),
+// OSK docked at the bottom. Rows come from src/screens/search.rs (generated/search/page.json geometry); the query field is the top bar's.
+import { Tokens } from "../tokens.slint";
+import { Shell } from "../shell.slint";
+import { GPageRow, GPageRows } from "../generated/settings/rows.slint";
+import { Osk } from "osk.slint";
+
+export global SearchState {
+    in property <string> no-results;      // loc Search_NoResults
+    in property <bool> pending;
+    in property <int> first;
+    in property <int> model-generation;
+    in property <int> result-count;
+    in property <[GPageRow]> rows;
+    in property <int> rfocus: -1;
+    in-out property <length> vy;
+    in property <length> content-h: 700px;
+    callback scrolled();
+    callback activated(int);
+    callback osk-dismiss();
+}
+
+// Клавиатура — общий слой поверх всех страниц (открывается любым полем ввода): состояние в OskState (osk.slint).
+export component SearchOsk inherits Rectangle {
+    Osk { x: 0px; width: root.width; win-h: root.height; }
+}
+
+export component SearchScreen inherits Rectangle {
+    property <bool> shown: Shell.page == 6;
+    visible: root.shown;
+    // opaque page over the (hidden-behind) library grid: Steam's search page has its own dark gradient background
+    Rectangle { y: 0px; width: root.width; height: root.height; background: @linear-gradient(180deg, #0b1219 0%, #0e141b 100%); }
+    Rectangle { x: 0px; y: 0px; width: root.width; height: root.height; accessible-role: button; accessible-description: "button||B,DPAD_LEFT,touch,mouse";
+        // tap on the empty page hides the keyboard (Steam: SetVirtualKeyboardHidden); cards above still take their own taps
+        TouchArea { clicked => { SearchState.osk-dismiss(); } } }
+    Rectangle { x: 0px; y: 47.94px; width: root.width; height: 578px * 1.1985; clip: true;
+        Flickable {
+            width: parent.width; height: parent.height; content-width: parent.width; content-height: SearchState.content-h; content-y <=> SearchState.vy;
+            property <int> first-row: max(0, floor((-self.content-y / (1px * 1.1985) + 40 - 98) / 140));
+            changed first-row => { if (root.shown) { SearchState.scrolled(); } }
+            TouchArea { y: -47.94px; width: parent.width; height: max(SearchState.content-h, parent.height + 48px); clicked => { SearchState.osk-dismiss(); } }
+            GPageRows { x: 0px; y: -47.94px; width: parent.width; height: SearchState.content-h; rows: SearchState.rows; sel: SearchState.rfocus; active: root.shown;
+                activated(i) => { SearchState.activated(i); } }
+        }
+    }
+    // empty-state message (zero hits for a non-empty query)
+    if root.shown && !SearchState.pending && SearchState.result-count == 0: Text {
+        y: 260px; width: root.width; horizontal-alignment: center; text: SearchState.no-results; color: Tokens.text-dim; font-size: 20px;
+    }
+}

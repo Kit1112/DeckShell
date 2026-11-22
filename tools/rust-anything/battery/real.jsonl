@@ -1,0 +1,188 @@
+{"fn": "confidenceOnBatteryUpdate", "args": [0, 0, 2]}
+{"fn": "confidenceOnBatteryUpdate", "args": [0, 0, 0]}
+{"fn": "confidenceOnBatteryUpdate", "args": [0, 0, 1]}
+{"fn": "confidenceOnBatteryUpdate", "args": [0, 1, 2]}
+{"fn": "confidenceOnBatteryUpdate", "args": [0, 1, 0]}
+{"fn": "confidenceOnBatteryUpdate", "args": [0, 1, 1]}
+{"fn": "confidenceOnBatteryUpdate", "args": [0, 2, 2]}
+{"fn": "confidenceOnBatteryUpdate", "args": [0, 2, 0]}
+{"fn": "confidenceOnBatteryUpdate", "args": [0, 2, 1]}
+{"fn": "confidenceOnBatteryUpdate", "args": [0, 3, 2]}
+{"fn": "confidenceOnBatteryUpdate", "args": [0, 3, 0]}
+{"fn": "confidenceOnBatteryUpdate", "args": [0, 3, 1]}
+{"fn": "sayFullAction", "args": [0, 3]}
+{"fn": "sayFullAction", "args": [3, 0]}
+{"fn": "confidenceOnBatteryUpdate", "args": [1, 0, 2]}
+{"fn": "confidenceOnBatteryUpdate", "args": [1, 0, 0]}
+{"fn": "confidenceOnBatteryUpdate", "args": [1, 0, 1]}
+{"fn": "confidenceOnBatteryUpdate", "args": [1, 1, 2]}
+{"fn": "confidenceOnBatteryUpdate", "args": [1, 1, 0]}
+{"fn": "confidenceOnBatteryUpdate", "args": [1, 1, 1]}
+{"fn": "confidenceOnBatteryUpdate", "args": [1, 2, 2]}
+{"fn": "confidenceOnBatteryUpdate", "args": [1, 2, 0]}
+{"fn": "confidenceOnBatteryUpdate", "args": [1, 2, 1]}
+{"fn": "confidenceOnBatteryUpdate", "args": [1, 3, 2]}
+{"fn": "confidenceOnBatteryUpdate", "args": [1, 3, 0]}
+{"fn": "confidenceOnBatteryUpdate", "args": [1, 3, 1]}
+{"fn": "sayFullAction", "args": [1, 3]}
+{"fn": "sayFullAction", "args": [3, 1]}
+{"fn": "confidenceOnBatteryUpdate", "args": [2, 0, 2]}
+{"fn": "confidenceOnBatteryUpdate", "args": [2, 0, 0]}
+{"fn": "confidenceOnBatteryUpdate", "args": [2, 0, 1]}
+{"fn": "confidenceOnBatteryUpdate", "args": [2, 1, 2]}
+{"fn": "confidenceOnBatteryUpdate", "args": [2, 1, 0]}
+{"fn": "confidenceOnBatteryUpdate", "args": [2, 1, 1]}
+{"fn": "confidenceOnBatteryUpdate", "args": [2, 2, 2]}
+{"fn": "confidenceOnBatteryUpdate", "args": [2, 2, 0]}
+{"fn": "confidenceOnBatteryUpdate", "args": [2, 2, 1]}
+{"fn": "confidenceOnBatteryUpdate", "args": [2, 3, 2]}
+{"fn": "confidenceOnBatteryUpdate", "args": [2, 3, 0]}
+{"fn": "confidenceOnBatteryUpdate", "args": [2, 3, 1]}
+{"fn": "sayFullAction", "args": [2, 3]}
+{"fn": "sayFullAction", "args": [3, 2]}
+{"fn": "confidenceOnBatteryUpdate", "args": [3, 0, 2]}
+{"fn": "confidenceOnBatteryUpdate", "args": [3, 0, 0]}
+{"fn": "confidenceOnBatteryUpdate", "args": [3, 0, 1]}
+{"fn": "confidenceOnBatteryUpdate", "args": [3, 1, 2]}
+{"fn": "confidenceOnBatteryUpdate", "args": [3, 1, 0]}
+{"fn": "confidenceOnBatteryUpdate", "args": [3, 1, 1]}
+{"fn": "confidenceOnBatteryUpdate", "args": [3, 2, 2]}
+{"fn": "confidenceOnBatteryUpdate", "args": [3, 2, 0]}
+{"fn": "confidenceOnBatteryUpdate", "args": [3, 2, 1]}
+{"fn": "confidenceOnBatteryUpdate", "args": [3, 3, 2]}
+{"fn": "confidenceOnBatteryUpdate", "args": [3, 3, 0]}
+{"fn": "confidenceOnBatteryUpdate", "args": [3, 3, 1]}
+{"fn": "sayFullAction", "args": [3, 3]}
+{"fn": "sayFullAction", "args": [3, 3]}
+{"fn": "confidenceTimerDelayMs", "args": [0]}
+{"fn": "confidenceAfterTimer", "args": [0]}
+{"fn": "batteryTimeShown", "args": [0]}
+{"fn": "batteryTimeCaptionToken", "args": [0, 0]}
+{"fn": "batteryTimeCaptionToken", "args": [1, 0]}
+{"fn": "batteryTimeCaptionToken", "args": [2, 0]}
+{"fn": "batteryTimeCaptionToken", "args": [3, 0]}
+{"fn": "batteryTimeCaptionToken", "args": [4, 0]}
+{"fn": "confidenceTimerDelayMs", "args": [1]}
+{"fn": "confidenceAfterTimer", "args": [1]}
+{"fn": "batteryTimeShown", "args": [1]}
+{"fn": "batteryTimeCaptionToken", "args": [0, 1]}
+{"fn": "batteryTimeCaptionToken", "args": [1, 1]}
+{"fn": "batteryTimeCaptionToken", "args": [2, 1]}
+{"fn": "batteryTimeCaptionToken", "args": [3, 1]}
+{"fn": "batteryTimeCaptionToken", "args": [4, 1]}
+{"fn": "confidenceTimerDelayMs", "args": [2]}
+{"fn": "confidenceAfterTimer", "args": [2]}
+{"fn": "batteryTimeShown", "args": [2]}
+{"fn": "batteryTimeCaptionToken", "args": [0, 2]}
+{"fn": "batteryTimeCaptionToken", "args": [1, 2]}
+{"fn": "batteryTimeCaptionToken", "args": [2, 2]}
+{"fn": "batteryTimeCaptionToken", "args": [3, 2]}
+{"fn": "batteryTimeCaptionToken", "args": [4, 2]}
+{"fn": "batteryTimeParts", "args": [0]}
+{"fn": "batteryTimeParts", "args": [1]}
+{"fn": "batteryTimeParts", "args": [59]}
+{"fn": "batteryTimeParts", "args": [60]}
+{"fn": "batteryTimeParts", "args": [3599]}
+{"fn": "batteryTimeParts", "args": [3600]}
+{"fn": "batteryTimeParts", "args": [3661]}
+{"fn": "batteryTimeParts", "args": [7384]}
+{"fn": "batteryTimeParts", "args": [12345.9]}
+{"fn": "batteryTimeParts", "args": [28800]}
+{"fn": "batteryTimeParts", "args": [86399]}
+{"fn": "batteryTimeParts", "args": [-1]}
+{"fn": "batteryTimeParts", "args": [-0.5]}
+{"fn": "batteryTimeParts", "args": [0.4]}
+{"fn": "batteryPercentText", "args": [0]}
+{"fn": "batteryPercentText", "args": [0.004]}
+{"fn": "batteryPercentText", "args": [0.005]}
+{"fn": "batteryPercentText", "args": [0.2]}
+{"fn": "batteryPercentText", "args": [0.335]}
+{"fn": "batteryPercentText", "args": [0.5]}
+{"fn": "batteryPercentText", "args": [0.994]}
+{"fn": "batteryPercentText", "args": [0.995]}
+{"fn": "batteryPercentText", "args": [0.999]}
+{"fn": "batteryPercentText", "args": [1]}
+{"fn": "batteryPercentText", "args": [1.0]}
+{"fn": "batteryPercentText", "args": [1.2]}
+{"fn": "batteryPercentText", "args": [-0.1]}
+{"fn": "batteryPercentText", "args": [0.07]}
+{"fn": "showHeaderPercent", "args": [true, true, 0, true, true]}
+{"fn": "showHeaderPercent", "args": [true, true, 0, true, false]}
+{"fn": "showHeaderPercent", "args": [true, true, 0, false, true]}
+{"fn": "showHeaderPercent", "args": [true, true, 0, false, false]}
+{"fn": "showHeaderPercent", "args": [true, true, 1, true, true]}
+{"fn": "showHeaderPercent", "args": [true, true, 1, true, false]}
+{"fn": "showHeaderPercent", "args": [true, true, 1, false, true]}
+{"fn": "showHeaderPercent", "args": [true, true, 1, false, false]}
+{"fn": "showHeaderPercent", "args": [true, true, 2, true, true]}
+{"fn": "showHeaderPercent", "args": [true, true, 2, true, false]}
+{"fn": "showHeaderPercent", "args": [true, true, 2, false, true]}
+{"fn": "showHeaderPercent", "args": [true, true, 2, false, false]}
+{"fn": "showHeaderPercent", "args": [true, true, 3, true, true]}
+{"fn": "showHeaderPercent", "args": [true, true, 3, true, false]}
+{"fn": "showHeaderPercent", "args": [true, true, 3, false, true]}
+{"fn": "showHeaderPercent", "args": [true, true, 3, false, false]}
+{"fn": "showHeaderPercent", "args": [true, false, 0, true, true]}
+{"fn": "showHeaderPercent", "args": [true, false, 0, true, false]}
+{"fn": "showHeaderPercent", "args": [true, false, 0, false, true]}
+{"fn": "showHeaderPercent", "args": [true, false, 0, false, false]}
+{"fn": "showHeaderPercent", "args": [true, false, 1, true, true]}
+{"fn": "showHeaderPercent", "args": [true, false, 1, true, false]}
+{"fn": "showHeaderPercent", "args": [true, false, 1, false, true]}
+{"fn": "showHeaderPercent", "args": [true, false, 1, false, false]}
+{"fn": "showHeaderPercent", "args": [true, false, 2, true, true]}
+{"fn": "showHeaderPercent", "args": [true, false, 2, true, false]}
+{"fn": "showHeaderPercent", "args": [true, false, 2, false, true]}
+{"fn": "showHeaderPercent", "args": [true, false, 2, false, false]}
+{"fn": "showHeaderPercent", "args": [true, false, 3, true, true]}
+{"fn": "showHeaderPercent", "args": [true, false, 3, true, false]}
+{"fn": "showHeaderPercent", "args": [true, false, 3, false, true]}
+{"fn": "showHeaderPercent", "args": [true, false, 3, false, false]}
+{"fn": "showHeaderPercent", "args": [false, true, 0, true, true]}
+{"fn": "showHeaderPercent", "args": [false, true, 0, true, false]}
+{"fn": "showHeaderPercent", "args": [false, true, 0, false, true]}
+{"fn": "showHeaderPercent", "args": [false, true, 0, false, false]}
+{"fn": "showHeaderPercent", "args": [false, true, 1, true, true]}
+{"fn": "showHeaderPercent", "args": [false, true, 1, true, false]}
+{"fn": "showHeaderPercent", "args": [false, true, 1, false, true]}
+{"fn": "showHeaderPercent", "args": [false, true, 1, false, false]}
+{"fn": "showHeaderPercent", "args": [false, true, 2, true, true]}
+{"fn": "showHeaderPercent", "args": [false, true, 2, true, false]}
+{"fn": "showHeaderPercent", "args": [false, true, 2, false, true]}
+{"fn": "showHeaderPercent", "args": [false, true, 2, false, false]}
+{"fn": "showHeaderPercent", "args": [false, true, 3, true, true]}
+{"fn": "showHeaderPercent", "args": [false, true, 3, true, false]}
+{"fn": "showHeaderPercent", "args": [false, true, 3, false, true]}
+{"fn": "showHeaderPercent", "args": [false, true, 3, false, false]}
+{"fn": "showHeaderPercent", "args": [false, false, 0, true, true]}
+{"fn": "showHeaderPercent", "args": [false, false, 0, true, false]}
+{"fn": "showHeaderPercent", "args": [false, false, 0, false, true]}
+{"fn": "showHeaderPercent", "args": [false, false, 0, false, false]}
+{"fn": "showHeaderPercent", "args": [false, false, 1, true, true]}
+{"fn": "showHeaderPercent", "args": [false, false, 1, true, false]}
+{"fn": "showHeaderPercent", "args": [false, false, 1, false, true]}
+{"fn": "showHeaderPercent", "args": [false, false, 1, false, false]}
+{"fn": "showHeaderPercent", "args": [false, false, 2, true, true]}
+{"fn": "showHeaderPercent", "args": [false, false, 2, true, false]}
+{"fn": "showHeaderPercent", "args": [false, false, 2, false, true]}
+{"fn": "showHeaderPercent", "args": [false, false, 2, false, false]}
+{"fn": "showHeaderPercent", "args": [false, false, 3, true, true]}
+{"fn": "showHeaderPercent", "args": [false, false, 3, true, false]}
+{"fn": "showHeaderPercent", "args": [false, false, 3, false, true]}
+{"fn": "showHeaderPercent", "args": [false, false, 3, false, false]}
+{"fn": "batteryPrefShow", "args": ["{\"bShowBatteryPercentage\":true}"]}
+{"fn": "batteryPrefShow", "args": ["{\"bShowBatteryPercentage\":false}"]}
+{"fn": "batteryPrefShow", "args": ["{}"]}
+{"fn": "batteryPrefShow", "args": ["null"]}
+{"fn": "batteryPrefShow", "args": ["[]"]}
+{"fn": "batteryPrefShow", "args": ["\"x\""]}
+{"fn": "batteryPrefShow", "args": [""]}
+{"fn": "batteryPrefShow", "args": ["not json"]}
+{"fn": "batteryPrefShow", "args": ["{\"bShowBatteryPercentage\":1}"]}
+{"fn": "batteryPrefShow", "args": ["{\"bShowBatteryPercentage\":0}"]}
+{"fn": "batteryPrefShow", "args": ["{\"bShowBatteryPercentage\":\"yes\"}"]}
+{"fn": "batteryPrefShow", "args": ["{\"bShowBatteryPercentage\":null}"]}
+{"fn": "batteryPrefShow", "args": ["5"]}
+{"fn": "batteryPrefShow", "args": ["true"]}
+{"fn": "batteryPrefStored", "args": [true]}
+{"fn": "batteryPrefStored", "args": [false]}

@@ -1,0 +1,30 @@
+{
+ "unit": "device px (Gaming Mode CSS x 1.5), 1280x800",
+ "capture": "task168-stock-library, first card focused",
+ "elements": [
+  {
+   "comp": "library",
+   "name": "pill.tab",
+   "rect": [
+    562.26,
+    78,
+    156.45,
+    51
+   ],
+   "probe": "edge",
+   "thr": 20
+  },
+  {
+   "comp": "library",
+   "name": "tile0.art",
+   "rect": [
+    47.87,
+    165,
+    201,
+    301.5
+   ],
+   "probe": "edge",
+   "thr": 30
+  }
+ ]
+}

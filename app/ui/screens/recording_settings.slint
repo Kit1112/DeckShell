@@ -1,0 +1,136 @@
+import { GPageRow } from "../generated/settings/rows.slint";
+import { Tokens } from "../tokens.slint";
+import { Toggle } from "../widgets/toggle.slint";
+
+export global RecordingSettingsState {
+    in property <bool> open;
+    in property <[GPageRow]> options;
+    in property <int> focus;
+    in property <int> start;
+    in property <bool> power;        // power page: the stock popup beside the drop-down
+    in property <length> anchor-y;   // centre of the drop-down that opened it
+}
+
+// Same font sizes, colors and controls as the other settings pages. Recording
+// keeps complete labels/descriptions separate from values and radio hit areas.
+export component RecordingSettingsRows inherits Rectangle {
+    in property <[GPageRow]> rows;
+    in property <int> sel: -1;
+    in property <bool> active;
+    callback activated(int);
+    for r[i] in root.rows: Rectangle {
+        visible: r.kind != 0 && r.kind != 26;
+        x: r.x; y: r.y; width: r.w; height: r.h;
+        clip: r.kind != 2; // the stock toggle focus ring grows 2px outside the rail
+        property <bool> focused: root.active && root.sel == i;
+        property <bool> card: r.kind == 27 || r.kind == 29 || r.kind == 30; // stock power-page cards
+        property <bool> control: r.kind == 2 || r.kind == 4 || r.kind == 27 || r.kind == 29 || r.kind == 30 || r.role == "notice";
+        accessible-role: button;
+        accessible-label: r.label;
+        accessible-description: r.role + "|" + r.token + "|" + r.pad;
+        accessible-enabled: !self.control || r.on >= 0;
+        accessible-checkable: r.role == "radio" || r.role == "checkbox" || r.kind == 2;
+        accessible-checked: r.on == 1;
+        background: card ? (focused ? #373a41 : #23262d) : (focused && control && r.kind != 2 ? #ffffff : (control && r.kind == 4 ? #ffffff0b : transparent));
+        border-radius: card ? 2px : 3px;
+        if r.kind == 14: Text { text: r.label; width: parent.width; color: #ffffff; font-size: 19.2px; font-weight: 700; }
+        if r.kind == 1: Text { y: 0px; height: r.sub == "tight" ? 28px : 48px; vertical-alignment: top; text: r.label; width: parent.width; color: focused ? #0e141b : #dcdedf; font-size: 19.2px; wrap: word-wrap; }
+        if r.kind == 1 && r.desc != "": Text { y: r.sub == "tight" ? 28px : 52px; height: parent.height - (r.sub == "tight" ? 28px : 52px); vertical-alignment: top; text: r.desc; width: parent.width; color: focused ? #3d4450 : #8b929a; font-size: 16.8px; wrap: word-wrap; }
+        if r.kind == 4 && r.role == "radio": Rectangle {
+            Text { x: 14px; y: 10px; height: 26px; vertical-alignment: top; width: parent.width - 28px; text: r.label; color: focused ? #0e141b : #dcdedf; font-size: 19.2px; }
+            Text { x: 42px; y: 42px; height: parent.height - 42px; vertical-alignment: top; width: parent.width - 60px; text: r.desc; color: focused ? #3d4450 : #8b929a; font-size: 16.8px; wrap: word-wrap; }
+        }
+        if r.kind == 4 && r.role != "radio" && r.role != "checkbox": Rectangle {
+            Text { x: 12px; width: parent.width - 40px; height: parent.height; text: r.label; color: focused ? #0e141b : (r.on < 0 ? #8b929a : #dcdedf); font-size: 19.2px; vertical-alignment: center; overflow: elide; }
+            Text { x: parent.width - 25px; width: 18px; height: parent.height; text: r.on < 0 ? "" : "⌄"; color: focused ? #0e141b : #8b929a; vertical-alignment: center; }
+        }
+        if r.kind == 4 && r.role == "checkbox": Rectangle {
+            Text { x: 12px; width: parent.width - 90px; height: parent.height; text: r.label; color: focused ? #0e141b : #dcdedf; font-size: 19.2px; vertical-alignment: center; overflow: elide; }
+            Toggle { x: parent.width - 24px - Tokens.switch-w; y: (parent.height - Tokens.switch-h) / 2; on: r.on; focused: focused; }
+        }
+        // 31: section title of the power page (stock: regular 24px, not bold)
+        if r.kind == 31: Text { y: 0px; height: parent.height; vertical-alignment: center; text: r.label; width: parent.width; color: #e9eaee; font-size: 24px; }
+        // vertical offsets below are measured against the stock captures (ink rows of label / value text)
+        // 29/30: `shift` = label with the line breaks of the Rust wrap estimate (DejaVu metrics), never re-wrapped here.
+        // 29: toggle card: label (+ wrapped description) left, switch right; `sub` = label line count; on < 0 = dimmed
+        if r.kind == 29: Rectangle {
+            Text { x: 18px; y: 18px + (r.sub == "1" ? (r.desc == "" ? 2.5px : 1px) : 0px); text: r.shift; color: focused ? #ffffff : (r.on < 0 ? #757c86 : #e6e9f0); font-size: 24px; line-height-factor: 1.0738255; wrap: no-wrap; }
+            if r.desc != "": Text { x: 18px; y: 18px + 30px * r.sub.to-float() + 6.5px + (r.sub == "1" ? 1px : 0px); text: r.desc; color: focused ? #e8ebf0 : (r.on < 0 ? #757c86 : #c4c7ce); font-size: 18px; line-height-factor: 1.12158; wrap: no-wrap; }
+            Toggle { x: parent.width - 24px - Tokens.switch-w; y: 17.5px; on: r.on; focused: focused; dim: r.on < 0; }
+        }
+        // 30: drop-down card: label left, 375x60 button right with the current value (`desc`) and a triangle
+        if r.kind == 30: Rectangle {
+            opacity: r.on < 0 ? 0.45 : 1;
+            Text { x: 18px; y: 1px; height: parent.height; vertical-alignment: center; text: r.shift; color: focused ? #ffffff : #e6e9f0; font-size: 24px; line-height-factor: 1.0738255; wrap: no-wrap; }
+            Rectangle {
+                x: parent.width - 18px - 375px; y: 18px; width: 375px; height: 60px; border-radius: 2px;
+                background: focused ? #ffffff : #43464d;
+                Text { x: 25px; y: 1.5px; width: parent.width - 80px; height: parent.height; vertical-alignment: center; text: r.desc; color: focused ? #0e141b : #e6e9f0; font-size: 24px; overflow: elide; }
+                Path { x: parent.width - 27px - 20px; y: 25px; width: 20px; height: 11px; commands: "M 0 0 L 20 0 L 10 11 Z"; fill: focused ? #23262d : #e1e2e6; }
+            }
+        }
+        // 27: inline slider card (power page): label + value left, track + knob right, fill in `sub` (0..100), default-value triangle in `shift`
+        if r.kind == 27: Rectangle {
+            property <float> frac: clamp(r.sub.to-float() / 100, 0, 1);
+            property <float> tick: clamp(r.shift.to-float() / 100, 0, 1);
+            property <length> track-x: parent.width - 18px - 375px;
+            lbl := Text { x: 18px; height: parent.height; vertical-alignment: center; text: r.label; color: focused ? #ffffff : #e6e9f0; font-size: 24px; }
+            Text { x: 18px + lbl.preferred-width + 20px; height: parent.height; vertical-alignment: center; text: r.desc; color: focused ? #ffffff : #e6e9f0; font-size: 24px; }
+            Rectangle { x: track-x; y: (parent.height - 8px) / 2; width: 375px; height: 8px; border-radius: 4px; background: #43464d;
+                Rectangle { x: 0px; y: 0px; width: 18px + (parent.width - 36px) * frac; height: parent.height; border-radius: 4px; background: #1a9fff; }
+            }
+            Rectangle { x: track-x + (375px - 36px) * frac; y: (parent.height - 36px) / 2; width: 36px; height: 36px; border-radius: 18px; background: #ffffff; drop-shadow-color: #00000059; drop-shadow-blur: 6px; }
+            Path { x: track-x + 18px + (375px - 36px) * tick - 10px; y: 11px; width: 20px; height: 11px; commands: "M 0 0 L 20 0 L 10 11 Z"; fill: #868f96; }
+        }
+        if r.kind == 2: Toggle { x: parent.width - self.width; y: (parent.height - self.height) / 2; on: r.on; focused: root.active && root.sel == i; }
+        if r.kind == 12: Text { width: parent.width; height: parent.height; text: r.label; color: #8b929a; font-size: 16.8px; wrap: word-wrap; }
+        if control: TouchArea { enabled: r.on >= 0; clicked => { root.activated(i); } }
+    }
+}
+
+export component RecordingSettingsMenu inherits Rectangle {
+    callback activated(int);
+    background: RecordingSettingsState.power ? #0000006e : #00000099;
+    TouchArea { }
+    if !RecordingSettingsState.power: Rectangle {
+        x: (root.width - 520px) / 2; y: (root.height - self.height) / 2;
+        width: 520px; height: min(RecordingSettingsState.options.length * 48px + 24px, root.height - 120px);
+        background: #23262e; border-radius: 4px;
+        Flickable {
+          x: 12px; y: 12px; width: parent.width - 24px; height: parent.height - 24px;
+          viewport-width: self.width;
+          viewport-height: RecordingSettingsState.options.length * 48px;
+          viewport-y: -max(0px, min(RecordingSettingsState.focus * 48px - self.height / 2 + 24px, self.viewport-height - self.height));
+          for r[i] in RecordingSettingsState.options: Rectangle {
+            x: 0px; y: i * 48px; width: parent.width; height: 48px;
+            background: RecordingSettingsState.focus == i ? #ffffff : transparent;
+            accessible-role: button; accessible-label: r.label;
+            Text { x: 16px; width: parent.width - 32px; height: parent.height; text: r.label; font-size: 22px; color: RecordingSettingsState.focus == i ? #0e141b : #dcdedf; vertical-alignment: center; overflow: elide; }
+            TouchArea { clicked => { root.activated(RecordingSettingsState.start + i); } }
+          }
+        }
+    }
+    // Stock drop-down popup (power page): 420px wide, 72px rows, right edge 1px left of the 852px button, vertically centred
+    // on the drop-down and kept between the top bar and 70px above the footer; «Отмена» sits below a 3px separator.
+    if RecordingSettingsState.power: pop := Rectangle {
+        property <int> n: RecordingSettingsState.options.length;
+        property <length> full-h: n * 72px + 3px;
+        x: 431px; width: 420px; height: min(full-h, 579px);
+        y: max(self.height >= 579px ? 91px : 72px, min(RecordingSettingsState.anchor-y - self.height / 2, 670px - self.height));
+        background: #23262f;
+        Flickable {
+            width: parent.width; height: parent.height;
+            viewport-width: self.width; viewport-height: pop.full-h;
+            viewport-y: -max(0px, min(RecordingSettingsState.focus * 72px - self.height / 2 + 36px, self.viewport-height - self.height));
+            for r[i] in RecordingSettingsState.options: Rectangle {
+                property <bool> last: i == pop.n - 1;
+                x: 0px; y: i * 72px + (last ? 3px : 0px); width: parent.width; height: 72px;
+                background: RecordingSettingsState.focus == i ? #ffffff : transparent;
+                accessible-role: button; accessible-label: r.label;
+                Text { x: 21px; y: 1px; width: parent.width - 42px; height: parent.height; text: r.label; font-size: 24px; color: RecordingSettingsState.focus == i ? #0e141b : #c2c5cc; vertical-alignment: center; overflow: elide; }
+                TouchArea { clicked => { root.activated(RecordingSettingsState.start + i); } }
+            }
+            Rectangle { y: (pop.full-h - 72px) - 3px; width: parent.width; height: 3px; background: #000004; }
+        }
+    }
+}

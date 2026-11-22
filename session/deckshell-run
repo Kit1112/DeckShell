@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Host launcher for DeckShell (runs on the SteamOS host, NOT in distrobox).
+# Installed as ~/.local/share/deckshell/bin/deckshell-run.  Safe to run from desktop mode,
+# from a "Non-Steam game" shortcut (gaming mode step 1) or nested in gamescope.
+# The launcher may inherit steam-launcher.service's notification socket. DeckShell
+# is Type=exec and neither it nor its subprocesses should notify that unit.
+unset NOTIFY_SOCKET
+D="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
+export LD_LIBRARY_PATH="$D/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"   # lib/ only holds optional bundled libs
+export DECKSHELL_FULLSCREEN="${DECKSHELL_FULLSCREEN:-1}"
+export SLINT_BACKEND="${SLINT_BACKEND:-winit}"
+export WINIT_UNIX_BACKEND="${WINIT_UNIX_BACKEND:-x11}"   # X11 (Xwayland) so STEAM_* atoms are settable
+export WINIT_X11_SCALE_FACTOR="${WINIT_X11_SCALE_FACTOR:-1}"   # gamescope Xwayland reports a huge DPI -> giant UI
+export SLINT_SCALE_FACTOR="${SLINT_SCALE_FACTOR:-1}"
+export DECKSHELL_GAMESCOPE="${DECKSHELL_GAMESCOPE:-1}"
+# inside gamescope WAYLAND_DISPLAY points at gamescope's own socket: force X11 path
+[ "${DECKSHELL_GAMESCOPE}" = 1 ] && unset WAYLAND_DISPLAY
+mkdir -p "${XDG_STATE_HOME:-$HOME/.local/state}/deckshell"
+exec "$D/bin/deckshell" "$@"

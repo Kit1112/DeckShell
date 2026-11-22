@@ -1,0 +1,197 @@
+{
+ "posts": [
+  {
+   "id": "MnZgE",
+   "slug": "star_wars_intro_disney",
+   "title": "Star Wars Intro (Disney+)",
+   "content": "Disney+ Star Wars Intro featuring the Steam Deck. 10 seconds.",
+   "user": {
+    "id": 2,
+    "steam_name": "Jaidek",
+    "steam_avatar": "https://avatars.akamai.steamstatic.com/477a2c6f89bf6b00ad85c3bc530a5d07047d0a1e_full.jpg"
+   },
+   "thumbnail": "https://cdn.steamdeckrepo.com/thumbnails/iOILXC7Dsvwj48FvCkPjWCEg9QndgaXttdo7dIKp.png",
+   "video": "https://cdn.steamdeckrepo.com/videos/WeywvrFv34bj7lkW8VPnbESBBVXjs80E2LaOBcyz.webm",
+   "video_duration": 10,
+   "video_preview": "https://i.imgur.com/1DGagAC.mp4",
+   "created_at": "2022-10-06T16:34:50.000000Z",
+   "updated_at": "2022-10-06T16:34:50.000000Z",
+   "url": "http://steamdeckrepo.com/post/MnZgE/star_wars_intro_disney",
+   "likes": 230,
+   "downloads": 35674,
+   "type": "boot_video",
+   "devices": [
+    "steam_deck"
+   ]
+  },
+  {
+   "id": "PDkKY",
+   "slug": "playstation_2",
+   "title": "Playstation 2",
+   "content": "A (Unity remake of) Playstation 2's bootup sequence for Steam Deck\r\nSource: https://twitter.com/Parimak94/status/1579265064645038080",
+   "user": {
+    "id": 476,
+    "steam_name": "Parimak",
+    "steam_avatar": "https://avatars.akamai.steamstatic.com/9530ae400cb57359666a1d1b77f5d877600720f3_full.jpg"
+   },
+   "thumbnail": "https://cdn.steamdeckrepo.com/thumbnails/xQNPX2I3SJNLyDOGwziOId1GBeykmxAglBLdbjdO.png",
+   "video": "https://cdn.steamdeckrepo.com/videos/F1nmM042FrJIgUIf1xgzX8DU4qSV9ZWDJ9nbmuWY.webm",
+   "video_duration": 17,
+   "video_preview": "https://i.imgur.com/wtsvqAl.mp4",
+   "created_at": "2022-10-11T21:25:37.000000Z",
+   "updated_at": "2022-10-11T21:25:37.000000Z",
+   "url": "http://steamdeckrepo.com/post/PDkKY/playstation_2",
+   "likes": 262,
+   "downloads": 60373,
+   "type": "boot_video",
+   "devices": [
+    "steam_deck"
+   ]
+  },
+  {
+   "id": "nvWjE",
+   "slug": "90s_valve_machine",
+   "title": "90's Valve Machine",
+   "content": "A simple DOS/90's/code stylised startup complete with accurate(ish) information about your deck's specs!",
+   "user": {
+    "id": 601,
+    "steam_name": "PieMuncher",
+    "steam_avatar": "https://avatars.steamstatic.com/5f65693543bd579b6f4a8fd32c76884cdf9e98c9_full.jpg"
+   },
+   "thumbnail": "https://cdn.steamdeckrepo.com/thumbnails/oCaI1XCNpkSd3ovvBBXdn0yyZg84aa3hBFmTI52f.png",
+   "video": "https://cdn.steamdeckrepo.com/videos/YfYfD87f3k6GFhi9eLpXmIcgtTXGgso2JAuiPTph.webm",
+   "video_duration": 5,
+   "video_preview": "https://i.imgur.com/LdLDC6l.mp4",
+   "created_at": "2022-10-12T20:18:21.000000Z",
+   "updated_at": "2022-10-12T20:18:21.000000Z",
+   "url": "http://steamdeckrepo.com/post/nvWjE/90s_valve_machine",
+   "likes": 198,
+   "downloads": 46690,
+   "type": "boot_video",
+   "devices": [
+    "steam_deck"
+   ]
+  },
+  {
+   "id": "ndbjY",
+   "slug": "minimal_glitch_logo_suspend",
+   "title": "minimal glitch logo suspend",
+   "content": null,
+   "user": {
+    "id": 947,
+    "steam_name": "THNDR-KNGHT",
+    "steam_avatar": "https://avatars.akamai.steamstatic.com/724b307d57fbbc258b8e6b9ca094753b01d388cc_full.jpg"
+   },
+   "thumbnail": "https://cdn.steamdeckrepo.com/thumbnails/J4PlYIulZYFfKJ7s4fZMZcbXLVWGb3j3SX6a6JxU.png",
+   "video": "https://cdn.steamdeckrepo.com/videos/KWLagK8G4RYpNzLzI5UHREHIqV2rMVmxRF4I22pL.webm",
+   "video_duration": 1,
+   "video_preview": "https://cdn.steamdeckrepo.com/previews/OZywpaPDuTexH3kR3kKUNGuVy2bcq9hzfuMfz1pR.mp4",
+   "created_at": "2022-10-19T15:18:12.000000Z",
+   "updated_at": "2023-02-01T10:00:00.000000Z",
+   "url": "http://steamdeckrepo.com/post/ndbjY/minimal_glitch_logo_suspend",
+   "likes": 50,
+   "downloads": 9000,
+   "type": "suspend_video",
+   "devices": [
+    "steam_deck"
+   ]
+  },
+  {
+   "id": "RuZ01",
+   "slug": "ru",
+   "title": "Заставка Ромашка",
+   "content": "Тестовая кириллица",
+   "user": {
+    "id": 9,
+    "steam_name": "Тестер",
+    "steam_avatar": ""
+   },
+   "thumbnail": "https://cdn.steamdeckrepo.com/thumbnails/iOILXC7Dsvwj48FvCkPjWCEg9QndgaXttdo7dIKp.png",
+   "video": "https://cdn.steamdeckrepo.com/videos/WeywvrFv34bj7lkW8VPnbESBBVXjs80E2LaOBcyz.webm",
+   "video_duration": 10,
+   "video_preview": "https://i.imgur.com/1DGagAC.mp4",
+   "created_at": "2024-05-01T00:00:00.000000Z",
+   "updated_at": "2024-05-01T00:00:00.000000Z",
+   "url": "http://steamdeckrepo.com/post/MnZgE/star_wars_intro_disney",
+   "likes": 3,
+   "downloads": 40,
+   "type": "boot_video",
+   "devices": [
+    "steam_deck"
+   ]
+  },
+  {
+   "id": "Mach1",
+   "slug": "m",
+   "title": "Machine Only Intro",
+   "content": "",
+   "user": {
+    "id": 2,
+    "steam_name": "Jaidek",
+    "steam_avatar": "https://avatars.akamai.steamstatic.com/477a2c6f89bf6b00ad85c3bc530a5d07047d0a1e_full.jpg"
+   },
+   "thumbnail": "https://cdn.steamdeckrepo.com/thumbnails/iOILXC7Dsvwj48FvCkPjWCEg9QndgaXttdo7dIKp.png",
+   "video": "https://cdn.steamdeckrepo.com/videos/WeywvrFv34bj7lkW8VPnbESBBVXjs80E2LaOBcyz.webm",
+   "video_duration": 10,
+   "video_preview": "https://i.imgur.com/1DGagAC.mp4",
+   "created_at": "2026-10-01T00:00:00.000000Z",
+   "updated_at": "2026-10-01T00:00:00.000000Z",
+   "url": "http://steamdeckrepo.com/post/MnZgE/star_wars_intro_disney",
+   "likes": 1,
+   "downloads": 10,
+   "type": "boot_video",
+   "devices": [
+    "steam_machine"
+   ]
+  },
+  {
+   "id": "Oth01",
+   "slug": "star_wars_intro_disney",
+   "title": "Not a video",
+   "content": "Disney+ Star Wars Intro featuring the Steam Deck. 10 seconds.",
+   "user": {
+    "id": 2,
+    "steam_name": "Jaidek",
+    "steam_avatar": "https://avatars.akamai.steamstatic.com/477a2c6f89bf6b00ad85c3bc530a5d07047d0a1e_full.jpg"
+   },
+   "thumbnail": "https://cdn.steamdeckrepo.com/thumbnails/iOILXC7Dsvwj48FvCkPjWCEg9QndgaXttdo7dIKp.png",
+   "video": "https://cdn.steamdeckrepo.com/videos/WeywvrFv34bj7lkW8VPnbESBBVXjs80E2LaOBcyz.webm",
+   "video_duration": 10,
+   "video_preview": "https://i.imgur.com/1DGagAC.mp4",
+   "created_at": "2022-10-06T16:34:50.000000Z",
+   "updated_at": "2022-10-06T16:34:50.000000Z",
+   "url": "http://steamdeckrepo.com/post/MnZgE/star_wars_intro_disney",
+   "likes": 230,
+   "downloads": 35674,
+   "type": "theme",
+   "devices": [
+    "steam_deck"
+   ]
+  },
+  {
+   "id": "MnZgE",
+   "slug": "star_wars_intro_disney",
+   "title": "Duplicate of MnZgE",
+   "content": "Disney+ Star Wars Intro featuring the Steam Deck. 10 seconds.",
+   "user": {
+    "id": 2,
+    "steam_name": "Jaidek",
+    "steam_avatar": "https://avatars.akamai.steamstatic.com/477a2c6f89bf6b00ad85c3bc530a5d07047d0a1e_full.jpg"
+   },
+   "thumbnail": "https://cdn.steamdeckrepo.com/thumbnails/iOILXC7Dsvwj48FvCkPjWCEg9QndgaXttdo7dIKp.png",
+   "video": "https://cdn.steamdeckrepo.com/videos/WeywvrFv34bj7lkW8VPnbESBBVXjs80E2LaOBcyz.webm",
+   "video_duration": 10,
+   "video_preview": "https://i.imgur.com/1DGagAC.mp4",
+   "created_at": "2022-10-06T16:34:50.000000Z",
+   "updated_at": "2022-10-06T16:34:50.000000Z",
+   "url": "http://steamdeckrepo.com/post/MnZgE/star_wars_intro_disney",
+   "likes": 230,
+   "downloads": 35674,
+   "type": "boot_video",
+   "devices": [
+    "steam_deck"
+   ]
+  }
+ ],
+ "last_cached_at": 1794952819
+}

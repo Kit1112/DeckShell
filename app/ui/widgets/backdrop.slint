@@ -1,0 +1,39 @@
+import { Tokens } from "../tokens.slint";
+import { Shell } from "../shell.slint";
+import { HeroImg, HeroFrame } from "hero_img.slint";
+
+// Hero crossfade state (home = focused recent tile, game page = the game). Written by app/src/app.rs (update_bg).
+export global BackdropState {
+    in property <image> bg-a;
+    in property <image> bg-b;
+    in property <bool> bg-use-a;
+    in property <bool> bg-on;
+    in property <HeroFrame> bg-a-crop;     // crop of the image in bg-a (per app, src/sgdb/hero_crop.rs)
+    in property <HeroFrame> bg-b-crop;
+}
+
+// Full-window art behind pages: home = top block brightness .5 fading into the page bg; game page = full bleed.
+export component Backdrop inherits Rectangle {
+    Rectangle { background: @linear-gradient(180deg, Tokens.bg-dark 0%, Tokens.bg 64%, Tokens.bg 100%); }
+    Rectangle {
+        x: 0px; y: 0px; width: root.width; height: Shell.page == 2 ? Tokens.game-hero-h : Tokens.hero-h; clip: true;
+        opacity: BackdropState.bg-on && (Shell.page == 0 || Shell.page == 2) ? 1 : 0;
+        animate opacity { duration: Tokens.dur-hero; easing: Tokens.ease-hero; }
+        HeroImg { x: 0px; y: 0px; width: parent.width; height: parent.height; src: BackdropState.bg-a; crop: BackdropState.bg-a-crop; active: BackdropState.bg-use-a; kb: Shell.kenburns && Shell.page == 0; }
+        HeroImg { x: 0px; y: 0px; width: parent.width; height: parent.height; src: BackdropState.bg-b; crop: BackdropState.bg-b-crop; active: !BackdropState.bg-use-a; kb: Shell.kenburns && Shell.page == 0; }
+    }
+    Rectangle {
+        x: 0px; y: 0px; width: root.width; height: Tokens.hero-h;
+        opacity: BackdropState.bg-on && Shell.page == 0 ? 1 : 0;
+        animate opacity { duration: Tokens.dur-hero; easing: Tokens.ease-hero; }
+        Rectangle { background: #000000; opacity: 1 - Tokens.hero-brightness; }
+        // Inverse of the two nested radial masks in the Gaming Mode DOM.
+        // The image carries the underlying page gradient and is scaled with the hero.
+        Image { width: parent.width; height: parent.height; source: @image-url("../assets/home-mask.png"); image-fit: fill; }
+    }
+    Rectangle {
+        x: 0px; y: 0px; width: root.width; height: 90px; background: @linear-gradient(180deg, #00000080 0%, #00000000 100%);
+        opacity: Shell.page == 2 ? 1 : 0;
+        animate opacity { duration: Tokens.dur-hero; easing: Tokens.ease-hero; }
+    }
+}

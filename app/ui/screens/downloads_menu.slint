@@ -1,0 +1,113 @@
+// Downloads panel of the left side menu (STEAM → «Загрузки»): list, item actions, download settings.
+// Sits right of the 360 px menu rail, like the running-game column, and uses the side-menu surface and rows
+// (Tokens.menu-bg, hover-bg, menu-item colours, the 48 px bottom strip). Rows and their y/h come from Rust
+// (app/src/screens/downloads_menu.rs); the panel only draws them.
+import { Tokens } from "../tokens.slint";
+import { Toggle } from "../widgets/toggle.slint";
+import { SteamMenuState } from "steam_menu.slint";
+
+export struct DlMenuRow {
+    label: string,
+    value: string,
+    sub: string,
+    // 0..1, negative = no bar
+    progress: float,
+    // 0 item, 1 section header, 2 note
+    kind: int,
+    enabled: bool,
+    // -1 none, 0 off, 1 on
+    check: int,
+    dim-bar: bool,
+    y: float,
+    h: float,
+}
+
+export global DownloadsMenuState {
+    in property <bool> open;
+    in property <string> title;
+    in property <string> status;
+    in property <[DlMenuRow]> rows;
+    in property <int> focus: -1;
+    in property <float> scroll-y;
+    callback activate(int);
+    callback hover(int);
+}
+
+export component DownloadsMenuPanel inherits Rectangle {
+    // Placed by appwindow.slint in the side menu's column band: x 360, below the top bar, above the footer, 600 wide.
+    visible: DownloadsMenuState.open && SteamMenuState.open;
+    background: Tokens.menu-bg;
+    clip: true;
+    accessible-role: groupbox; accessible-label: DownloadsMenuState.title;
+    TouchArea { }
+    Rectangle { x: 0px; y: 0px; width: 1px; height: parent.height; background: #ffffff14; }
+    Text {
+        x: Tokens.menu-icon-x; y: 18px; width: parent.width - 2 * Tokens.menu-icon-x; height: 36px;
+        text: DownloadsMenuState.title; color: Tokens.text; font-size: 26px; font-weight: 700; overflow: elide; vertical-alignment: center;
+    }
+    Text {
+        x: Tokens.menu-icon-x; y: 56px; width: parent.width - 2 * Tokens.menu-icon-x; height: 28px;
+        text: DownloadsMenuState.status; color: Tokens.text-dim; font-size: 16px; overflow: elide; vertical-alignment: center;
+    }
+    Rectangle {
+        x: 0px; y: 96px; width: parent.width; height: parent.height - 96px - 48px; clip: true;
+        for r[i] in DownloadsMenuState.rows: Rectangle {
+            x: 0px; y: (r.y - DownloadsMenuState.scroll-y) * 1px; width: parent.width; height: r.h * 1px;
+            property <bool> focused: r.kind == 0 && DownloadsMenuState.focus == i;
+            background: self.focused ? Tokens.hover-bg : transparent;
+            animate background { duration: Tokens.dur-menu-row; easing: Tokens.ease-hero; }
+            accessible-role: list-item; accessible-label: r.label;
+            accessible-description: r.kind == 0 ? "list-item||A,B,DPAD_UP,DPAD_DOWN,DPAD_LEFT,FOCUS,touch,mouse" : "";
+            if r.kind == 1: Text {
+                x: Tokens.menu-icon-x; y: 0px; width: parent.width - 2 * Tokens.menu-icon-x; height: parent.height - 8px;
+                text: r.label; vertical-alignment: bottom; color: Tokens.qam-section-color;
+                font-size: Tokens.qam-section-size; font-weight: Tokens.qam-section-weight; letter-spacing: Tokens.qam-section-ls; overflow: elide;
+            }
+            if r.kind == 2: Text {
+                x: Tokens.menu-icon-x; y: 0px; width: parent.width - 2 * Tokens.menu-icon-x; height: parent.height;
+                text: r.label; vertical-alignment: center; wrap: word-wrap; color: Tokens.text-body; font-size: 18px;
+            }
+            if r.kind == 0: Rectangle {
+                opacity: r.enabled ? 1 : 0.45;
+                property <length> right-w: r.check >= 0 ? Tokens.switch-w : (r.value != "" ? 220px : 0px);
+                Text {
+                    x: Tokens.menu-icon-x; y: r.sub != "" || r.progress >= 0 ? 8px : 0px;
+                    width: parent.width - 2 * Tokens.menu-icon-x - parent.right-w - (parent.right-w > 0 ? 12px : 0px);
+                    height: r.sub != "" || r.progress >= 0 ? 34px : parent.height;
+                    text: r.label; vertical-alignment: center; overflow: elide;
+                    color: focused ? Tokens.menu-item-focus : Tokens.menu-item; font-size: Tokens.menu-label-size; font-weight: Tokens.menu-label-weight;
+                }
+                if r.check < 0 && r.value != "": Text {
+                    x: parent.width - Tokens.menu-icon-x - self.width; y: r.sub != "" || r.progress >= 0 ? 8px : 0px; width: parent.right-w;
+                    height: r.sub != "" || r.progress >= 0 ? 34px : parent.height;
+                    text: r.value; horizontal-alignment: right; vertical-alignment: center; overflow: elide;
+                    color: r.enabled ? Tokens.accent : Tokens.text-dim; font-size: 18px; font-weight: 700;
+                }
+                if r.check >= 0: Toggle {
+                    x: parent.width - Tokens.menu-icon-x - self.width; y: (parent.height - self.height) / 2; on: r.check;
+                }
+                if r.sub != "": Text {
+                    x: Tokens.menu-icon-x; y: 42px; width: parent.width - 2 * Tokens.menu-icon-x; height: 22px;
+                    text: r.sub; vertical-alignment: center; overflow: elide; color: Tokens.text-dim; font-size: 16px;
+                }
+                if r.progress >= 0: Rectangle {
+                    x: Tokens.menu-icon-x; y: parent.height - 8px; width: parent.width - 2 * Tokens.menu-icon-x; height: 4px;
+                    border-radius: 2px; background: #ffffff1a;
+                    Rectangle {
+                        x: 0px; y: 0px; height: parent.height; border-radius: 2px; width: parent.width * clamp(r.progress, 0, 1);
+                        background: r.dim-bar ? Tokens.text-dim : Tokens.accent;
+                    }
+                }
+            }
+            if r.kind == 0: TouchArea {
+                clicked => { DownloadsMenuState.activate(i); }
+                changed has-hover => { if (self.has-hover) { DownloadsMenuState.hover(i); } }
+            }
+        }
+    }
+    // Bottom strip with the side menu's upward shadow.
+    Rectangle {
+        y: parent.height - self.height; width: parent.width; height: 48px; background: Tokens.menu-bg;
+        drop-shadow-color: Tokens.menu-bottom-shadow-color; drop-shadow-offset-y: Tokens.menu-bottom-shadow-dy; drop-shadow-blur: Tokens.menu-bottom-shadow-blur;
+    }
+}

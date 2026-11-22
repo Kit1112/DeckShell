@@ -1,0 +1,30 @@
+import { Tokens } from "../tokens.slint";
+import { Icon } from "icon.slint";
+import { DS } from "meta.slint";
+
+// Generic focusable list row: [icon] label ........ value. Used by the settings rail/content and similar lists.
+export component ListRow inherits Rectangle {
+    in property <string> label;
+    in property <string> value;
+    in property <image> icon;
+    in property <bool> has-icon;
+    in property <bool> focused;
+    in property <bool> current; // blue bar on the left (current route)
+    in property <float> style-scale: 1;
+    in property <string> meta-role: "list-item";
+    in property <string> token;
+    in property <string> pad: DS.list;
+    callback clicked;
+    accessible-role: button; accessible-label: root.label; accessible-description: root.meta-role + "|" + root.token + "|" + root.pad;
+    height: Tokens.menu-row-h;
+    background: root.focused ? Tokens.hover-bg : transparent;
+    animate background { duration: Tokens.dur-menu-row; easing: Tokens.ease-hero; }
+    if root.current: Rectangle { x: 0px; y: (parent.height - self.height) / 2; width: (Tokens.menu-bar-w + Tokens.menu-bar-x) * root.style-scale; height: Tokens.menu-bar-h * root.style-scale; background: Tokens.accent; border-radius: Tokens.menu-bar-radius * root.style-scale; }
+    if root.has-icon: Icon { x: Tokens.menu-icon-x * root.style-scale; y: (parent.height - self.s) / 2; src: root.icon; s: Tokens.menu-icon-size * root.style-scale; c: root.focused ? Tokens.menu-item-focus : Tokens.menu-item; }
+    Text {
+        x: (root.has-icon ? Tokens.menu-label-x : Tokens.menu-icon-x) * root.style-scale; height: parent.height; text: root.label; vertical-alignment: center;
+        color: root.focused ? Tokens.menu-item-focus : Tokens.menu-item; font-size: Tokens.menu-label-size * root.style-scale; font-weight: Tokens.menu-label-weight; overflow: elide; width: parent.width - 120px * root.style-scale;
+    }
+    Text { x: parent.width - self.width - 20px * root.style-scale; width: 200px * root.style-scale; height: parent.height; text: root.value; horizontal-alignment: right; vertical-alignment: center; color: Tokens.accent; font-size: Tokens.menu-label-size * root.style-scale; font-weight: 700; }
+    TouchArea { clicked => { root.clicked(); } }
+}

@@ -1,0 +1,14 @@
+const fs = require('fs'), vm = require('vm'), assert = require('assert');
+const source = fs.readFileSync('app/src/screens/recording_sessions.js','utf8');
+let callback, unregistered = false, timeout;
+const context = {Uint8Array, TextDecoder, Error, window:{SteamClient:{GameRecording:{RegisterForAudioSessionsChanged(fn){callback=fn;return {unregister(){unregistered=true}}}}}}, clearTimeout(){}, setTimeout(fn){timeout=fn;return 1}};
+const poll=()=>vm.runInNewContext(source.replace("__RESET__", "false"), context);
+const str=s=>{const b=Buffer.from(s);return [b.length,...b]};
+const msg=(id,name, flags=[])=>{const b=[10,...str(id),18,...str(name),...flags];return [10,b.length,...b]};
+assert.equal(poll(),null);
+callback(Uint8Array.from([...msg('app','Browser',[48,1]),...msg('steam','Steam',[72,1]),...msg('spotify.exe','Spotify')]));
+let rows=poll();assert.equal(rows.length,1);assert.equal(rows[0].id,'app');assert.equal(rows[0].is_captured,true);
+callback(Uint8Array.from([10,5,1]));assert.equal(poll(),null);
+callback(Uint8Array.from(msg('spotify.exe','Spotify',[80,1])));assert.equal(poll().length,1);
+timeout();assert.equal(unregistered,true);assert.equal(context.window.__deckShellAudioSessions,undefined);
+console.log('recording sessions: decoding, filtering, failure and cleanup OK');

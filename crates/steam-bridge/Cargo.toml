@@ -1,0 +1,13 @@
+[package]
+name = "steam-bridge"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+steam-control = { path = "../steam-control" }
+serde = { version = "1", features = ["derive"] }
+tungstenite = { version = "0.24", default-features = false, features = ["handshake"] }
+serde_json = "1"
+
+[dev-dependencies]
+steam-data = { path = "../steam-data" }

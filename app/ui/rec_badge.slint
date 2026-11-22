@@ -1,0 +1,9 @@
+import { NotificationStack } from "widgets/notification_toast.slint";
+export component RecBadgeWindow inherits Window {
+    title: "DeckShell REC";
+    no-frame: true;
+    background: transparent;
+    width: 1280px;
+    height: 800px;
+    NotificationStack { viewport-width: root.width; viewport-height: root.height; }
+}

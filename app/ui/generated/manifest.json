@@ -1,0 +1,210 @@
+{
+ "unit": "device px (Gaming Mode CSS x 1.5), 1280x800",
+ "capture": "task163-stock-home, first card focused",
+ "elements": [
+  {
+   "comp": "home",
+   "name": "hero.title",
+   "rect": [
+    32.14,
+    318,
+    652.49,
+    36
+   ],
+   "probe": "ink",
+   "thr": 90
+  },
+  {
+   "comp": "home",
+   "name": "hero.play",
+   "rect": [
+    139.05,
+    357.36,
+    12.5,
+    14.27
+   ],
+   "probe": "ink",
+   "thr": 90
+  },
+  {
+   "comp": "home",
+   "name": "tile0.art",
+   "rect": [
+    28.16,
+    398.4,
+    660.48,
+    308.69
+   ],
+   "probe": "edge",
+   "thr": 30
+  },
+  {
+   "comp": "topbar",
+   "name": "avatar",
+   "rect": [
+    24,
+    21,
+    48,
+    48
+   ],
+   "probe": "edge",
+   "thr": 30
+  },
+  {
+   "comp": "topbar",
+   "name": "clock",
+   "rect": [
+    87,
+    15,
+    126,
+    60
+   ],
+   "probe": "ink",
+   "thr": 90
+  },
+  {
+   "comp": "topbar",
+   "name": "icon.search",
+   "rect": [
+    1039.9,
+    31.5,
+    27,
+    27
+   ],
+   "probe": "ink",
+   "thr": 90
+  },
+  {
+   "comp": "topbar",
+   "name": "icon.wifi",
+   "rect": [
+    1093.9,
+    31.5,
+    27,
+    27
+   ],
+   "probe": "ink",
+   "thr": 90
+  },
+  {
+   "comp": "topbar",
+   "name": "bat.text",
+   "rect": [
+    1150.9,
+    17.4,
+    58.09,
+    55.19
+   ],
+   "probe": "ink",
+   "thr": 90
+  },
+  {
+   "comp": "topbar",
+   "name": "bat.icon",
+   "rect": [
+    1209,
+    28.5,
+    38.51,
+    33
+   ],
+   "probe": "edge",
+   "thr": 30
+  },
+  {
+   "comp": "footer",
+   "name": "hint0.label",
+   "rect": [
+    139.57,
+    753.75,
+    69.41,
+    33
+   ],
+   "probe": "ink",
+   "thr": 90
+  },
+  {
+   "comp": "footer",
+   "name": "hint0.glyph",
+   "rect": [
+    35.92,
+    753.75,
+    91.65,
+    33
+   ],
+   "probe": "ink",
+   "thr": 90
+  },
+  {
+   "comp": "footer",
+   "name": "hint1.label",
+   "rect": [
+    837.15,
+    753.75,
+    80.95,
+    33
+   ],
+   "probe": "ink",
+   "thr": 90
+  },
+  {
+   "comp": "footer",
+   "name": "hint1.glyph",
+   "rect": [
+    787.65,
+    751.5,
+    37.5,
+    37.5
+   ],
+   "probe": "ink",
+   "thr": 90
+  },
+  {
+   "comp": "footer",
+   "name": "hint2.label",
+   "rect": [
+    991.61,
+    753.75,
+    104.48,
+    33
+   ],
+   "probe": "ink",
+   "thr": 90
+  },
+  {
+   "comp": "footer",
+   "name": "hint2.glyph",
+   "rect": [
+    942.11,
+    751.5,
+    37.5,
+    37.5
+   ],
+   "probe": "ink",
+   "thr": 90
+  },
+  {
+   "comp": "footer",
+   "name": "hint3.label",
+   "rect": [
+    1169.58,
+    753.75,
+    75.5,
+    33
+   ],
+   "probe": "ink",
+   "thr": 90
+  },
+  {
+   "comp": "footer",
+   "name": "hint3.glyph",
+   "rect": [
+    1120.08,
+    751.5,
+    37.5,
+    37.5
+   ],
+   "probe": "ink",
+   "thr": 90
+  }
+ ]
+}

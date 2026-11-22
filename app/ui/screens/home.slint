@@ -1,0 +1,92 @@
+// /routes/library/home - recents carousel + hero title. Geometry/typography/states are GENERATED from the Steam dump
+// (tools/compile-ui -> ui/generated/home.slint); this file only holds the screen state and the title reveal.
+import { Tokens } from "../tokens.slint";
+import { Shell } from "../shell.slint";
+import { CardData } from "../widgets/types.slint";
+import { HeaderLayout, TopFocusDim } from "../widgets/top_bar.slint";
+import { Page } from "../widgets/page.slint";
+import { GHomeHero, GHomeRecents, GHomeTabs, GTab } from "../generated/home.slint";
+
+// Lower page rows: kind 0 section header, 1 item (optional art, title, subtitle, right-hand tag), 2 wide button
+export struct HomeRow { kind: int, title: string, sub: string, tag: string, img: image, has-img: bool, y: length, h: length }
+
+export global HomeState {
+    in property <[GTab]> tabs: [];
+    in property <int> zone;            // 0 recents row, 1 tab pills, 2 content list
+    in property <int> tab;
+    in property <int> item-focus: -1;
+    in property <[HomeRow]> items: [];
+    in property <length> list-scroll;
+    in property <length> content-h;
+    in property <string> empty-text;
+    callback tab-clicked(int);
+    callback item-clicked(int);
+    in property <[CardData]> recent;
+    in property <int> idx;
+    in property <string> hero-title;
+    in property <string> hero-sub;
+    in property <string> lib-label;
+    callback activate(int);
+}
+
+export component HomeScreen inherits Page {
+    shown: Shell.page == 0;
+    // title/subtitle reveal on hero change: opacity 0->1, 500ms ease-hero, delay 140ms
+    property <bool> t-show: true;
+    changed hero-title => { root.t-show = false; t-timer.running = true; }
+    property <string> hero-title: HomeState.hero-title;
+    t-timer := Timer { interval: 40ms; running: false; triggered => { root.t-show = true; self.running = false; } }
+
+    // page offset: Down from the recents row slides the hero + row up and the pills/content in (sp.js home page scroll)
+    property <length> page-y: HomeState.zone == 0 ? 0px : 690px;
+    animate page-y { duration: 300ms; easing: ease-in-out; }
+    Rectangle {
+        y: -root.page-y; width: root.width; height: root.height;
+        rv := Rectangle {
+            opacity: 0;
+            property <length> ty: 6px;
+            states [
+                on when root.t-show && !HeaderLayout.bar-focused: {
+                    opacity: 1; ty: 0px;
+                    in { animate opacity, ty { duration: Tokens.dur-title; delay: Tokens.dur-title-delay; easing: Tokens.ease-hero; } }
+                }
+            ]
+            GHomeHero { width: root.width; height: root.height; title: HomeState.hero-title; sub: HomeState.hero-sub; centered: HomeState.idx != 0; dy: rv.ty; }
+        }
+        GHomeRecents {
+            width: root.width; model: HomeState.recent; idx: HomeState.idx; active: Shell.page == 0 && HomeState.zone == 0 && !HeaderLayout.bar-focused; ambient: Shell.kenburns;
+            lib-label: HomeState.lib-label; anim-id: Shell.anim-id; anim-image: Shell.anim-image;
+            activated(i) => { HomeState.activate(i); }
+        }
+        TopFocusDim { x: 0px; y: root.page-y; width: root.width; height: root.height; }
+    }
+    // section tabs + content below the first screen
+    Rectangle {
+        x: 0px; y: 0px; width: root.width; height: root.height - 50px; clip: true;
+        GHomeTabs {
+            x: 0px; width: parent.width; scroll-y: -root.page-y;
+            tabs: HomeState.tabs; focused-tab: Shell.page == 0 && HomeState.zone == 1 ? HomeState.tab : -1;
+            activated(i) => { HomeState.tab-clicked(i); }
+        }
+        // content list (viewport driven by Rust: list-scroll)
+        Rectangle {
+            x: 0px; y: 752.99px + 69.55px - root.page-y; width: parent.width; height: parent.height - 132px; clip: true;
+            Text { visible: HomeState.items.length == 0; x: 0px; y: 40px; width: parent.width; horizontal-alignment: center; text: HomeState.empty-text; color: #dcdedf99; font-size: 16px; }
+            for r[i] in HomeState.items: Rectangle {
+                x: 0px; y: r.y - HomeState.list-scroll; width: parent.width; height: r.h;
+                property <bool> foc: HomeState.zone == 2 && HomeState.item-focus == i;
+                if r.kind == 0: Text { x: 48px; y: r.h - 30px; text: r.title.to-uppercase(); color: #dcdedf; font-size: 14.4px; font-weight: 700; letter-spacing: 1px; }
+                if r.kind != 0: Rectangle {
+                    x: 36px; y: 4px; width: parent.width - 72px; height: r.h - 8px; border-radius: 6px;
+                    background: foc ? #ffffff : (r.kind == 2 ? #ffffff26 : #ffffff14);
+                    animate background { duration: 100ms; }
+                    if r.has-img: Image { x: 0px; y: 0px; width: 48px; height: parent.height; source: r.img; image-fit: cover; }
+                    Text { x: r.has-img ? 60px : 18px; y: 8px; width: parent.width - self.x - 230px; text: r.title; overflow: elide; color: foc ? #23262e : #ffffff; font-size: 17px; font-weight: 700; }
+                    Text { x: r.has-img ? 60px : 18px; y: 32px; width: parent.width - self.x - 230px; text: r.sub; overflow: elide; color: foc ? #23262eb0 : #dcdedfb0; font-size: 13.5px; visible: r.kind == 1; }
+                    Text { x: parent.width - 220px; y: 0px; width: 202px; height: parent.height; text: r.tag; horizontal-alignment: right; vertical-alignment: center; overflow: elide; color: foc ? #23262e : #8fc9a0; font-size: 14px; font-weight: 700; }
+                    TouchArea { clicked => { HomeState.item-clicked(i); } }
+                }
+            }
+        }
+    }
+}

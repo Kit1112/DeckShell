@@ -1,0 +1,43 @@
+import { Tokens } from "../tokens.slint";
+
+// THE switch of DeckShell (stock Steam settings DialogToggle, measured on the owner's captures
+// ~/.cache/deckshell/next-wave2/toggle/toggle_{ON,OFF}_unfocused_and_focused.jpg, 1280x800): pill 58x33 (r = 16.5), white round knob = pill height,
+// blue #1a9fff when on, grey rail when off (unfocused #43464d, focused #1d212a). Focus = a 6px grey ring (#8b929a) around the whole pill and a 3px
+// #67707b rim around the knob. The size is fixed: every caller only places it (use Tokens.switch-w/-h). No variants — there is no other switch look.
+export component Toggle inherits Rectangle {
+    in property <int> on; // 1 on, 0 off, -1 n/a (dimmed)
+    in property <bool> focused;
+    // a row that cannot be changed (stock unsupported CEC row): knob #8b929a on rail #68707b, full opacity, no knob rim
+    in property <bool> dim: false;
+    property <length> k: root.height;
+    property <length> rim: 3px;
+    width: Tokens.switch-w;
+    height: Tokens.switch-h;
+    border-radius: self.height / 2;
+    background: root.on == 1 ? Tokens.accent : (root.dim ? #68707b : (root.focused ? #1d212a : #43464d));
+    opacity: root.on < 0 && !root.dim ? 0.35 : 1;
+    animate background { duration: Tokens.dur-pill; }
+    if root.focused: Rectangle {
+        x: -6px; y: -6px; width: root.width + 12px; height: root.height + 12px; border-radius: self.height / 2;
+        border-width: 6px; border-color: #8b929a;
+    }
+    Rectangle {
+        property <length> grow: root.focused && !root.dim ? root.rim : 0px;
+        x: (root.on == 1 ? root.width - root.k : 0px) - self.grow; y: -self.grow;
+        width: root.k + 2 * self.grow; height: root.k + 2 * self.grow; border-radius: self.height / 2;
+        background: root.dim ? #8b929a : Tokens.text;
+        border-width: self.grow; border-color: #67707b;
+        drop-shadow-color: Tokens.qam-knob-shadow-color; drop-shadow-blur: 5px;
+        animate x { duration: 200ms; easing: cubic-bezier(0.1, 0.12, 0.53, 1.72); }
+    }
+}
+
+// Test/gallery window: the four stock states side by side on the settings card colour (app/src/toggle_tests.rs).
+export component ToggleGallery inherits Window {
+    width: 460px; height: 120px;
+    background: #23262d;
+    Toggle { x: 40px; y: 40px; on: 1; focused: false; }
+    Toggle { x: 140px; y: 40px; on: 1; focused: true; }
+    Toggle { x: 240px; y: 40px; on: 0; focused: false; }
+    Toggle { x: 340px; y: 40px; on: 0; focused: true; }
+}

@@ -1,0 +1,112 @@
+// «Сменить аккаунт» — стоковый выбор пользователя (sp.js модуль 72654 CachedUsers + 35200 ChangeUser,
+// CSS sp.css _1cpxSyGwDz13Qlo95Kbo5H). Геометрия — замеры стокового снимка 1280×800 (Gaming Mode, 17.11):
+// панель 147..1135 × 171..626, рамка 2px #23262e, фон #0d141c; плитки 111px, шаг 141px; «+» 67px.
+// Фокус плитки (CSS :focus-within): рамка 2px→3px белая, translateY(-6px·1.5), тень; имя opacity 0→1;
+// transition-duration .24s ease-in-out для border/box-shadow/transform/opacity.
+import { GStyle } from "../generated/style.slint";
+import { Toggle } from "../widgets/toggle.slint";
+
+export struct AccountTile { persona: string, avatar: image, has-avatar: bool }
+
+export global ChooserState {
+    in property <[AccountTile]> tiles;
+    in-out property <int> focus;
+    in property <bool> ask-on-start;
+    in property <bool> busy;
+    callback activate(int);
+}
+
+component Tile inherits Rectangle {
+    in property <int> index;
+    in property <bool> plus;
+    in property <AccountTile> data;
+    in property <length> side;
+    // 0 — по центру, 1 — к левому краю, 2 — к правому (CSS align-self при ≥6 элементах).
+    in property <int> name-align;
+    property <bool> focused: ChooserState.focus == index;
+    width: side;
+    height: 150px;
+    icon := Rectangle {
+        x: 0px;
+        y: (root.plus ? (111px - root.side) / 2 : 0px) + (root.focused ? -9px : 0px);
+        width: root.side; height: root.side;
+        background: root.plus ? #000 : #1c1c21;
+        border-width: root.focused ? 3px : (root.plus ? 0px : 2px);
+        border-color: root.focused ? #fff : #23262e;
+        drop-shadow-blur: root.plus && !root.focused ? 0px : 18px;
+        drop-shadow-offset-y: 6px;
+        drop-shadow-color: root.plus && !root.focused ? transparent : #00000080;
+        animate y, border-color, drop-shadow-color { duration: 240ms; easing: ease-in-out; }
+        if !root.plus && root.data.has-avatar: Image {
+            x: parent.border-width; y: parent.border-width;
+            width: parent.width - 2 * parent.border-width; height: self.width;
+            source: root.data.avatar; image-fit: cover;
+        }
+        // Пустой аватар: стоковая заглушка — силуэт на сером.
+        if !root.plus && !root.data.has-avatar: Rectangle {
+            x: parent.border-width; y: parent.border-width;
+            width: parent.width - 2 * parent.border-width; height: self.width; background: #3d4450;
+            Rectangle { x: parent.width * 0.35; y: parent.height * 0.2; width: parent.width * 0.3; height: self.width; border-radius: self.width / 2; background: #8b929a; }
+            Rectangle { x: parent.width * 0.2; y: parent.height * 0.58; width: parent.width * 0.6; height: parent.height * 0.42; border-top-left-radius: self.width / 2; border-top-right-radius: self.width / 2; background: #8b929a; }
+        }
+        // NewUserLoginIcon (sp.js 296958): два прямоугольника 6.29×37.15 в 38×38, padding 16.67%.
+        if root.plus: Rectangle {
+            property <float> k: (parent.width * (1 - 2 * 0.1667)) / 38px;
+            x: parent.width * 0.1667; y: parent.height * 0.1667; width: 38px * k; height: 38px * k;
+            Rectangle { x: 16.13px * parent.k; y: 0px; width: 6.29px * parent.k; height: 37.15px * parent.k; background: white; }
+            Rectangle { x: 0.7px * parent.k; y: 15.43px * parent.k; width: 37.15px * parent.k; height: 6.29px * parent.k; background: white; }
+        }
+    }
+    Text {
+        width: 400px;
+        x: root.name-align == 1 ? 0px : root.name-align == 2 ? root.side - self.width : (root.side - self.width) / 2;
+        y: 122px; height: 24px;
+        horizontal-alignment: root.name-align == 1 ? left : root.name-align == 2 ? right : center;
+        text: root.plus ? "Добавить аккаунт" : root.data.persona;
+        color: white; font-size: 18px; font-weight: 500; font-family: GStyle.loc-font;
+        opacity: root.focused ? 1 : 0;
+        animate opacity { duration: 240ms; easing: ease-in-out; }
+    }
+    TouchArea {
+        enabled: !ChooserState.busy;
+        clicked => { ChooserState.focus = root.index; ChooserState.activate(root.index); }
+    }
+}
+
+export component AccountChooser inherits Rectangle {
+    // Затемнение того, что под окном (стоковый модальный фон), шапка остаётся яркой.
+    Rectangle { y: 60px; height: parent.height - 60px; background: #000000b0; TouchArea { } }
+    property <int> count: ChooserState.tiles.length;
+    property <length> gap: 30px;
+    property <length> plus-side: 67px;
+    property <length> inner: 912px;
+    property <length> side: min(111px, (root.inner - root.plus-side - root.gap * root.count) / max(1, root.count));
+    property <length> row-width: root.count * (root.side + root.gap) + root.plus-side;
+    property <int> align-mode: root.count + 1 >= 6 ? 1 : 0;
+    panel := Rectangle {
+        x: 147px; y: 171px; width: 988px; height: 455px;
+        background: #0d141c; border-width: 2px; border-color: #23262e;
+        Text { y: 41px; height: 50px; width: parent.width; text: "Сменить аккаунт"; color: white; font-size: 40px; font-weight: 700; font-family: GStyle.loc-font; horizontal-alignment: center; vertical-alignment: center; }
+        Text { y: 103px; height: 30px; width: parent.width; text: "Выберите пользователя или войдите в новый аккаунт"; color: #b8bcbf; font-size: 24px; font-family: GStyle.loc-font; horizontal-alignment: center; vertical-alignment: center; }
+        for tile[i] in ChooserState.tiles: Tile {
+            x: (parent.width - root.row-width) / 2 + i * (root.side + root.gap);
+            y: 171px;
+            side: root.side; index: i; data: tile; plus: false;
+            name-align: root.align-mode;
+        }
+        Tile {
+            x: (parent.width - root.row-width) / 2 + root.count * (root.side + root.gap);
+            y: 171px;
+            side: root.plus-side; index: root.count; plus: true;
+            name-align: root.align-mode == 1 ? 2 : 0;
+        }
+        // #ChangeUser_ShouldShowUserChooser — client setting always_show_user_chooser (sp.js 535455).
+        toggle := Rectangle {
+            property <bool> focused: ChooserState.focus == root.count + 1;
+            x: 30px; y: 342px; width: parent.width - 60px; height: 72px;
+            Text { x: 8px; width: parent.width - 150px; text: "При каждом запуске Steam спрашивать, какой аккаунт использовать"; color: #dcdedf; font-size: 24px; font-family: GStyle.loc-font; wrap: word-wrap; vertical-alignment: center; }
+            Toggle { x: parent.width - 6px - self.width; y: 2px; on: ChooserState.ask-on-start ? 1 : 0; focused: toggle.focused; }
+            TouchArea { enabled: !ChooserState.busy; clicked => { ChooserState.focus = root.count + 1; ChooserState.activate(root.count + 1); } }
+        }
+    }
+}

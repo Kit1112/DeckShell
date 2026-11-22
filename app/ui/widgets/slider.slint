@@ -1,0 +1,19 @@
+import { Tokens } from "../tokens.slint";
+
+export component Slider inherits Rectangle {
+    in property <float> value; // <0 = unavailable
+    in property <bool> focused;
+    height: Tokens.qam-row-h;
+    background: transparent;
+    Rectangle {
+        x: 0px; y: (parent.height - self.height) / 2; width: parent.width; height: Tokens.qam-slider-h; background: Tokens.qam-track; border-radius: self.height / 2;
+        Rectangle { x: 0px; y: 0px; width: parent.width * clamp(root.value, 0, 1); height: parent.height; background: Tokens.accent; border-radius: self.height / 2; animate width { duration: 80ms; } }
+    }
+    Rectangle {
+        x: (root.width - Tokens.qam-knob) * clamp(root.value, 0, 1); y: (parent.height - Tokens.qam-knob) / 2; width: Tokens.qam-knob; height: Tokens.qam-knob; border-radius: Tokens.qam-knob / 2; background: Tokens.text;
+        border-width: root.focused ? 3px : 0px; border-color: Tokens.accent;
+        drop-shadow-color: Tokens.qam-knob-shadow-color; drop-shadow-blur: Tokens.qam-knob-shadow-blur;
+        animate x { duration: 80ms; }
+    }
+}
+

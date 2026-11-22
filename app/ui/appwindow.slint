@@ -1,0 +1,163 @@
+import { AccountScreen, AccountState, AccountRow, ChooserState, AccountTile } from "screens/account_switch.slint";
+export { AccountState, AccountRow, ChooserState, AccountTile }
+import { NotificationStack, ToastState, ToastData } from "widgets/notification_toast.slint";
+export { ToastState, ToastData }
+// Window shell: composes backdrop, screens, overlays, top bar, footer. No screen logic lives here -
+// each screen is in ui/screens/<name>.slint with its own `<Name>State` global (set from src/screens/<name>.rs).
+import { InstallWizard, InstallState, InstallCompatRow } from "screens/install.slint";
+export { InstallState, InstallCompatRow }
+import { Tokens } from "tokens.slint";
+import { GStyle } from "generated/style.slint";
+import { Shell } from "shell.slint";
+import { CardData, LibRow, MenuItem, DlItem, Hint, RailItem, ListEntry } from "widgets/types.slint";
+import { Icons } from "widgets/icon.slint";
+import { Backdrop, BackdropState } from "widgets/backdrop.slint";
+import { TopBarState, HeaderLayout } from "widgets/top_bar.slint";
+import { HeroFrame } from "widgets/hero_img.slint";
+export { HeroFrame }
+import { FooterState } from "widgets/footer.slint";
+import { LevelBar } from "widgets/level_bar.slint";
+import { GTopBar } from "generated/topbar.slint";
+import { SearchCaret } from "widgets/search_field.slint";
+import { GFooterBar } from "generated/footer.slint";
+import { HomeScreen, HomeState } from "screens/home.slint";
+import { LibraryScreen, LibraryState, SortMenu } from "screens/library.slint";
+import { GameScreen, GameState } from "screens/game.slint";
+import { DownloadsScreen, DownloadsState, DlPageRow } from "screens/downloads.slint";
+import { RecordingSettingsState } from "screens/recording_settings.slint";
+export { RecordingSettingsState }
+import { AnimPageState, AnimItem } from "screens/anim_page.slint";
+export { AnimPageState, AnimItem }
+import { InternetState, WifiRow, WifiDRow } from "screens/internet.slint";
+export { InternetState, WifiRow, WifiDRow }
+import { SettingsScreen, SettingsState } from "screens/settings.slint";
+import { ControllerDevicesState, DeviceRow, DeviceAxis } from "screens/controller_devices.slint";
+export { ControllerDevicesState, DeviceRow, DeviceAxis }
+import { MediaScreen, MediaState } from "screens/media.slint";
+import { SearchScreen, SearchOsk, SearchState } from "screens/search.slint";
+import { OskState, OskKey, OskExt } from "screens/osk.slint";
+import { SteamMenu, SteamMenuState, PowerConfirm } from "screens/steam_menu.slint";
+import { DownloadsMenuPanel, DownloadsMenuState, DlMenuRow } from "screens/downloads_menu.slint";
+export { DownloadsMenuState, DlMenuRow }
+import { Qam, QamState, QamRow } from "screens/qam.slint";
+import { ControllerGyroModal, ControllerGyroState } from "screens/controller_gyro.slint";
+export { ControllerGyroState }
+import { ControllerScreen, ControllerState, SummaryRow, CRow, ControllerConfigCard, ControllerBrowserTab, ControllerEditorRow, ControllerEditorSection, ControllerEditorAction, ControllerPickerKey, ControllerSettingRow, PadRow, ChoiceItem } from "screens/controller.slint";
+import { PropertiesScreen, PropsState, PField } from "screens/properties.slint";
+import { HotkeysLayer, HotkeysState, HintRow, PowerRow } from "screens/hotkeys.slint";
+export { HotkeysState, HintRow, PowerRow }
+import { SgdbScreen, SgdbState, SgdbItem, SgdbRow } from "screens/sgdb.slint";
+import { DeckyState, DeckyItem, DeckyNode } from "screens/decky/decky_tab.slint";
+import { AnimOverlay, AnimState } from "screens/anim_overlay.slint";
+import { LaunchSplash, LaunchSplashState } from "screens/launch_splash.slint";
+import { IdleCover, IdleState } from "screens/idle_cover.slint";
+import { RecBadgeWindow } from "rec_badge.slint";
+export { RecBadgeWindow }
+import { LevelPopupWindow } from "level_popup.slint";
+export { LevelPopupWindow }
+export { AnimState, LaunchSplashState, QamRow, IdleState }
+import { GPageRow } from "generated/settings/rows.slint";
+import { ToggleGallery } from "widgets/toggle.slint";
+export { ToggleGallery }
+export { GPageRow }
+export { DeckyState, DeckyItem, DeckyNode }
+export { SearchCaret }
+export { SgdbState, SgdbItem, SgdbRow }
+export { OskState, OskKey, OskExt }
+export { PropsState, PField }
+export { ControllerState, SummaryRow, CRow, ControllerConfigCard, ControllerBrowserTab, ControllerEditorRow, ControllerEditorSection, ControllerEditorAction, ControllerPickerKey, ControllerSettingRow, PadRow, ChoiceItem }
+export { DlPageRow, Shell, CardData, LibRow, MenuItem, DlItem, Hint, RailItem, ListEntry, Icons, BackdropState, TopBarState, HeaderLayout, FooterState,
+         HomeState, LibraryState, GameState, DownloadsState, SettingsState, MediaState, SearchState, SteamMenuState, QamState }
+
+export component AppWindow inherits Window {
+    in property <bool> dry-run: false;
+    title: "DeckShell";
+    preferred-width: 1280px;
+    preferred-height: 800px;
+    min-width: 640px;
+    min-height: 400px;
+    // Always create an alpha-capable native surface. The opaque page is a child,
+    // so a menu can transition to an overlay without recreating/unmapping it.
+    background: transparent;
+    default-font-size: 16px;
+    default-font-family: Tokens.font-family;
+
+    fs := FocusScope {
+        init => { self.focus(); }
+        focus-changed-event(reason) => { Shell.animation-key-reset(); }
+        capture-key-pressed(e) => {
+            if (Shell.animation-key(e.text, true, e.repeat, e.modifiers.control || e.modifiers.alt || e.modifiers.shift || e.modifiers.meta)) { accept } else { reject }
+        }
+        capture-key-released(e) => {
+            if (Shell.animation-key(e.text, false, e.repeat, e.modifiers.control || e.modifiers.alt || e.modifiers.shift || e.modifiers.meta)) { accept } else { reject }
+        }
+        key-pressed(e) => {
+            if (Shell.key(e.text, e.modifiers.control, e.repeat)) { accept } else { reject }
+        }
+
+        Rectangle {
+        visible: !Shell.game-overlay;
+        background: Tokens.bg;
+        Backdrop { }
+        HomeScreen { }
+        LibraryScreen { }
+        SearchScreen { }
+        GameScreen { }
+        DownloadsScreen { }
+        SettingsScreen { }
+        MediaScreen { }
+        if Shell.library-status != "" && (Shell.page == 0 || Shell.page == 1 || Shell.page == 6): Rectangle {
+            x: 32px; y: 110px; width: parent.width - 64px; height: 64px; background: #18202bf0;
+            accessible-role: text; accessible-label: Shell.library-status;
+            Text { x: 18px; width: parent.width - 36px; height: parent.height; text: Shell.library-status; color: Tokens.text; font-size: 20px; vertical-alignment: center; wrap: word-wrap; }
+        }
+        }
+        SteamMenu { }
+        DownloadsMenuPanel { x: 360px; y: 60px; width: 600px; height: parent.height - 120px; }
+        Qam { }
+        SgdbScreen { visible: !Shell.game-overlay && SgdbState.open; width: root.width; height: root.height; }
+        PropertiesScreen { visible: !Shell.game-overlay && (PropsState.open || PropsState.popup-open || PropsState.osk-open || PropsState.dlg-open); x: 0px; y: 0px; width: root.width; height: root.height; }
+        ControllerScreen { visible: !Shell.game-overlay && ControllerState.open; x: 0px; y: 0px; width: root.width; height: root.height; }
+        top-bar := GTopBar {
+            x: 0px; y: MediaState.viewer-open ? -self.height : 0px; width: root.width;
+            opacity: MediaState.viewer-open ? 0.2 : 1;
+            animate y, opacity { duration: 500ms; easing: ease-in-out; }
+            compact: ControllerState.open || (Shell.page != 0 && Shell.page != 2);
+        }
+        if ControllerState.open && !Shell.game-overlay: Text {
+            x: 237px; y: 0px; width: max(0px, min(700px, top-bar.search-left - self.x - 12px)); height: 60px;
+            text: ControllerState.browser-open ? "Загрузить раскладку" : ControllerState.title;
+            color: #dcdedf; font-size: 23.7px; font-family: GStyle.loc-font;
+            vertical-alignment: center; overflow: elide;
+        }
+        if ControllerGyroState.shown && !Shell.game-overlay: ControllerGyroModal {
+            width: root.width; height: root.height;
+        }
+        GFooterBar { x: 0px; y: root.height - self.height; width: root.width; top-row-hints: ControllerState.open && ControllerState.pad-two-line ? 2 : 0; clicked(i) => { Shell.footer-clicked(i); } }
+        // окна входа и установки лежат ниже экранной клавиатуры: поле пароля вызывает её поверх окна
+        AccountScreen { x: 0px; y: 0px; width: root.width; height: root.height; }
+
+        InstallWizard { x: 0px; y: 0px; width: root.width; height: root.height; }
+        SearchOsk { x: 0px; y: 0px; width: root.width; height: root.height; }
+        SortMenu { }
+        HotkeysLayer { x: 0px; y: 0px; width: root.width; height: root.height; }
+        PowerConfirm { x: 0px; y: 0px; width: root.width; height: root.height; }
+
+        if !ToastState.external: NotificationStack { viewport-width: root.width; viewport-height: root.height; }
+
+        // brightness / volume popup (Decky Brightness Bar look), below the boot/suspend cover
+        if !Shell.level-external : LevelBar { kind: Shell.level-kind; value: Shell.level-value; icon: Shell.level-icon; shown: Shell.level-shown; }
+
+        // boot / suspend / shutdown animation cover (src/anim): always the top-most layer
+        AnimOverlay { x: 0px; y: 0px; width: root.width; height: root.height; }
+        // Play/Resume cover until the game window has focus (task 330, src/launch_splash.rs); below the boot cover
+        LaunchSplash { x: 0px; y: 0px; width: root.width; height: root.height; }
+        // idle screensaver (task 518, src/idle.rs): above everything but the test-mode banner
+        IdleCover { x: 0px; y: 0px; width: root.width; height: root.height; }
+        if root.dry-run: Rectangle {
+            x: 0px; y: 0px; width: root.width; height: 52px; background: #c51c24;
+            accessible-role: text; accessible-label: "РЕЖИМ ТЕСТА — действия отключены";
+            Text { width: parent.width; height: parent.height; text: "РЕЖИМ ТЕСТА — действия отключены"; color: white; font-size: 22px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
+        }
+    }
+}

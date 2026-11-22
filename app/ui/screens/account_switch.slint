@@ -1,0 +1,191 @@
+import { GStyle } from "../generated/style.slint";
+import { Icons } from "../widgets/icon.slint";
+import { Toggle } from "../widgets/toggle.slint";
+import { GKeyHint } from "../generated/footer.slint";
+import { TopBarState } from "../widgets/top_bar.slint";
+import { AccountChooser, ChooserState, AccountTile } from "account_chooser.slint";
+export { ChooserState, AccountTile }
+
+export struct AccountRow { name: string, persona: string, steamid: string, avatar: image, current: bool }
+export global AccountState {
+    in property <bool> open;
+    in property <bool> busy;
+    in property <bool> can-login;
+    in property <bool> remembered;
+    in property <string> username;
+    /// пароль, набранный на экранной клавиатуре: только точки (`osk::mask`), сам текст в Slint не попадает
+    in property <string> password-mask;
+    in property <string> message;
+    in property <image> backdrop;
+    in property <[AccountRow]> users;
+    in-out property <int> focus;
+    /// 0 — «Сменить аккаунт» (плитки), 1 — «Войти» (QR + имя/пароль), 2 — Steam Guard.
+    in property <int> page;
+    /// QR стока (sp.js 249248): 0 — готовится (размыт + загрузка), 1 — показан, 2 — отсканирован в приложении
+    /// (размыт + загрузка), 3 — ошибка/истёк (размыт + кнопка «обновить»), 4 — вход подтверждён (галочка).
+    in property <int> qr-state;
+    in property <image> qr;
+    in property <image> qr-blur;
+    in property <string> qr-error;
+    /// Steam Guard: 1 — код из письма, 2 — код из приложения, 3 — подтверждение в приложении (без кода).
+    in property <int> guard-kind;
+    in property <string> guard-code;
+    in property <string> guard-hint;
+    callback pick(int);
+}
+// Gaming Mode CSS: DialogButton (cXzBZxhPBl7fZs9LODEnc), transition:none for pad focus;
+// hover alone uses background-color 150ms ease-in. No invented pad-focus tween.
+component LoginButton inherits Rectangle {
+    in property <string> label;
+    in property <int> index;
+    in property <bool> available: true;
+    in property <bool> primary: false;
+    property <bool> focused: AccountState.focus == index;
+    border-radius: 3px;
+    property <color> pointer-background: #ffffff26;
+    background: !available ? (focused ? #000 : #131418) : focused ? (primary ? #1a9fff : #ffffff) : pointer-background;
+    states [
+        hovered when hit.has-hover: {
+            pointer-background: root.primary ? #1aa0ff7c : #ffffff33;
+            in { animate pointer-background { duration: 150ms; easing: ease-in; } }
+        }
+    ]
+    opacity: available ? 1 : 0.4;
+    Text { text: root.label; color: !root.available || (root.focused && root.primary) ? #fff : root.focused ? #23262e : #dcdedf; font-family: GStyle.loc-font; font-size: 25px; horizontal-alignment: center; vertical-alignment: center; }
+    hit := TouchArea { clicked => { AccountState.focus = root.index; if (root.available) { AccountState.pick(root.index); } } }
+}
+// Стоковый QR-блок: белая карточка 248px в тёмной рамке 308px (снимок 23:12). Активные модули rgb(21,23,28).
+component QrBlock inherits Rectangle {
+    width: 308px; height: 309px; background: #23262e;
+    property <bool> blurred: AccountState.qr-state != 1 && AccountState.qr-state != 4;
+    Rectangle { x: 30px; y: 30px; width: 248px; height: 249px; background: white;
+        Image { width: parent.width; height: parent.height; source: root.blurred ? AccountState.qr-blur : AccountState.qr; image-fit: contain; image-rendering: pixelated; }
+    }
+    // Overlay/Box: загрузка (Loading Small), «обновить» (QRFailure, svg 256×256 → 40px), галочка (45px).
+    if AccountState.qr-state == 0 || AccountState.qr-state == 2: Image {
+        x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2; width: 48px; height: 48px;
+        source: @image-url("../assets/login-spinner.svg");
+        transform-rotation: (mod(animation-tick() / 1ms, 1000) / 1000) * 360deg;
+    }
+    if AccountState.qr-state == 3: Rectangle {
+        property <bool> focused: AccountState.focus == 8;
+        x: (parent.width - 72px) / 2; y: (parent.height - 72px) / 2; width: 72px; height: 72px; border-radius: 36px;
+        background: self.focused ? #ffffff : #0e141bd9;
+        Image { x: 16px; y: 16px; width: 40px; height: 40px; source: parent.focused ? @image-url("../assets/login-qr-refresh-dark.svg") : @image-url("../assets/login-qr-refresh.svg"); }
+        TouchArea { clicked => { AccountState.focus = 8; AccountState.pick(8); } }
+    }
+    if AccountState.qr-state == 4: Rectangle {
+        x: (parent.width - 72px) / 2; y: (parent.height - 72px) / 2; width: 72px; height: 72px; border-radius: 36px; background: #0e141bd9;
+        Image { x: 13px; y: 13px; width: 45px; height: 45px; source: @image-url("../assets/login-qr-check.svg"); }
+    }
+}
+export component AccountScreen inherits Rectangle {
+    visible: AccountState.open;
+    background: AccountState.page == 0 ? transparent : #0e141b;
+    TouchArea { }
+    if AccountState.page == 0: AccountChooser { width: parent.width; height: parent.height; }
+    // Сообщения потока смены на странице выбора (под окном, чтобы не сдвигать стоковую раскладку).
+    if AccountState.page == 0 && AccountState.message != "": Rectangle {
+        x: 147px; y: 640px; width: 988px; height: 70px; background: #0d141ce6; border-radius: 3px;
+        Text { x: 20px; width: parent.width - 40px; text: AccountState.message; color: #dcdedf; font-size: 21px; wrap: word-wrap; vertical-alignment: center; horizontal-alignment: center; }
+    }
+    // Steam's native asset already includes blur. CSS: 160%, 60s linear alternate,
+    // from background-position 0 100% to 100% 0 (sp.css _3Xhi9KDm4L01vCxQG3dtWX).
+    property <float> cycle: AccountState.open ? Math.mod(animation-tick() / 1ms, 120000) / 60000 : 0;
+    property <float> pan: cycle <= 1 ? cycle : 2 - cycle;
+    if AccountState.page != 0: Rectangle {
+        y: 60px; height: parent.height - 120px; clip: true;
+        Image { source: AccountState.backdrop; image-fit: fill; width: root.width * 1.6; height: self.width * 0.5625;
+            x: -root.width * 0.6 * root.pan; y: -(self.height - parent.height) * (1 - root.pan); }
+        // Screenshot coordinates at 1280x800; stock uses equal 50% columns.
+        Text { x: 0px; y: 84px; width: parent.width / 2; height: 85px; text: "Войти"; color: white; font-family: GStyle.loc-font; font-size: 72px; font-weight: 700; horizontal-alignment: center; }
+        QrBlock { x: parent.width / 4 - 154px; y: 210px; }
+        if AccountState.qr-error != "": Text { x: 36px; y: 186px; width: parent.width / 2 - 72px; height: 22px; text: AccountState.qr-error; color: #ff8a8a; font-size: 18px; horizontal-alignment: center; overflow: elide; }
+        // Login_UseMobileAppForQR_Inline: «Используйте <1>мобильное приложение Steam</1>, чтобы войти с помощью QR-кода»;
+        // перенос как на снимке стока: «…, чтобы» / «войти с помощью QR-кода», подчёркнута только ссылка.
+        qrlink := Rectangle { x: 24px; y: 540px; width: parent.width / 2 - 48px; height: 62px; background: transparent;
+            property <color> ink: AccountState.focus == 7 ? white : #b8bcbf;
+            HorizontalLayout { y: 0px; height: 30px; alignment: center;
+                Text { text: "Используйте "; color: #b8bcbf; font-size: 21px; }
+                Rectangle { width: link.preferred-width; height: 30px;
+                    link := Text { text: "мобильное приложение Steam"; color: qrlink.ink; font-size: 21px; }
+                    Rectangle { y: 26px; height: 1px; background: qrlink.ink; }
+                }
+                Text { text: ", чтобы"; color: #b8bcbf; font-size: 21px; }
+            }
+            Text { y: 30px; width: parent.width; height: 30px; text: "войти с помощью QR-кода"; color: #b8bcbf; font-size: 21px; horizontal-alignment: center; }
+            TouchArea { enabled: !AccountState.busy; clicked => { AccountState.focus = 7; AccountState.pick(7); } }
+        }
+        LoginButton { x: parent.width / 4 - 142px; y: 621px; width: 285px; height: 60px; label: "Создать аккаунт"; index: 6; available: !AccountState.busy; }
+        if AccountState.page == 1: Rectangle {
+            x: parent.width / 2 + 54px; width: parent.width / 2 - 106px; y: 155px; height: 465px; background: transparent;
+            Text { x: 0px; y: 8px; height: 30px; text: "ВОЙДИТЕ, ИСПОЛЬЗУЯ ИМЯ АККАУНТА"; color: white; font-size: 20px; font-weight: 700; font-family: GStyle.loc-font; }
+            // _DialogInputContainer.gpfocus: white background, #0e141b text/caret.
+            // Поле имени: текст набирается экранной клавиатурой; каретка как у стока (белая/тёмная при фокусе).
+            Rectangle { y: 45px; height: 60px; background: AccountState.focus == 0 ? #fff : #43495399;
+                name-text := Text { x: 24px; width: parent.width - 48px; text: AccountState.username; color: AccountState.focus == 0 ? #0e141b : white; font-size: 25px; vertical-alignment: center; overflow: elide; }
+                Rectangle { x: AccountState.username == "" ? (AccountState.focus == 0 ? 24px : 17px) : 24px + min(name-text.preferred-width, parent.width - 48px) + 2px; y: 15px; width: 1px; height: 30px; background: AccountState.focus == 0 ? #0e141b : white; }
+                TouchArea { enabled: !AccountState.busy; clicked => { AccountState.focus = 0; AccountState.pick(0); } }
+            }
+            Text { x: 0px; y: 133px; height: 30px; text: "ПАРОЛЬ"; color: white; font-size: 20px; font-weight: 700; font-family: GStyle.loc-font; }
+            Rectangle { y: 168px; height: 60px; background: AccountState.focus == 1 ? #fff : #43495399;
+                Text { x: 24px; text: AccountState.password-mask; color: AccountState.focus == 1 ? #0e141b : white; font-size: 25px; vertical-alignment: center; }
+                Rectangle { x: parent.width - 60px; width: 60px; background: #ffffff08;
+                    Image { x: 15px; y: 15px; width: 30px; height: 30px; source: @image-url("../assets/steam-feature-hidden.svg"); }
+                }
+                TouchArea { enabled: !AccountState.busy; clicked => { AccountState.focus = 1; AccountState.pick(1); } }
+            }
+            Rectangle { y: 253px; height: 68px; background: AccountState.focus == 2 ? #ffffff1a : transparent;
+                Text { x: 18px; text: "Запомнить меня"; color: #dcdedf; font-size: 25px; vertical-alignment: center; }
+                Toggle { x: parent.width - 81px; y: (parent.height - self.height) / 2; on: AccountState.remembered ? 1 : 0; focused: AccountState.focus == 2; }
+                TouchArea { enabled: !AccountState.busy; clicked => { AccountState.focus = 2; AccountState.pick(2); } }
+            }
+            LoginButton { x: 18px; y: 348px; width: (parent.width - 54px) / 2; height: 60px; label: "Войти"; index: 3; primary: true; available: AccountState.can-login; }
+            LoginButton { x: parent.width / 2 + 9px; y: 348px; width: (parent.width - 54px) / 2; height: 60px; label: "Отмена"; index: 4; }
+            Rectangle { y: 424px; height: 36px; background: transparent;
+                Text { text: "Помогите, я не могу войти в аккаунт"; color: AccountState.focus == 5 ? white : #b8bcbf; font-size: 23px; horizontal-alignment: center; vertical-alignment: center; }
+                Rectangle { x: 64px; y: 29px; width: parent.width - 128px; height: 1px; background: #b8bcbf; }
+                TouchArea { enabled: !AccountState.busy; clicked => { AccountState.focus = 5; AccountState.pick(5); } }
+            }
+        }
+        if AccountState.message != "": Rectangle {
+            x: parent.width / 2 + 44px; y: 24px; width: parent.width / 2 - 88px; height: 118px; background: #0e141be6;
+            Text { x: 14px; y: 8px; width: parent.width - 28px; height: parent.height - 16px; text: AccountState.message; color: #dcdedf; font-size: 21px; wrap: word-wrap; vertical-alignment: center; }
+        }
+        // Steam Guard (стоковые строки shared_russian: Login_EnterEmailCode / Login_EnterMobileCode / Login_AwaitingMobileConfirmation).
+        if AccountState.page == 2: Rectangle {
+            x: parent.width / 2 + 54px; width: parent.width / 2 - 106px; y: 155px; height: 465px; background: transparent;
+            Text { y: 0px; height: 70px; width: parent.width; wrap: word-wrap; vertical-alignment: bottom;
+                text: AccountState.guard-kind == 1 ? "Введите код, полученный на электронный адрес: " + AccountState.guard-hint
+                    : AccountState.guard-kind == 2 ? "Введите код из мобильного приложения Steam" : "Используйте мобильное приложение Steam, чтобы подтвердить вход...";
+                color: white; font-size: 22px; font-weight: 700; font-family: GStyle.loc-font; }
+            Text { y: 78px; height: 56px; width: parent.width; wrap: word-wrap;
+                text: AccountState.guard-kind == 1 ? "У вас настроен аутентификатор электронной почты для защиты аккаунта." : "У вас настроен мобильный аутентификатор для защиты аккаунта.";
+                color: #b8bcbf; font-size: 19px; font-family: GStyle.loc-font; }
+            if AccountState.guard-kind != 3: Rectangle { y: 150px; height: 70px; background: AccountState.focus == 0 ? #fff : #43495399;
+                code-text := Text { x: 24px; text: AccountState.guard-code; color: AccountState.focus == 0 ? #0e141b : white; font-size: 34px; letter-spacing: 8px; font-weight: 700; vertical-alignment: center; }
+                Rectangle { x: 24px + code-text.preferred-width + 2px; y: 18px; width: 1px; height: 34px; background: AccountState.focus == 0 ? #0e141b : white; }
+                TouchArea { enabled: !AccountState.busy; clicked => { AccountState.focus = 0; AccountState.pick(0); } }
+            }
+            if AccountState.guard-kind == 3: Image { x: (parent.width - 48px) / 2; y: 160px; width: 48px; height: 48px;
+                source: @image-url("../assets/login-spinner.svg"); transform-rotation: (mod(animation-tick() / 1ms, 1000) / 1000) * 360deg; }
+            LoginButton { x: 18px; y: 348px; width: (parent.width - 54px) / 2; height: 60px; label: AccountState.guard-kind == 3 ? "Ввести код" : "Подтвердить"; index: 3; primary: true; available: !AccountState.busy; }
+            LoginButton { x: parent.width / 2 + 9px; y: 348px; width: (parent.width - 54px) / 2; height: 60px; label: "Отмена"; index: 4; }
+        }
+    }
+    // Underlying top bar remains drawn; these edges mask its interactive header/old footer.
+    if AccountState.page != 0: Rectangle { y: 0px; height: 60px; background: #0d0d0d;
+        Text { x: parent.width - 300px; width: 160px; text: TopBarState.clock; color: white; font-size: 25px; vertical-alignment: center; horizontal-alignment: right; }
+        Image { x: parent.width - 112px; y: 17px; width: 30px; height: 27px; source: Icons.wifi; image-fit: contain; }
+        Image { x: parent.width - 55px; y: 17px; width: 38px; height: 27px; source: TopBarState.battery-icon; image-fit: contain; }
+    }
+    Rectangle { y: parent.height - 60px; height: 60px; background: #0e1012;
+        GKeyHint { x: 24px; y: 3px; hint: { glyph: "STEAM", label: "МЕНЮ", kind: 3, has-icon: false }; }
+        HorizontalLayout { x: parent.width - self.width - 24px; y: 3px; width: self.preferred-width;
+            GKeyHint { hint: { glyph: "A", label: "ВЫБРАТЬ", kind: 1, has-icon: false }; clicked => { if (AccountState.page == 0) { ChooserState.activate(ChooserState.focus); } else { AccountState.pick(AccountState.focus); } } }
+            GKeyHint { hint: { glyph: "B", label: "НАЗАД", kind: 1, has-icon: false }; clicked => { AccountState.pick(4); } }
+        }
+    }
+    // Сток: модальное окно приглушает и подсказки внизу (≈50% яркости на снимке).
+    if AccountState.page == 0: Rectangle { y: parent.height - 60px; height: 60px; background: #0000007d; }
+}

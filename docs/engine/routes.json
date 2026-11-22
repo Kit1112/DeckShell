@@ -1,0 +1,1723 @@
+{
+ "_source": "route builders sp.js:342904-343232 (module 80344, prefix '/routes'); router component list not separately enumerated: every BV path is a route; rail definition sp.js:555380-555720; captured items: docs/cdp/behavior/settings-controls.json (22 rail pages, this Deck, RU locale).",
+ "summary": {
+  "deckshell_has": [
+   "/library/home (Home)",
+   "/library tabs (grid)",
+   "/library/app/:appid (game, partial)",
+   "/library/downloads",
+   "/search",
+   "Steam main menu (popup)",
+   "QAM quick-settings (partial)",
+   "toasts"
+  ],
+  "delegated_to_native_steam": [
+   "Store",
+   "Friends & chat",
+   "Media",
+   "Settings",
+   "Power menu actions via SteamClient.System"
+  ],
+  "checklist_counts": {
+   "total_routes": 177,
+   "yes": 3,
+   "partial": 6,
+   "delegated": 6,
+   "no": 123,
+   "n/a": 39
+  }
+ },
+ "routes": [
+  {
+   "id": "Library.Home",
+   "path": "/library/home",
+   "full_path": "/routes/library/home",
+   "deckshell": "yes",
+   "note": "Home page (recents carousel, what's new)"
+  },
+  {
+   "id": "Library.App.Root",
+   "path": "/library/app/:appid",
+   "full_path": "/routes/library/app/:appid",
+   "deckshell": "partial",
+   "note": "game page: hero, play/install, stats; missing tabs (community/guides/achievements/DLC), controller button, gear menu"
+  },
+  {
+   "id": "Library.App.Achievements.Root",
+   "path": "/library/app/:appid/achievements",
+   "full_path": "/routes/library/app/:appid/achievements",
+   "deckshell": "no",
+   "note": "achievements"
+  },
+  {
+   "id": "Library.App.Achievements.My.Root",
+   "path": "/library/app/:appid/achievements/my",
+   "full_path": "/routes/library/app/:appid/achievements/my",
+   "deckshell": "no",
+   "note": "achievements"
+  },
+  {
+   "id": "Library.App.Achievements.My.Individual",
+   "path": "/library/app/:appid/achievements/my/individual",
+   "full_path": "/routes/library/app/:appid/achievements/my/individual",
+   "deckshell": "no",
+   "note": "achievements"
+  },
+  {
+   "id": "Library.App.Achievements.My.Global",
+   "path": "/library/app/:appid/achievements/my/global",
+   "full_path": "/routes/library/app/:appid/achievements/my/global",
+   "deckshell": "no",
+   "note": "achievements"
+  },
+  {
+   "id": "Library.App.Achievements.Friend.Root",
+   "path": "/library/app/:appid/achievements/friend/:accountid",
+   "full_path": "/routes/library/app/:appid/achievements/friend/:accountid",
+   "deckshell": "no",
+   "note": "achievements"
+  },
+  {
+   "id": "Library.App.Achievements.Friend.Individual",
+   "path": "/library/app/:appid/achievements/friend/:accountid/individual",
+   "full_path": "/routes/library/app/:appid/achievements/friend/:accountid/individual",
+   "deckshell": "no",
+   "note": "achievements"
+  },
+  {
+   "id": "Library.App.Achievements.Friend.Global",
+   "path": "/library/app/:appid/achievements/friend/:accountid/global",
+   "full_path": "/routes/library/app/:appid/achievements/friend/:accountid/global",
+   "deckshell": "no",
+   "note": "achievements"
+  },
+  {
+   "id": "Library.Collection",
+   "path": "/library/collection/:collectionid",
+   "full_path": "/routes/library/collection/:collectionid",
+   "deckshell": "partial",
+   "note": "collection tab content"
+  },
+  {
+   "id": "Library.AllCollections",
+   "path": "/library/collections",
+   "full_path": "/routes/library/collections",
+   "deckshell": "partial",
+   "note": "Collections tab"
+  },
+  {
+   "id": "AppProperties.Root",
+   "path": "/app/:appid/properties",
+   "full_path": "/routes/app/:appid/properties",
+   "deckshell": "no",
+   "note": "game properties (context menu 'Свойства')"
+  },
+  {
+   "id": "AppProperties.General",
+   "path": "/app/:appid/properties/general",
+   "full_path": "/routes/app/:appid/properties/general",
+   "deckshell": "no",
+   "note": "game properties (context menu 'Свойства')"
+  },
+  {
+   "id": "AppProperties.Compatibility",
+   "path": "/app/:appid/properties/compatibility",
+   "full_path": "/routes/app/:appid/properties/compatibility",
+   "deckshell": "no",
+   "note": "game properties (context menu 'Свойства')"
+  },
+  {
+   "id": "AppProperties.Updates",
+   "path": "/app/:appid/properties/updates",
+   "full_path": "/routes/app/:appid/properties/updates",
+   "deckshell": "no",
+   "note": "game properties (context menu 'Свойства')"
+  },
+  {
+   "id": "AppProperties.LocalFiles",
+   "path": "/app/:appid/properties/localfiles",
+   "full_path": "/routes/app/:appid/properties/localfiles",
+   "deckshell": "no",
+   "note": "game properties (context menu 'Свойства')"
+  },
+  {
+   "id": "AppProperties.Language",
+   "path": "/app/:appid/properties/language",
+   "full_path": "/routes/app/:appid/properties/language",
+   "deckshell": "no",
+   "note": "game properties (context menu 'Свойства')"
+  },
+  {
+   "id": "AppProperties.Betas",
+   "path": "/app/:appid/properties/betas",
+   "full_path": "/routes/app/:appid/properties/betas",
+   "deckshell": "no",
+   "note": "game properties (context menu 'Свойства')"
+  },
+  {
+   "id": "AppProperties.Controller",
+   "path": "/app/:appid/properties/controller",
+   "full_path": "/routes/app/:appid/properties/controller",
+   "deckshell": "no",
+   "note": "game properties (context menu 'Свойства')"
+  },
+  {
+   "id": "AppProperties.Shortcut",
+   "path": "/app/:appid/properties/shortcut",
+   "full_path": "/routes/app/:appid/properties/shortcut",
+   "deckshell": "no",
+   "note": "game properties (context menu 'Свойства')"
+  },
+  {
+   "id": "AppProperties.DLC",
+   "path": "/app/:appid/properties/dlc",
+   "full_path": "/routes/app/:appid/properties/dlc",
+   "deckshell": "no",
+   "note": "game properties (context menu 'Свойства')"
+  },
+  {
+   "id": "AppProperties.Workshop",
+   "path": "/app/:appid/properties/workshop",
+   "full_path": "/routes/app/:appid/properties/workshop",
+   "deckshell": "no",
+   "note": "game properties (context menu 'Свойства')"
+  },
+  {
+   "id": "AppProperties.Feedback",
+   "path": "/app/:appid/properties/feedback",
+   "full_path": "/routes/app/:appid/properties/feedback",
+   "deckshell": "no",
+   "note": "game properties (context menu 'Свойства')"
+  },
+  {
+   "id": "AppProperties.Privacy",
+   "path": "/app/:appid/properties/privacy",
+   "full_path": "/routes/app/:appid/properties/privacy",
+   "deckshell": "no",
+   "note": "game properties (context menu 'Свойства')"
+  },
+  {
+   "id": "AppProperties.GameRecording",
+   "path": "/app/:appid/properties/gamerecording",
+   "full_path": "/routes/app/:appid/properties/gamerecording",
+   "deckshell": "no",
+   "note": "game properties (context menu 'Свойства')"
+  },
+  {
+   "id": "AppProperties.Customization",
+   "path": "/app/:appid/properties/customization",
+   "full_path": "/routes/app/:appid/properties/customization",
+   "deckshell": "no",
+   "note": "game properties (context menu 'Свойства')"
+  },
+  {
+   "id": "AppProperties.Performance",
+   "path": "/app/:appid/properties/performance",
+   "full_path": "/routes/app/:appid/properties/performance",
+   "deckshell": "no",
+   "note": "game properties (context menu 'Свойства')"
+  },
+  {
+   "id": "Init",
+   "path": "/init",
+   "full_path": "/routes/init",
+   "deckshell": "no",
+   "note": ""
+  },
+  {
+   "id": "Downloads",
+   "path": "/library/downloads",
+   "full_path": "/routes/library/downloads",
+   "deckshell": "yes",
+   "note": ""
+  },
+  {
+   "id": "Console",
+   "path": "/console",
+   "full_path": "/routes/console",
+   "deckshell": "no",
+   "note": ""
+  },
+  {
+   "id": "Media.Root",
+   "path": "/media",
+   "full_path": "/routes/media",
+   "deckshell": "delegated",
+   "note": "opens native Steam window via steam:// (MenuAct::Media)"
+  },
+  {
+   "id": "Media.Grid",
+   "path": "/media/grid",
+   "full_path": "/routes/media/grid",
+   "deckshell": "delegated",
+   "note": ""
+  },
+  {
+   "id": "Media.List",
+   "path": "/media/list",
+   "full_path": "/routes/media/list",
+   "deckshell": "delegated",
+   "note": ""
+  },
+  {
+   "id": "Browser",
+   "path": "/browser/",
+   "full_path": "/routes/browser/",
+   "deckshell": "no",
+   "note": ""
+  },
+  {
+   "id": "Settings.Root",
+   "path": "/settings",
+   "full_path": "/routes/settings",
+   "deckshell": "delegated",
+   "note": "MenuAct::Settings opens Steam settings; no native replica yet"
+  },
+  {
+   "id": "Settings.General",
+   "path": "/settings/system",
+   "full_path": "/routes/settings/system",
+   "deckshell": "no",
+   "note": "Settings page not implemented (see settings_pages)"
+  },
+  {
+   "id": "Settings.Display",
+   "path": "/settings/display",
+   "full_path": "/routes/settings/display",
+   "deckshell": "no",
+   "note": "Settings page not implemented (see settings_pages)"
+  },
+  {
+   "id": "Settings.Power",
+   "path": "/settings/power",
+   "full_path": "/routes/settings/power",
+   "deckshell": "no",
+   "note": "Settings page not implemented (see settings_pages)"
+  },
+  {
+   "id": "Settings.Internet",
+   "path": "/settings/internet",
+   "full_path": "/routes/settings/internet",
+   "deckshell": "no",
+   "note": "Settings page not implemented (see settings_pages)"
+  },
+  {
+   "id": "Settings.Notifications",
+   "path": "/settings/notifications",
+   "full_path": "/routes/settings/notifications",
+   "deckshell": "no",
+   "note": "Settings page not implemented (see settings_pages)"
+  },
+  {
+   "id": "Settings.Bluetooth",
+   "path": "/settings/bluetooth",
+   "full_path": "/routes/settings/bluetooth",
+   "deckshell": "yes",
+   "note": "Settings page implemented (task 488)"
+  },
+  {
+   "id": "Settings.Audio",
+   "path": "/settings/audio",
+   "full_path": "/routes/settings/audio",
+   "deckshell": "no",
+   "note": "Settings page not implemented (see settings_pages)"
+  },
+  {
+   "id": "Settings.Storage",
+   "path": "/settings/storage",
+   "full_path": "/routes/settings/storage",
+   "deckshell": "no",
+   "note": "Settings page not implemented (see settings_pages)"
+  },
+  {
+   "id": "Settings.System",
+   "path": "/settings/system",
+   "full_path": "/routes/settings/system",
+   "deckshell": "no",
+   "note": "Settings page not implemented (see settings_pages)"
+  },
+  {
+   "id": "Settings.Security",
+   "path": "/settings/security",
+   "full_path": "/routes/settings/security",
+   "deckshell": "no",
+   "note": "Settings page not implemented (see settings_pages)"
+  },
+  {
+   "id": "Settings.Internal",
+   "path": "/settings/internal",
+   "full_path": "/routes/settings/internal",
+   "deckshell": "no",
+   "note": "Settings page not implemented (see settings_pages)"
+  },
+  {
+   "id": "Settings.Developer",
+   "path": "/settings/developer",
+   "full_path": "/routes/settings/developer",
+   "deckshell": "no",
+   "note": "Settings page not implemented (see settings_pages)"
+  },
+  {
+   "id": "Settings.Keyboard",
+   "path": "/settings/keyboard",
+   "full_path": "/routes/settings/keyboard",
+   "deckshell": "no",
+   "note": "Settings page not implemented (see settings_pages)"
+  },
+  {
+   "id": "Settings.Customization",
+   "path": "/settings/customization",
+   "full_path": "/routes/settings/customization",
+   "deckshell": "no",
+   "note": "Settings page not implemented (see settings_pages)"
+  },
+  {
+   "id": "Settings.Friends",
+   "path": "/settings/friends",
+   "full_path": "/routes/settings/friends",
+   "deckshell": "no",
+   "note": "Settings page not implemented (see settings_pages)"
+  },
+  {
+   "id": "Settings.Downloads",
+   "path": "/settings/downloads",
+   "full_path": "/routes/settings/downloads",
+   "deckshell": "no",
+   "note": "Settings page not implemented (see settings_pages)"
+  },
+  {
+   "id": "Settings.Cloud",
+   "path": "/settings/cloud",
+   "full_path": "/routes/settings/cloud",
+   "deckshell": "no",
+   "note": "Settings page not implemented (see settings_pages)"
+  },
+  {
+   "id": "Settings.RemotePlay",
+   "path": "/settings/remoteplay",
+   "full_path": "/routes/settings/remoteplay",
+   "deckshell": "no",
+   "note": "Settings page not implemented (see settings_pages)"
+  },
+  {
+   "id": "Settings.Library",
+   "path": "/settings/library",
+   "full_path": "/routes/settings/library",
+   "deckshell": "no",
+   "note": "Settings page not implemented (see settings_pages)"
+  },
+  {
+   "id": "Settings.Family",
+   "path": "/settings/family",
+   "full_path": "/routes/settings/family",
+   "deckshell": "no",
+   "note": "Settings page not implemented (see settings_pages)"
+  },
+  {
+   "id": "Settings.Home",
+   "path": "/settings/home",
+   "full_path": "/routes/settings/home",
+   "deckshell": "no",
+   "note": "Settings page not implemented (see settings_pages)"
+  },
+  {
+   "id": "Settings.Account",
+   "path": "/settings/account",
+   "full_path": "/routes/settings/account",
+   "deckshell": "no",
+   "note": "Settings page not implemented (see settings_pages)"
+  },
+  {
+   "id": "Settings.InGame",
+   "path": "/settings/ingame",
+   "full_path": "/routes/settings/ingame",
+   "deckshell": "no",
+   "note": "Settings page not implemented (see settings_pages)"
+  },
+  {
+   "id": "Settings.Compatibility",
+   "path": "/settings/compatibility",
+   "full_path": "/routes/settings/compatibility",
+   "deckshell": "no",
+   "note": "Settings page not implemented (see settings_pages)"
+  },
+  {
+   "id": "Settings.Interface",
+   "path": "/settings/interface",
+   "full_path": "/routes/settings/interface",
+   "deckshell": "no",
+   "note": "Settings page not implemented (see settings_pages)"
+  },
+  {
+   "id": "Settings.Music",
+   "path": "/settings/music",
+   "full_path": "/routes/settings/music",
+   "deckshell": "no",
+   "note": "Settings page not implemented (see settings_pages)"
+  },
+  {
+   "id": "Settings.Broadcast",
+   "path": "/settings/broadcast",
+   "full_path": "/routes/settings/broadcast",
+   "deckshell": "no",
+   "note": "Settings page not implemented (see settings_pages)"
+  },
+  {
+   "id": "Settings.Voice",
+   "path": "/settings/voice",
+   "full_path": "/routes/settings/voice",
+   "deckshell": "no",
+   "note": "Settings page not implemented (see settings_pages)"
+  },
+  {
+   "id": "Settings.InGameVoice",
+   "path": "/settings/ingamevoice",
+   "full_path": "/routes/settings/ingamevoice",
+   "deckshell": "no",
+   "note": "Settings page not implemented (see settings_pages)"
+  },
+  {
+   "id": "Settings.DesktopSecurity",
+   "path": "/settings/desktopsecurity",
+   "full_path": "/routes/settings/desktopsecurity",
+   "deckshell": "no",
+   "note": "Settings page not implemented (see settings_pages)"
+  },
+  {
+   "id": "Settings.GameRecording",
+   "path": "/settings/gamerecording",
+   "full_path": "/routes/settings/gamerecording",
+   "deckshell": "no",
+   "note": "Settings page not implemented (see settings_pages)"
+  },
+  {
+   "id": "Settings.Accessibility",
+   "path": "/settings/accessibility",
+   "full_path": "/routes/settings/accessibility",
+   "deckshell": "no",
+   "note": "Settings page not implemented (see settings_pages)"
+  },
+  {
+   "id": "Settings.Store",
+   "path": "/settings/store",
+   "full_path": "/routes/settings/store",
+   "deckshell": "no",
+   "note": "Settings page not implemented (see settings_pages)"
+  },
+  {
+   "id": "GamepadUI.Oobe.Root",
+   "path": "/oobe",
+   "full_path": "/routes/oobe",
+   "deckshell": "no",
+   "note": "Steam first-run"
+  },
+  {
+   "id": "GamepadUI.Oobe.Current",
+   "path": "/oobe/current",
+   "full_path": "/routes/oobe/current",
+   "deckshell": "n/a",
+   "note": "OOBE (Steam first-run)"
+  },
+  {
+   "id": "GamepadUI.Oobe.Stage1",
+   "path": "/oobe/1",
+   "full_path": "/routes/oobe/1",
+   "deckshell": "n/a",
+   "note": "OOBE (Steam first-run)"
+  },
+  {
+   "id": "GamepadUI.Oobe.Language",
+   "path": "/oobe/1/language",
+   "full_path": "/routes/oobe/1/language",
+   "deckshell": "n/a",
+   "note": "OOBE (Steam first-run)"
+  },
+  {
+   "id": "GamepadUI.Oobe.Timezone",
+   "path": "/oobe/1/timezone",
+   "full_path": "/routes/oobe/1/timezone",
+   "deckshell": "n/a",
+   "note": "OOBE (Steam first-run)"
+  },
+  {
+   "id": "GamepadUI.Oobe.Network",
+   "path": "/oobe/1/network",
+   "full_path": "/routes/oobe/1/network",
+   "deckshell": "n/a",
+   "note": "OOBE (Steam first-run)"
+  },
+  {
+   "id": "GamepadUI.Oobe.Update",
+   "path": "/oobe/1/update",
+   "full_path": "/routes/oobe/1/update",
+   "deckshell": "n/a",
+   "note": "OOBE (Steam first-run)"
+  },
+  {
+   "id": "GamepadUI.Oobe.ScreenReaderConfirm",
+   "path": "/oobe/1/screenreaderconfirm",
+   "full_path": "/routes/oobe/1/screenreaderconfirm",
+   "deckshell": "n/a",
+   "note": "OOBE (Steam first-run)"
+  },
+  {
+   "id": "GamepadUI.Oobe.Stage2",
+   "path": "/oobe/2",
+   "full_path": "/routes/oobe/2",
+   "deckshell": "n/a",
+   "note": "OOBE (Steam first-run)"
+  },
+  {
+   "id": "GamepadUI.Oobe.HardwareUpdater",
+   "path": "/oobe/2/hardwareupdater",
+   "full_path": "/routes/oobe/2/hardwareupdater",
+   "deckshell": "n/a",
+   "note": "OOBE (Steam first-run)"
+  },
+  {
+   "id": "GamepadUI.Oobe.PairSteamController",
+   "path": "/oobe/2/pairsteamcontroller",
+   "full_path": "/routes/oobe/2/pairsteamcontroller",
+   "deckshell": "n/a",
+   "note": "OOBE (Steam first-run)"
+  },
+  {
+   "id": "GamepadUI.Oobe.PairController",
+   "path": "/oobe/2/paircontroller",
+   "full_path": "/routes/oobe/2/paircontroller",
+   "deckshell": "n/a",
+   "note": "OOBE (Steam first-run)"
+  },
+  {
+   "id": "GamepadUI.Oobe.Underscan",
+   "path": "/oobe/2/underscan",
+   "full_path": "/routes/oobe/2/underscan",
+   "deckshell": "n/a",
+   "note": "OOBE (Steam first-run)"
+  },
+  {
+   "id": "GamepadUI.Oobe.AudioDevice",
+   "path": "/oobe/2/audiodevice",
+   "full_path": "/routes/oobe/2/audiodevice",
+   "deckshell": "n/a",
+   "note": "OOBE (Steam first-run)"
+  },
+  {
+   "id": "GamepadUI.Oobe.AudioChannels",
+   "path": "/oobe/2/audiochannels",
+   "full_path": "/routes/oobe/2/audiochannels",
+   "deckshell": "n/a",
+   "note": "OOBE (Steam first-run)"
+  },
+  {
+   "id": "GamepadUI.Login",
+   "path": "/login",
+   "full_path": "/routes/login",
+   "deckshell": "no",
+   "note": "handled by Steam"
+  },
+  {
+   "id": "GamepadUI.CreateAccount",
+   "path": "/createaccount",
+   "full_path": "/routes/createaccount",
+   "deckshell": "no",
+   "note": ""
+  },
+  {
+   "id": "GamepadUI.Account",
+   "path": "/account",
+   "full_path": "/routes/account",
+   "deckshell": "no",
+   "note": ""
+  },
+  {
+   "id": "GamepadUI.Setup",
+   "path": "/decksetup",
+   "full_path": "/routes/decksetup",
+   "deckshell": "no",
+   "note": ""
+  },
+  {
+   "id": "GamepadUI.AppRunning",
+   "path": "/apprunning",
+   "full_path": "/routes/apprunning",
+   "deckshell": "no",
+   "note": "in-game view while game runs (gamescope integration)"
+  },
+  {
+   "id": "GamepadUI.GameAPIOSK",
+   "path": "/gameapiosk",
+   "full_path": "/routes/gameapiosk",
+   "deckshell": "no",
+   "note": ""
+  },
+  {
+   "id": "GamepadUI.Error",
+   "path": "/error",
+   "full_path": "/routes/error",
+   "deckshell": "no",
+   "note": ""
+  },
+  {
+   "id": "GamepadUI.ColorSettings",
+   "path": "/colorsettings",
+   "full_path": "/routes/colorsettings",
+   "deckshell": "no",
+   "note": ""
+  },
+  {
+   "id": "GamepadUI.Keyboard",
+   "path": "/keyboard",
+   "full_path": "/routes/keyboard",
+   "deckshell": "partial",
+   "note": "OSK exists inside search; standalone Keyboard route (game-requested OSK) no"
+  },
+  {
+   "id": "GamepadUI.AppOverlay.Root",
+   "path": "/app/:appid/overlay",
+   "full_path": "/routes/app/:appid/overlay",
+   "deckshell": "no",
+   "note": "in-game overlay (guides/notes/achievements/browser/recording) - Phase D"
+  },
+  {
+   "id": "GamepadUI.AppOverlay.Achievements",
+   "path": "/app/:appid/overlay/achievements",
+   "full_path": "/routes/app/:appid/overlay/achievements",
+   "deckshell": "no",
+   "note": "in-game overlay (guides/notes/achievements/browser/recording) - Phase D"
+  },
+  {
+   "id": "GamepadUI.AppOverlay.Controller",
+   "path": "/app/:appid/overlay/controller",
+   "full_path": "/routes/app/:appid/overlay/controller",
+   "deckshell": "no",
+   "note": "in-game overlay (guides/notes/achievements/browser/recording) - Phase D"
+  },
+  {
+   "id": "GamepadUI.AppOverlay.Guides",
+   "path": "/app/:appid/overlay/guides",
+   "full_path": "/routes/app/:appid/overlay/guides",
+   "deckshell": "no",
+   "note": "in-game overlay (guides/notes/achievements/browser/recording) - Phase D"
+  },
+  {
+   "id": "GamepadUI.AppOverlay.Notes",
+   "path": "/app/:appid/overlay/notes",
+   "full_path": "/routes/app/:appid/overlay/notes",
+   "deckshell": "no",
+   "note": "in-game overlay (guides/notes/achievements/browser/recording) - Phase D"
+  },
+  {
+   "id": "GamepadUI.AppOverlay.Browser",
+   "path": "/app/:appid/overlay/browser",
+   "full_path": "/routes/app/:appid/overlay/browser",
+   "deckshell": "no",
+   "note": "in-game overlay (guides/notes/achievements/browser/recording) - Phase D"
+  },
+  {
+   "id": "GamepadUI.AppOverlay.GameRecording",
+   "path": "/app/:appid/overlay/gamerecording",
+   "full_path": "/routes/app/:appid/overlay/gamerecording",
+   "deckshell": "no",
+   "note": "in-game overlay (guides/notes/achievements/browser/recording) - Phase D"
+  },
+  {
+   "id": "GamepadUI.ControllerConfigurator.Standalone",
+   "path": "/standalonecontrollerconfigurator",
+   "full_path": "/routes/standalonecontrollerconfigurator",
+   "deckshell": "no",
+   "note": "controller configurator / calibration (delegate to Steam)"
+  },
+  {
+   "id": "GamepadUI.ControllerConfigurator.Root",
+   "path": "/app/:appid/controllerconfigurator",
+   "full_path": "/routes/app/:appid/controllerconfigurator",
+   "deckshell": "no",
+   "note": "controller configurator / calibration (delegate to Steam)"
+  },
+  {
+   "id": "GamepadUI.ControllerConfigurator.Main",
+   "path": "/app/:appid/controllerconfigurator/main",
+   "full_path": "/routes/app/:appid/controllerconfigurator/main",
+   "deckshell": "no",
+   "note": "controller configurator / calibration (delegate to Steam)"
+  },
+  {
+   "id": "GamepadUI.ControllerConfigurator.Summary",
+   "path": "/app/:appid/controllerconfigurator/summary",
+   "full_path": "/routes/app/:appid/controllerconfigurator/summary",
+   "deckshell": "no",
+   "note": "controller configurator / calibration (delegate to Steam)"
+  },
+  {
+   "id": "GamepadUI.ControllerConfigurator.Preview",
+   "path": "/app/:appid/controllerconfigurator/preview",
+   "full_path": "/routes/app/:appid/controllerconfigurator/preview",
+   "deckshell": "no",
+   "note": "controller configurator / calibration (delegate to Steam)"
+  },
+  {
+   "id": "GamepadUI.ControllerConfigurator.SharedLayout",
+   "path": "/app/:appid/controllerconfigurator/sharedlayout",
+   "full_path": "/routes/app/:appid/controllerconfigurator/sharedlayout",
+   "deckshell": "no",
+   "note": "controller configurator / calibration (delegate to Steam)"
+  },
+  {
+   "id": "GamepadUI.ControllerConfigurator.ActionSets",
+   "path": "/app/:appid/controllerconfigurator/actionsets",
+   "full_path": "/routes/app/:appid/controllerconfigurator/actionsets",
+   "deckshell": "no",
+   "note": "controller configurator / calibration (delegate to Steam)"
+  },
+  {
+   "id": "GamepadUI.ControllerConfigurator.Actions",
+   "path": "/app/:appid/controllerconfigurator/actions",
+   "full_path": "/routes/app/:appid/controllerconfigurator/actions",
+   "deckshell": "no",
+   "note": "controller configurator / calibration (delegate to Steam)"
+  },
+  {
+   "id": "GamepadUI.ControllerConfigurator.Buttons",
+   "path": "/app/:appid/controllerconfigurator/buttons",
+   "full_path": "/routes/app/:appid/controllerconfigurator/buttons",
+   "deckshell": "no",
+   "note": "controller configurator / calibration (delegate to Steam)"
+  },
+  {
+   "id": "GamepadUI.ControllerConfigurator.DPad",
+   "path": "/app/:appid/controllerconfigurator/dpad",
+   "full_path": "/routes/app/:appid/controllerconfigurator/dpad",
+   "deckshell": "no",
+   "note": "controller configurator / calibration (delegate to Steam)"
+  },
+  {
+   "id": "GamepadUI.ControllerConfigurator.Triggers",
+   "path": "/app/:appid/controllerconfigurator/triggers",
+   "full_path": "/routes/app/:appid/controllerconfigurator/triggers",
+   "deckshell": "no",
+   "note": "controller configurator / calibration (delegate to Steam)"
+  },
+  {
+   "id": "GamepadUI.ControllerConfigurator.Sticks",
+   "path": "/app/:appid/controllerconfigurator/sticks",
+   "full_path": "/routes/app/:appid/controllerconfigurator/sticks",
+   "deckshell": "no",
+   "note": "controller configurator / calibration (delegate to Steam)"
+  },
+  {
+   "id": "GamepadUI.ControllerConfigurator.Touchpads",
+   "path": "/app/:appid/controllerconfigurator/touchpads",
+   "full_path": "/routes/app/:appid/controllerconfigurator/touchpads",
+   "deckshell": "no",
+   "note": "controller configurator / calibration (delegate to Steam)"
+  },
+  {
+   "id": "GamepadUI.ControllerConfigurator.Gyroscopes",
+   "path": "/app/:appid/controllerconfigurator/gyroscopes",
+   "full_path": "/routes/app/:appid/controllerconfigurator/gyroscopes",
+   "deckshell": "no",
+   "note": "controller configurator / calibration (delegate to Steam)"
+  },
+  {
+   "id": "GamepadUI.ControllerConfigurator.VirtualMenus",
+   "path": "/app/:appid/controllerconfigurator/virtualmenus",
+   "full_path": "/routes/app/:appid/controllerconfigurator/virtualmenus",
+   "deckshell": "no",
+   "note": "controller configurator / calibration (delegate to Steam)"
+  },
+  {
+   "id": "GamepadUI.ControllerConfigurator.ChooseConfiguration.Root",
+   "path": "/app/:appid/controllerconfigurator/chooseconfiguration",
+   "full_path": "/routes/app/:appid/controllerconfigurator/chooseconfiguration",
+   "deckshell": "no",
+   "note": "controller configurator / calibration (delegate to Steam)"
+  },
+  {
+   "id": "GamepadUI.ControllerConfigurator.ChooseConfiguration.Community",
+   "path": "/app/:appid/controllerconfigurator/chooseconfiguration/community",
+   "full_path": "/routes/app/:appid/controllerconfigurator/chooseconfiguration/community",
+   "deckshell": "no",
+   "note": "controller configurator / calibration (delegate to Steam)"
+  },
+  {
+   "id": "GamepadUI.ControllerDeviceBindInput",
+   "path": "/controller/bindinput/:controllerIdx",
+   "full_path": "/routes/controller/bindinput/:controllerIdx",
+   "deckshell": "no",
+   "note": "controller configurator / calibration (delegate to Steam)"
+  },
+  {
+   "id": "GamepadUI.ControllerDeviceTestInput",
+   "path": "/controller/devicesupport/:controllerIdx",
+   "full_path": "/routes/controller/devicesupport/:controllerIdx",
+   "deckshell": "no",
+   "note": "controller configurator / calibration (delegate to Steam)"
+  },
+  {
+   "id": "GamepadUI.ControllerDeviceCalibration.Root",
+   "path": "/controller/calibration/:controllerIdx",
+   "full_path": "/routes/controller/calibration/:controllerIdx",
+   "deckshell": "no",
+   "note": "controller configurator / calibration (delegate to Steam)"
+  },
+  {
+   "id": "GamepadUI.ControllerDeviceCalibration.General",
+   "path": "/controller/calibration/:controllerIdx/General",
+   "full_path": "/routes/controller/calibration/:controllerIdx/General",
+   "deckshell": "no",
+   "note": "controller configurator / calibration (delegate to Steam)"
+  },
+  {
+   "id": "GamepadUI.ControllerDeviceCalibration.LeftStick",
+   "path": "/controller/calibration/:controllerIdx/LInputs",
+   "full_path": "/routes/controller/calibration/:controllerIdx/LInputs",
+   "deckshell": "no",
+   "note": "controller configurator / calibration (delegate to Steam)"
+  },
+  {
+   "id": "GamepadUI.ControllerDeviceCalibration.RightStick",
+   "path": "/controller/calibration/:controllerIdx/RInputs",
+   "full_path": "/routes/controller/calibration/:controllerIdx/RInputs",
+   "deckshell": "no",
+   "note": "controller configurator / calibration (delegate to Steam)"
+  },
+  {
+   "id": "GamepadUI.ControllerDeviceCalibration.Trackpads",
+   "path": "/controller/calibration/:controllerIdx/Trackpads",
+   "full_path": "/routes/controller/calibration/:controllerIdx/Trackpads",
+   "deckshell": "no",
+   "note": "controller configurator / calibration (delegate to Steam)"
+  },
+  {
+   "id": "GamepadUI.ControllerDeviceCalibration.Gyro",
+   "path": "/controller/calibration/:controllerIdx/Gyro",
+   "full_path": "/routes/controller/calibration/:controllerIdx/Gyro",
+   "deckshell": "no",
+   "note": "controller configurator / calibration (delegate to Steam)"
+  },
+  {
+   "id": "GamepadUI.ControllerDeviceCalibration.LeftGyro",
+   "path": "/controller/calibration/:controllerIdx/LeftGyro",
+   "full_path": "/routes/controller/calibration/:controllerIdx/LeftGyro",
+   "deckshell": "no",
+   "note": "controller configurator / calibration (delegate to Steam)"
+  },
+  {
+   "id": "GamepadUI.ControllerDeviceCalibration.GyroDemo",
+   "path": "/controller/calibration/:controllerIdx/GyroDemo",
+   "full_path": "/routes/controller/calibration/:controllerIdx/GyroDemo",
+   "deckshell": "no",
+   "note": "controller configurator / calibration (delegate to Steam)"
+  },
+  {
+   "id": "GamepadUI.ControllerDeviceCalibration.LeftGyroDemo",
+   "path": "/controller/calibration/:controllerIdx/LeftGyroDemo",
+   "full_path": "/routes/controller/calibration/:controllerIdx/LeftGyroDemo",
+   "deckshell": "no",
+   "note": "controller configurator / calibration (delegate to Steam)"
+  },
+  {
+   "id": "GamepadUI.ControllerDeviceCalibration.GripSensors",
+   "path": "/controller/calibration/:controllerIdx/GripSensors",
+   "full_path": "/routes/controller/calibration/:controllerIdx/GripSensors",
+   "deckshell": "no",
+   "note": "controller configurator / calibration (delegate to Steam)"
+  },
+  {
+   "id": "GamepadUI.ControllerDeviceCalibration.Sensors",
+   "path": "/controller/calibration/:controllerIdx/Sensors",
+   "full_path": "/routes/controller/calibration/:controllerIdx/Sensors",
+   "deckshell": "no",
+   "note": "controller configurator / calibration (delegate to Steam)"
+  },
+  {
+   "id": "GamepadUI.ControllerDeviceCalibration.Outputs",
+   "path": "/controller/calibration/:controllerIdx/Outputs",
+   "full_path": "/routes/controller/calibration/:controllerIdx/Outputs",
+   "deckshell": "no",
+   "note": "controller configurator / calibration (delegate to Steam)"
+  },
+  {
+   "id": "GamepadUI.ControllerDeviceCalibration.LEDs",
+   "path": "/controller/calibration/:controllerIdx/LEDs",
+   "full_path": "/routes/controller/calibration/:controllerIdx/LEDs",
+   "deckshell": "no",
+   "note": "controller configurator / calibration (delegate to Steam)"
+  },
+  {
+   "id": "GamepadUI.SteamWeb",
+   "path": "/steamweb",
+   "full_path": "/routes/steamweb",
+   "deckshell": "no",
+   "note": ""
+  },
+  {
+   "id": "GamepadUI.ExternalWeb",
+   "path": "/externalweb",
+   "full_path": "/routes/externalweb",
+   "deckshell": "no",
+   "note": ""
+  },
+  {
+   "id": "GamepadUI.MicroTxnAuth",
+   "path": "/microtxnauth",
+   "full_path": "/routes/microtxnauth",
+   "deckshell": "no",
+   "note": ""
+  },
+  {
+   "id": "GamepadUI.About",
+   "path": "/about",
+   "full_path": "/routes/about",
+   "deckshell": "no",
+   "note": ""
+  },
+  {
+   "id": "GamepadUI.Accessibility",
+   "path": "/accessibility",
+   "full_path": "/routes/accessibility",
+   "deckshell": "no",
+   "note": ""
+  },
+  {
+   "id": "GamepadUI.Chat",
+   "path": "/chat",
+   "full_path": "/routes/chat",
+   "deckshell": "delegated",
+   "note": "Friends & chat opens native"
+  },
+  {
+   "id": "GamepadUI.Invites",
+   "path": "/invites",
+   "full_path": "/routes/invites",
+   "deckshell": "no",
+   "note": ""
+  },
+  {
+   "id": "GamepadUI.Store",
+   "path": "/store",
+   "full_path": "/routes/store",
+   "deckshell": "delegated",
+   "note": "MenuAct::Store"
+  },
+  {
+   "id": "GamepadUI.Workshop",
+   "path": "/workshop",
+   "full_path": "/routes/workshop",
+   "deckshell": "no",
+   "note": ""
+  },
+  {
+   "id": "GamepadUI.Zoo.Root",
+   "path": "/zoo",
+   "full_path": "/routes/zoo",
+   "deckshell": "n/a",
+   "note": "developer component zoo"
+  },
+  {
+   "id": "GamepadUI.Zoo.FieldLayouts",
+   "path": "/zoo/fieldlayouts",
+   "full_path": "/routes/zoo/fieldlayouts",
+   "deckshell": "n/a",
+   "note": "developer component zoo"
+  },
+  {
+   "id": "GamepadUI.Zoo.Dropdowns",
+   "path": "/zoo/dropdowns",
+   "full_path": "/routes/zoo/dropdowns",
+   "deckshell": "n/a",
+   "note": "developer component zoo"
+  },
+  {
+   "id": "GamepadUI.Zoo.Modals",
+   "path": "/zoo/modals",
+   "full_path": "/routes/zoo/modals",
+   "deckshell": "n/a",
+   "note": "developer component zoo"
+  },
+  {
+   "id": "GamepadUI.Zoo.Buttons",
+   "path": "/zoo/buttons",
+   "full_path": "/routes/zoo/buttons",
+   "deckshell": "n/a",
+   "note": "developer component zoo"
+  },
+  {
+   "id": "GamepadUI.Zoo.Sliders",
+   "path": "/zoo/sliders",
+   "full_path": "/routes/zoo/sliders",
+   "deckshell": "n/a",
+   "note": "developer component zoo"
+  },
+  {
+   "id": "GamepadUI.Zoo.Toggles",
+   "path": "/zoo/toggles",
+   "full_path": "/routes/zoo/toggles",
+   "deckshell": "n/a",
+   "note": "developer component zoo"
+  },
+  {
+   "id": "GamepadUI.Zoo.ClientSettings",
+   "path": "/zoo/clientsettings",
+   "full_path": "/routes/zoo/clientsettings",
+   "deckshell": "n/a",
+   "note": "developer component zoo"
+  },
+  {
+   "id": "GamepadUI.Zoo.OtherControls",
+   "path": "/zoo/misc",
+   "full_path": "/routes/zoo/misc",
+   "deckshell": "n/a",
+   "note": "developer component zoo"
+  },
+  {
+   "id": "GamepadUI.Zoo.Glyphs",
+   "path": "/zoo/glyphs",
+   "full_path": "/routes/zoo/glyphs",
+   "deckshell": "n/a",
+   "note": "developer component zoo"
+  },
+  {
+   "id": "GamepadUI.Zoo.SVG",
+   "path": "/zoo/svg",
+   "full_path": "/routes/zoo/svg",
+   "deckshell": "n/a",
+   "note": "developer component zoo"
+  },
+  {
+   "id": "GamepadUI.Zoo.Input",
+   "path": "/zoo/input",
+   "full_path": "/routes/zoo/input",
+   "deckshell": "n/a",
+   "note": "developer component zoo"
+  },
+  {
+   "id": "GamepadUI.Zoo.DeveloperOptions",
+   "path": "/zoo/developeroptions",
+   "full_path": "/routes/zoo/developeroptions",
+   "deckshell": "n/a",
+   "note": "developer component zoo"
+  },
+  {
+   "id": "GamepadUI.Zoo.VRDeveloperOptions",
+   "path": "/zoo/vrdeveloperoptions",
+   "full_path": "/routes/zoo/vrdeveloperoptions",
+   "deckshell": "n/a",
+   "note": "developer component zoo"
+  },
+  {
+   "id": "GamepadUI.Zoo.AppSpotlight",
+   "path": "/zoo/appspotlight",
+   "full_path": "/routes/zoo/appspotlight",
+   "deckshell": "n/a",
+   "note": "developer component zoo"
+  },
+  {
+   "id": "GamepadUI.Zoo.PlayNext",
+   "path": "/zoo/playnext",
+   "full_path": "/routes/zoo/playnext",
+   "deckshell": "n/a",
+   "note": "developer component zoo"
+  },
+  {
+   "id": "GamepadUI.Zoo.Type",
+   "path": "/zoo/type",
+   "full_path": "/routes/zoo/type",
+   "deckshell": "n/a",
+   "note": "developer component zoo"
+  },
+  {
+   "id": "GamepadUI.Zoo.SoundTester",
+   "path": "/zoo/soundtester",
+   "full_path": "/routes/zoo/soundtester",
+   "deckshell": "n/a",
+   "note": "developer component zoo"
+  },
+  {
+   "id": "GamepadUI.Zoo.WebLinks",
+   "path": "/zoo/weblinks",
+   "full_path": "/routes/zoo/weblinks",
+   "deckshell": "n/a",
+   "note": "developer component zoo"
+  },
+  {
+   "id": "GamepadUI.Zoo.Interstitials",
+   "path": "/zoo/interstitials",
+   "full_path": "/routes/zoo/interstitials",
+   "deckshell": "n/a",
+   "note": "developer component zoo"
+  },
+  {
+   "id": "GamepadUI.Zoo.DesktopAppShortcuts",
+   "path": "/zoo/desktopappshortcuts",
+   "full_path": "/routes/zoo/desktopappshortcuts",
+   "deckshell": "n/a",
+   "note": "developer component zoo"
+  },
+  {
+   "id": "GamepadUI.Zoo.ThreeJSTests",
+   "path": "/zoo/threedeetests",
+   "full_path": "/routes/zoo/threedeetests",
+   "deckshell": "n/a",
+   "note": "developer component zoo"
+  },
+  {
+   "id": "GamepadUI.Zoo.GraphEditor",
+   "path": "/zoo/grapheditor",
+   "full_path": "/routes/zoo/grapheditor",
+   "deckshell": "n/a",
+   "note": "developer component zoo"
+  },
+  {
+   "id": "GamepadUI.Zoo.Notifications",
+   "path": "/zoo/notifications",
+   "full_path": "/routes/zoo/notifications",
+   "deckshell": "n/a",
+   "note": "developer component zoo"
+  },
+  {
+   "id": "GamepadUI.Zoo.Share",
+   "path": "/zoo/share",
+   "full_path": "/routes/zoo/share",
+   "deckshell": "n/a",
+   "note": "developer component zoo"
+  },
+  {
+   "id": "Library.Root",
+   "path": "/library",
+   "full_path": "/routes/library",
+   "deckshell": "yes",
+   "note": "redirects to last tab"
+  },
+  {
+   "id": "Library.AppInCollection",
+   "path": "/library/collection/:collectionid/:appid",
+   "full_path": "/routes/library/collection/:collectionid/:appid",
+   "deckshell": "no",
+   "note": ""
+  },
+  {
+   "id": "GamepadUI.Library.Tab",
+   "path": "/library/tab/:id",
+   "full_path": "/routes/library/tab/:id",
+   "deckshell": "partial",
+   "note": "tabs All/Installed/Non-Steam/Collections/Favorites + custom; missing deck-compat tab, Remote Play, Ready to Play, Soundtracks, filter dialog (X) and Y sort menu parity"
+  },
+  {
+   "id": "GamepadUI.App.Tab",
+   "path": "/library/app/:appid/tab/:id",
+   "full_path": "/routes/library/app/:appid/tab/:id",
+   "deckshell": "no",
+   "note": ""
+  },
+  {
+   "id": "GamepadUI.Search.Root",
+   "path": "/search",
+   "full_path": "/routes/search",
+   "deckshell": "partial",
+   "note": "search + OSK; verify tabs"
+  },
+  {
+   "id": "GamepadUI.Search.Tab",
+   "path": "/search/tab/:id",
+   "full_path": "/routes/search/tab/:id",
+   "deckshell": "no",
+   "note": ""
+  },
+  {
+   "id": "GamepadUI.ControllerConfigurator.ChooseBinding",
+   "path": "/app/:appid/controllerconfigurator/choosebinding/:actionset/:layer/:source/:mode/:input/…",
+   "full_path": "/routes/app/:appid/controllerconfigurator/choosebinding/:actionset/:layer/:source/:mode/:input/…",
+   "deckshell": "no",
+   "note": "controller configurator / calibration (delegate to Steam)"
+  },
+  {
+   "id": "GamepadUI.ControllerConfigurator.MousePosition",
+   "path": "/app/:appid/controllerconfigurator/mouseposition/…",
+   "full_path": "/routes/app/:appid/controllerconfigurator/mouseposition/…",
+   "deckshell": "no",
+   "note": "controller configurator / calibration (delegate to Steam)"
+  },
+  {
+   "id": "GamepadUI.ControllerConfigurator.MultiBindingEditor",
+   "path": "/app/:appid/controllerconfigurator/multibinding/…",
+   "full_path": "/routes/app/:appid/controllerconfigurator/multibinding/…",
+   "deckshell": "no",
+   "note": "controller configurator / calibration (delegate to Steam)"
+  },
+  {
+   "id": "Media.Item",
+   "path": "/media/item/:type/:id",
+   "full_path": "/routes/media/item/:type/:id",
+   "deckshell": "no",
+   "note": ""
+  },
+  {
+   "id": "Settings.Controller",
+   "path": "/settings/controller/:type/:controllerIndex   (type: controller|dongle|menu|advanced|pair|btpair)",
+   "full_path": "/routes/settings/controller/:type/:controllerIndex",
+   "deckshell": "no",
+   "note": "Settings page not implemented (see settings_pages)"
+  },
+  {
+   "id": "GamepadUI.ControllerConfigurator.ModeSettings",
+   "path": "/app/:appid/controllerconfigurator/modesettings/:modeKey/:modeId/…",
+   "full_path": "/routes/app/:appid/controllerconfigurator/modesettings/:modeKey/:modeId/…",
+   "deckshell": "no",
+   "note": "controller configurator / calibration (delegate to Steam)"
+  }
+ ],
+ "popups_not_routes": [
+  "Main (STEAM) side menu: items Home/Library/Store/Friends&chat/Media/Downloads/Settings/Power(+running apps) - docs semantics.md, sp.js:403290",
+  "QAM (...) tabs: Notifications, Friends, Quick Settings, Performance, Help, Soundtrack, + Decky - qam.json",
+  "Game context menus, sort/filter dialogs, modals (ShowModal/HideModal sounds)",
+  "Notification toasts window (notificationtoasts_uid17 target)",
+  "OSK (VirtualKeyboardManager)"
+ ],
+ "settings_pages": [
+  {
+   "rail_label": "Система",
+   "id": "System",
+   "route": "/routes/settings/system",
+   "visible_when": "logged in (Cr)",
+   "captured_items_this_device": [
+    "Русский",
+    "Проверить обновления",
+    "Стабильная версия",
+    "Использовать экспериментальный клиент SteamRT3",
+    "Включать режим рабочего стола при запуске",
+    "Включить режим разработчика"
+   ],
+   "first_group": [
+    "Система / Выберите язык / Русский / Обновления / Обновления ПО / Все обновления установлены: последняя проверка 10 ми…"
+   ],
+   "deckshell": "no",
+   "sp_js_rail_def": "sp.js:555395-555720"
+  },
+  {
+   "rail_label": "Интернет",
+   "id": "Internet",
+   "route": "/routes/settings/internet",
+   "visible_when": "always",
+   "captured_items_this_device": [
+    "Включить Wi-Fi",
+    "K&K",
+    "UPC2731924",
+    "FunBox3-B192",
+    "Orange_Swiatlowod_66B0",
+    "Другая сеть...",
+    "Перейти в автономный режим",
+    "Настроить",
+    "Удалить"
+   ],
+   "first_group": [
+    "Интернет / Включить Wi-Fi / Подключённые сети / K&K / Найденные сети / UPC2731924 / FunBox3-B192 / Orange_Swiatlowod_…"
+   ],
+   "deckshell": "no",
+   "sp_js_rail_def": "sp.js:555395-555720"
+  },
+  {
+   "rail_label": "Хранилище",
+   "id": "Storage",
+   "route": "/routes/settings/storage",
+   "visible_when": "Cr",
+   "captured_items_this_device": [
+    "По размеру на диске"
+   ],
+   "first_group": [
+    "Хранилище / Внутренний диск / 156,3 ГБАЙТ ДОСТУПНО ИЗ 463,4 ГБАЙТ / /HOME/DECK/.LOCAL/SHARE/STEAM / ИГРЫ / 55,94 ГБАЙ…"
+   ],
+   "deckshell": "no",
+   "sp_js_rail_def": "sp.js:555395-555720"
+  },
+  {
+   "rail_label": "Bluetooth",
+   "id": "Bluetooth",
+   "route": "/routes/settings/bluetooth",
+   "visible_when": "Ii (is_service_available: BluetoothManagerService answers and an adapter exists)",
+   "captured_items_this_device": [],
+   "first_group": [],
+   "deckshell": "yes (task 488, native page screens/bluetooth.rs)",
+   "sp_js_rail_def": "sp.js:555242 (order), 548714-548762 (page)"
+  },
+  {
+   "rail_label": "Экран",
+   "id": "Display",
+   "route": "/routes/settings/display",
+   "visible_when": "Cr && Qr (hidden on some HW)",
+   "captured_items_this_device": [
+    "Автоматически масштабировать интерфейс"
+   ],
+   "first_group": [
+    "Экран / Масштабирование экрана eDP-1 7\" / Автоматически масштабировать интерфейс / МЕЛКИЙ ТЕКСТ / КРУПНЫЙ ТЕКСТ / Реж…"
+   ],
+   "deckshell": "no",
+   "sp_js_rail_def": "sp.js:555395-555720"
+  },
+  {
+   "rail_label": "Питание",
+   "id": "Power",
+   "route": "/routes/settings/power",
+   "visible_when": "Cr",
+   "captured_items_this_device": [
+    "Ограничить предельный заряд батареи",
+    "Включить ввод с пульта управления",
+    "Переходить в спящий режим при выключении телевизора",
+    "Включать телевизор при выходе из спящего режима",
+    "Выключать телевизор при переходе в спящий режим"
+   ],
+   "first_group": [
+    "Питание / Батарея / Процент заряда батареи / Показывать вверху процент заряд батареи / Ограничить предельный заряд ба…"
+   ],
+   "deckshell": "no",
+   "sp_js_rail_def": "sp.js:555395-555720"
+  },
+  {
+   "rail_label": "Звук",
+   "id": "Audio",
+   "route": "/routes/settings/audio",
+   "visible_when": "Ii (service available?)",
+   "captured_items_this_device": [
+    "По умолчанию (Динамики)",
+    "По умолчанию (Микрофон)",
+    "Звуки интерфейса"
+   ],
+   "first_group": [
+    "Звук / Вывод / Устройство вывода / По умолчанию (Динамики) / Микрофон / Устройство ввода / По умолчанию (Микрофон) / …"
+   ],
+   "deckshell": "no",
+   "sp_js_rail_def": "sp.js:555395-555720"
+  },
+  {
+   "rail_label": "Контроллер",
+   "id": "Controller",
+   "route": "/routes/settings/controller/menu/0",
+   "visible_when": "Cr (hideTitle)",
+   "captured_items_this_device": [
+    "Подробности",
+    "Добавить",
+    "Открыть"
+   ],
+   "first_group": [
+    "Контроллер / Подключённые контроллеры / Decka Controller / USB / Подробности / X360 Controller / USB / Подробности / …"
+   ],
+   "deckshell": "no",
+   "sp_js_rail_def": "sp.js:555395-555720"
+  },
+  {
+   "rail_label": "Клавиатура",
+   "id": "Keyboard",
+   "route": "/routes/settings/keyboard",
+   "visible_when": "Cr",
+   "captured_items_this_device": [
+    "Тема по умолчанию",
+    "Открыть магазин предметов за очки",
+    "Средн.",
+    "Внизу по центру",
+    "Редактировать",
+    "Английская QWERTY"
+   ],
+   "first_group": [
+    "Клавиатура / Текущая тема клавиатуры / Тема по умолчанию / Найти другие темы клавиатуры / Приобретайте темы клавиатур…"
+   ],
+   "deckshell": "no",
+   "sp_js_rail_def": "sp.js:555395-555720"
+  },
+  {
+   "rail_label": "Кастомизация",
+   "id": "Customization",
+   "route": "/routes/settings/customization",
+   "visible_when": "Cr && !Aa",
+   "captured_items_this_device": [],
+   "first_group": [
+    "Кастомизация / Видеозаставка / Настройте Steam под себя, выбрав видеозаставку. Это общая настройка для всех пользоват…"
+   ],
+   "deckshell": "no",
+   "sp_js_rail_def": "sp.js:555395-555720"
+  },
+  {
+   "rail_label": "Доступность",
+   "id": "Accessibility",
+   "route": "/routes/settings/accessibility",
+   "visible_when": "always",
+   "captured_items_this_device": [],
+   "first_group": [
+    "Доступность / Масштаб интерфейса / МЕЛКИЙ ТЕКСТ / КРУПНЫЙ ТЕКСТ / Режим высокой контрастности / Текст, кнопки и иконк…"
+   ],
+   "deckshell": "no",
+   "sp_js_rail_def": "sp.js:555395-555720"
+  },
+  {
+   "rail_label": "Уведомления",
+   "id": "Notifications",
+   "route": "/routes/settings/notifications",
+   "visible_when": "Cr",
+   "captured_items_this_device": [
+    "Всегда",
+    "Сопровождать всплывающее уведомление звуком",
+    "Когда я получаю достижение",
+    "Когда я подключаю или отключаю контроллер",
+    "Когда у контроллера низкий заряд батареи",
+    "О выходе из спящего режима, если несколько пользователей вошли в систему",
+    "Когда друг заходит в игру",
+    "Когда друг подключается к сети",
+    "Когда я получаю личное сообщение",
+    "Когда мне пишут в групповом чате"
+   ],
+   "first_group": [
+    "Уведомления / Показывать всплывающие уведомления... / Уведомления будут показываться в момент получения. Ниже можно н…"
+   ],
+   "deckshell": "no",
+   "sp_js_rail_def": "sp.js:555395-555720"
+  },
+  {
+   "rail_label": "Друзья и чат",
+   "id": "Friends",
+   "route": "/routes/settings/friends",
+   "visible_when": "Cr",
+   "captured_items_this_device": [
+    "Группировать друзей по игре",
+    "Скрывать друзей не в сети из своих категорий",
+    "Скрывать друзей с категорией из списков «В сети» и «Не в сети»",
+    "Игнорировать статус «Нет на месте» при сортировке друзей",
+    "Входить в систему друзей при запуске Steam Deck",
+    "Включить анимированные аватары и анимированные рамки аватаров для списка друзей и чата",
+    "Компактный вид списка друзей и чатов",
+    "Компактный вид области избранных друзей",
+    "Прикреплять чаты к списку друзей",
+    "Открывать новые чаты в новом окне, а не в новой вкладке",
+    "Не встраивать изображения и другие медиафайлы"
+   ],
+   "first_group": [
+    "Друзья и чат / Добавлять ники после имён друзей / Ник пользователя / * / В сети / Группировать друзей по игре / Скрыв…"
+   ],
+   "deckshell": "no",
+   "sp_js_rail_def": "sp.js:555395-555720"
+  },
+  {
+   "rail_label": "Загрузки",
+   "id": "Downloads",
+   "route": "/routes/settings/downloads",
+   "visible_when": "Cr",
+   "captured_items_this_device": [
+    "Польша — Катовице",
+    "Ограничить скорость скачивания",
+    "Отображать скорость в битах в секунду",
+    "Разрешить Steam выбирать время обновления",
+    "Автообновление по расписанию"
+   ],
+   "first_group": [
+    "Загрузки / Регион загрузки / Польша — Катовице / Ограничить скорость скачивания / Отображать скорость в битах в секун…"
+   ],
+   "deckshell": "no",
+   "sp_js_rail_def": "sp.js:555395-555720"
+  },
+  {
+   "rail_label": "Облако",
+   "id": "Cloud",
+   "route": "/routes/settings/cloud",
+   "visible_when": "Cr",
+   "captured_items_this_device": [],
+   "first_group": [
+    "Облако / Включить Steam Cloud / Включить синхронизацию со Steam Cloud для поддерживаемых приложений / Управление скри…"
+   ],
+   "deckshell": "no",
+   "sp_js_rail_def": "sp.js:555395-555720"
+  },
+  {
+   "rail_label": "В игре",
+   "id": "InGame",
+   "route": "/routes/settings/ingame",
+   "visible_when": "Cr",
+   "captured_items_this_device": [
+    "Включить оверлей Steam в игре",
+    "Панель инструментов в виде списка",
+    "Восстанавливать вкладки из предыдущей сессии браузера при запуске игры",
+    "Выводить оверлей Big Picture, если используется контроллер",
+    "Менять размер текста и значков в оверлее Steam под настройки монитора",
+    "Shift+Tab",
+    "Домашняя страница браузера",
+    "Удалить",
+    "Настройки панели задач",
+    "Выкл."
+   ],
+   "first_group": [
+    "В игре / Оверлей Steam / Включить оверлей Steam в игре / Панель инструментов в виде списка / Восстанавливать вкладки …"
+   ],
+   "deckshell": "no",
+   "sp_js_rail_def": "sp.js:555395-555720"
+  },
+  {
+   "rail_label": "Совместимость",
+   "id": "Compatibility",
+   "route": "/routes/settings/compatibility",
+   "visible_when": "Cr && CI()",
+   "captured_items_this_device": [
+    "По умолчанию (Proton Stable)",
+    "Показать все инструменты совместимости"
+   ],
+   "first_group": [
+    "Совместимость / Steam Play / Стандартный инструмент совместимости: / Proton Stable — сейчас Proton 11.0-2 / По умолча…"
+   ],
+   "deckshell": "no",
+   "sp_js_rail_def": "sp.js:555395-555720"
+  },
+  {
+   "rail_label": "Семья",
+   "id": "Family",
+   "route": "/routes/settings/family",
+   "visible_when": "Cr",
+   "captured_items_this_device": [
+    "Управление семейной группой"
+   ],
+   "first_group": [
+    "Семья / Пати долбоёбов / Управление семейной группой / Участники семейной группы / death_nick_ / В сети / ВЗРОСЛЫЙ / …"
+   ],
+   "deckshell": "no",
+   "sp_js_rail_def": "sp.js:555395-555720"
+  },
+  {
+   "rail_label": "Remote Play",
+   "id": "RemotePlay",
+   "route": "/routes/settings/remoteplay",
+   "visible_when": "Cr && !Nn",
+   "captured_items_this_device": [
+    "Нет доступных устройств",
+    "Привязать Steam Link",
+    "Автоматически (включено)",
+    "Удалить ПИН-код",
+    "Изменить ПИН-код"
+   ],
+   "first_group": [
+    "Remote Play / Включить Remote Play / Транслируйте игру между данным Steam Deck и другими устройствами. Чтобы подключи…"
+   ],
+   "deckshell": "no",
+   "sp_js_rail_def": "sp.js:555395-555720"
+  },
+  {
+   "rail_label": "Запись игр",
+   "id": "GameRecording",
+   "route": "/routes/settings/gamerecording",
+   "visible_when": "Cr && !Nn",
+   "captured_items_this_device": [
+    "Ответы на частые вопросы",
+    "Ctrl+F11",
+    "Ctrl+F12",
+    "F12"
+   ],
+   "first_group": [
+    "Запись игр / Выберите режим записи: / Не записывать / Steam не будет записывать ваш игровой процесс. / В фоновом режи…"
+   ],
+   "deckshell": "no",
+   "sp_js_rail_def": "sp.js:555395-555720"
+  },
+  {
+   "rail_label": "Главная",
+   "id": "Home",
+   "route": "/routes/settings/home",
+   "visible_when": "Cr",
+   "captured_items_this_device": [
+    "Показывать на главной странице контент, подобранный для меня",
+    "Показывать в разделе «Что нового» только обновления продуктов",
+    "Управление",
+    "В карусели «Что нового» вы можете указать, что хотите видеть больше или меньше новостей об определённой игре",
+    "PUBG: BATTLEGROUNDS",
+    "Открытое бета-тестирование Battlefield™ 6"
+   ],
+   "first_group": [
+    "Главная / Режим крупной иллюстрации / Изменяет оформление главной страницы: фоновые изображения игр, выбранных в разд…"
+   ],
+   "deckshell": "no",
+   "sp_js_rail_def": "sp.js:555395-555720"
+  },
+  {
+   "rail_label": "Библиотека",
+   "id": "Library",
+   "route": "/routes/settings/library",
+   "visible_when": "Cr",
+   "captured_items_this_device": [
+    "Показывать число копий в семейной библиотеке",
+    "Добавить игру",
+    "Настроить"
+   ],
+   "first_group": [
+    "Библиотека / Показывать число копий в семейной библиотеке / Активировать продукт в Steam / Добавить в библиотеку / Чт…"
+   ],
+   "deckshell": "no",
+   "sp_js_rail_def": "sp.js:555395-555720"
+  },
+  {
+   "rail_label": "Магазин",
+   "id": "Store",
+   "route": "/routes/settings/store",
+   "visible_when": "Cr",
+   "captured_items_this_device": [
+    "Настроить"
+   ],
+   "first_group": [
+    "Магазин / Контент для взрослых / Выберите, какой контент для взрослых вам можно показывать в магазине и сообществе / …"
+   ],
+   "deckshell": "no",
+   "sp_js_rail_def": "sp.js:555395-555720"
+  }
+ ],
+ "settings_pages_hidden_on_this_device": [
+  {
+   "id": "Security",
+   "route": "/routes/settings/security",
+   "visible_when": "Cr && Pn",
+   "note": "not in the captured rail on this device"
+  },
+  {
+   "id": "Developer",
+   "route": "/routes/settings/developer",
+   "visible_when": "Bi && Cr (developer mode)",
+   "note": "not in the captured rail on this device"
+  },
+  {
+   "id": "Internal",
+   "route": "/routes/settings/internal",
+   "visible_when": "Qi && Cr",
+   "note": "not in the captured rail on this device"
+  },
+  {
+   "id": "Account",
+   "route": "/routes/settings/account",
+   "visible_when": "Cr",
+   "note": "not in the captured rail on this device"
+  },
+  {
+   "id": "Interface",
+   "route": "/routes/settings/interface",
+   "visible_when": "Cr",
+   "note": "not in the captured rail on this device"
+  },
+  {
+   "id": "Music",
+   "route": "/routes/settings/music",
+   "visible_when": "Cr",
+   "note": "not in the captured rail on this device"
+  },
+  {
+   "id": "Broadcast",
+   "route": "/routes/settings/broadcast",
+   "visible_when": "Cr && !Nn",
+   "note": "not in the captured rail on this device"
+  },
+  {
+   "id": "Voice",
+   "route": "/routes/settings/voice",
+   "visible_when": "Cr",
+   "note": "not in the captured rail on this device"
+  },
+  {
+   "id": "InGameVoice",
+   "route": "/routes/settings/ingamevoice",
+   "visible_when": "Cr && (Cn||Es)",
+   "note": "not in the captured rail on this device"
+  }
+ ],
+ "conditions_legend": "Cr = user logged in (hide when offline login screen); other single-letter flags are minified locals not traced.",
+ "settings_pages_note": "captured_items_this_device is only what was on screen without scrolling at capture time (settings-controls.json), NOT the full item list; full per-page item trees still require reading each page component in sp.js (not done) or a scrolling CDP walk."
+}

@@ -1,0 +1,50 @@
+// Game-page widgets injected by Decky plugins (context/archive/docs/decky-plugins.md rows 6/7): PlayCount badge and the HLTB stats bar.
+// Host (game.slint owner): `PluginGameState` is filled by `plugins::game_widgets::set_app(appid, name)`; place `PlayCountBadge` at the top right of the
+// header (css top 50 / right 20 -> x: parent.width - self.width - 24px; y: 60px) and `HltbBar` between the header and the play bar.
+import { Tokens } from "../../tokens.slint";
+
+export global PluginGameState {
+    in property <string> playcount;            // "6,028 Online" ("" = hidden)
+    in property <[string]> hltb-values: ["--", "--", "--", "--"];
+    in property <[string]> hltb-labels: ["Main Story", "Main + Extras", "Completionist", "All Styles"];
+    in property <string> hltb-details: "View Details";
+    in property <bool> hltb-visible;
+    callback open-hltb();
+    callback open-playcount();
+}
+
+// plugin default style: pill 12 css px bold white on #4B9EEA, padding 4/8 css, green dot icon, top 50 / right 20 css
+export component PlayCountBadge inherits Rectangle {
+    visible: PluginGameState.playcount != "";
+    height: 30px; width: lay.preferred-width + 19.2px;
+    background: #4B9EEA; border-radius: 4.8px;
+    accessible-role: button; accessible-label: PluginGameState.playcount; accessible-description: "button||touch,mouse";
+    lay := HorizontalLayout {
+        padding-left: 9.6px; padding-right: 9.6px; spacing: 6px; alignment: center;
+        Rectangle { width: 9.6px; height: 9.6px; y: (30px - 9.6px) / 2; border-radius: 4.8px; background: #4CAF50; }
+        Text { text: PluginGameState.playcount; color: white; font-size: 14.4px; font-weight: 700; vertical-alignment: center; }
+    }
+    TouchArea { clicked => { PluginGameState.open-playcount(); } }
+}
+
+// default style (`hltb-info`): bar rgb(14 20 27 / .25), 2 css px bottom border rgba(61,68,80,.54), 5 css px padding, columns space-evenly
+export component HltbBar inherits Rectangle {
+    visible: PluginGameState.hltb-visible;
+    height: 66px;
+    background: #0e141b40;
+    Rectangle { y: parent.height - 2.4px; height: 2.4px; background: #3d44508a; }
+    HorizontalLayout {
+        padding: 6px; alignment: space-around;
+        for v[i] in PluginGameState.hltb-values: VerticalLayout {
+            alignment: center; spacing: 2px;
+            Text { text: v == "--" ? "--" : v + " Hours"; color: white; font-size: 19.2px; font-weight: 700; horizontal-alignment: center; }
+            Text { text: PluginGameState.hltb-labels[i]; color: #8b929a; font-size: 12px; font-weight: 700; horizontal-alignment: center; }
+        }
+        Rectangle {
+            width: dtl.preferred-width + 24px; background: #ffffff26; border-radius: 2.4px;
+            accessible-role: button; accessible-label: PluginGameState.hltb-details; accessible-description: "button||A,FOCUS,touch,mouse";
+            dtl := Text { text: PluginGameState.hltb-details; color: #dcdedf; font-size: 14.4px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
+            TouchArea { clicked => { PluginGameState.open-hltb(); } }
+        }
+    }
+}

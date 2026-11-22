@@ -1,0 +1,19 @@
+import { HeroFrame } from "hero_img.slint";
+
+// The frame is the game page above the play bar. Contain the image in a
+// proportion-preserving box and place it within the available travel.
+export component PositionedLogo inherits Rectangle {
+    in property <image> src;
+    in property <HeroFrame> layout: { zoom: 1, pan-x: -1, pan-y: 0.7 };
+    property <float> ar: root.src.height > 0 ? root.src.width / root.src.height : 1;
+    property <length> margin: root.width * 0.02436;
+    property <length> max-w: max(0px, root.width - 2 * root.margin);
+    property <length> base-h: root.height * (144 / 633);
+    property <length> iw: min(root.max-w, min(root.max-w * root.layout.zoom, root.base-h * root.layout.zoom * root.ar));
+    property <length> ih: root.iw / max(root.ar, 0.001);
+    Image { source: root.src; image-fit: contain;
+        width: root.iw; height: root.ih;
+        x: root.margin + (root.max-w - self.width) * (root.layout.pan-x + 1) / 2;
+        y: (root.height - self.height) * (root.layout.pan-y + 1) / 2;
+    }
+}

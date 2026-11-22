@@ -1,0 +1,146 @@
+// /routes/settings/<page> - rail of pages (routes.json settings_pages) + page content generated from the Steam tree (generated/settings/rows.slint,
+// rows from pages.json via tools/compile-ui/pages.mjs; values from settingsStore through the bridge, src/screens/settings.rs).
+import { Tokens } from "../tokens.slint";
+import { FooterState } from "../widgets/footer.slint";
+import { Shell } from "../shell.slint";
+import { Page } from "../widgets/page.slint";
+import { ListRow } from "../widgets/list_row.slint";
+import { ListEntry } from "../widgets/types.slint";
+import { GPageRow, GPageRows } from "../generated/settings/rows.slint";
+
+import { RecordingSettingsRows, RecordingSettingsMenu, RecordingSettingsState } from "recording_settings.slint";
+import { AnimPage, AnimModal, AnimPageState } from "anim_page.slint";
+import { InternetPage, InternetDialog, InternetState } from "internet.slint";
+
+import { ControllerDevicesPage, ControllerDevicesModal, ControllerDevicesState } from "controller_devices.slint";
+
+export global SettingsState {
+    in property <bool> is-recording;
+    // Settings → «Анимации» (customization route, task 412): native page instead of generated rows
+    in property <bool> is-anim;
+    // Settings → «Интернет» (task 451): native Wi-Fi page
+    in property <bool> is-internet;
+    in property <bool> is-storage;
+    in property <bool> storage-modal;
+    in property <[GPageRow]> storage-modal-rows;
+    in property <int> storage-modal-focus: -1;
+    in property <int> storage-modal-start;
+    in property <[ListEntry]> rail;
+    // extra css px above each rail row: 18 per separator passed (stock `l.I0` between page groups); a rise marks a drawn separator line
+    in property <[float]> rail-extra;
+    in property <int> focus;       // shown page (route); changes on click/A on the list, like Steam's PagedSettings
+    in property <int> cursor;      // list focus; moves with Up/Down without changing the page
+    in property <string> title;    // Settings_Title
+    in property <string> page-title;
+    in property <string> empty-text;
+    in property <[GPageRow]> content;  // generated page rows (device px)
+    in property <int> cfocus: -1;  // focused content row
+    in property <int> zone;        // 0 rail, 1 content
+    in-out property <length> viewport-h;
+    in-out property <length> vy;   // content viewport-y (<= 0)
+    in property <length> content-h: 700px;
+    in property <string> rail-pad: "A,FOCUS";
+    in property <string> content-pad: "B";
+    callback activate(int);
+    callback content-activated(int);
+}
+
+export component SettingsScreen inherits Page {
+    shown: Shell.page == 4;
+    background: #16181d;
+    Rectangle { y: 0px; height: Tokens.top-lib-h + 70px; background: @linear-gradient(180deg, #000000a0 0%, #00000000 100%); }
+    property <length> rail-width: 360px;
+    property <float> rail-scale: 1.25;
+    property <length> rail-top: Tokens.menu-y * root.rail-scale;
+    property <length> rail-row-height: 42 * 1.1985px * root.rail-scale;
+    // Stock row positions; `rail-extra` holds the separator gaps (after Bluetooth, Security and Game recording).
+    pure function rail-row-y(index: int) -> length {
+        return (40 + 42 * index + SettingsState.rail-extra[index]) * 1.1985px * root.rail-scale - root.rail-top;
+    }
+    Rectangle {
+        visible: !ControllerDevicesState.shown || !ControllerDevicesState.full;
+        x: 0px; y: root.rail-top; width: root.rail-width;
+        height: max(0px, root.height - FooterState.bar-height - self.y);
+        background: #27292f;
+        Flickable {
+            x: 0px; y: 0px; width: parent.width; height: parent.height;
+            content-width: self.width;
+            content-height: SettingsState.rail.length == 0 ? 0px : root.rail-row-y(SettingsState.rail.length - 1) + root.rail-row-height;
+            accessible-role: list;
+            accessible-description: "scroll-region||DPAD_UP,DPAD_DOWN,scroll,touch,mouse";
+
+            property <int> cursor: SettingsState.cursor;
+            // Reveal a moved cursor without disturbing a swipe or a tap on a visible row.
+            changed cursor => {
+                if (self.cursor >= 0 && self.cursor < SettingsState.rail.length) {
+                    let top = root.rail-row-y(self.cursor);
+                    let bottom = top + root.rail-row-height;
+                    let scroll = min(top, max(-self.content-y, bottom - self.height));
+                    self.content-y = -clamp(scroll, 0px, max(0px, self.content-height - self.height));
+                }
+            }
+            // separator lines (1280x800 stock capture: x 35..324, 2 px, white at 10 %, centred between the two rows)
+            for e[i] in SettingsState.rail-extra: Rectangle {
+                visible: i > 0 && e > SettingsState.rail-extra[i - 1];
+                x: 35px; width: 289px; height: 2px; y: (root.rail-row-y(i - 1) + root.rail-row-y(i) + root.rail-row-height) / 2 - 1px;
+                background: #ffffff1a;
+            }
+            for r[i] in SettingsState.rail: ListRow {
+                x: 0px; y: root.rail-row-y(i);
+                width: parent.width; height: root.rail-row-height; style-scale: root.rail-scale;
+                icon: r.icon; has-icon: r.has-icon;
+                background: self.current ? @linear-gradient(90deg, #245577 0%, #27292f 100%) : (self.focused ? #ffffff1a : transparent);
+                meta-role: "tab"; pad: "A,B,DPAD_UP,DPAD_DOWN,FOCUS,BLUR,touch,mouse"; label: r.label;
+                focused: root.shown && SettingsState.zone == 0 && SettingsState.cursor == i; current: SettingsState.focus == i;
+                clicked => { SettingsState.activate(i); }
+            }
+        }
+    }
+    Rectangle { x: 0px; y: 0px; width: root.rail-width; height: root.height; accessible-role: groupbox; accessible-description: "row||" + SettingsState.rail-pad; }
+    Rectangle { x: root.rail-width; y: 0px; width: root.width - root.rail-width; height: root.height; accessible-role: groupbox; accessible-description: "row||" + SettingsState.content-pad; }
+    // Restrict the page's hit-test and clip to the right column, down to the footer.
+    page-viewport := Flickable {
+        visible: !ControllerDevicesState.shown;
+        x: root.rail-width; y: 47.94px; width: root.width - root.rail-width;
+        height: max(0px, root.height - FooterState.bar-height - self.y);
+        content-width: self.width; content-height: SettingsState.content-h; content-y <=> SettingsState.vy;
+        init => { SettingsState.viewport-h = self.height; }
+        changed height => { SettingsState.viewport-h = self.height; }
+        // Rows supplied by Rust and generated pages use window-relative x positions.
+        Rectangle {
+            x: -root.rail-width; y: 0px; width: root.width; height: SettingsState.content-h;
+            // power page: stock title is 32px bold (cap height 23 px on the 1280x800 capture), other pages keep the legacy size
+            Text { x: 330px * 1.1985; y: (RecordingSettingsState.power ? 98.5px : 74px * 1.1985) - page-viewport.y; text: SettingsState.page-title; color: #ffffff; font-size: RecordingSettingsState.power ? 32px : 26.4px; font-weight: 700; }
+            Text { visible: SettingsState.content.length == 0; x: 330px * 1.1985; y: 120px * 1.1985; text: SettingsState.empty-text; color: Tokens.text-dim; font-size: 18px; }
+            if SettingsState.is-recording: RecordingSettingsRows { x: 0px; y: -page-viewport.y; width: parent.width; height: SettingsState.content-h; rows: SettingsState.content; sel: SettingsState.cfocus; active: root.shown && SettingsState.zone == 1 && !RecordingSettingsState.open; activated(i) => { SettingsState.content-activated(i); } }
+            if SettingsState.is-anim: AnimPage { x: 0px; y: -page-viewport.y; width: parent.width; height: SettingsState.content-h + page-viewport.y; }
+            if SettingsState.is-internet: InternetPage { x: 0px; y: -page-viewport.y; width: parent.width; height: SettingsState.content-h + page-viewport.y; }
+            if !SettingsState.is-recording && !SettingsState.is-anim && !SettingsState.is-internet: GPageRows { x: 0px; y: -page-viewport.y; width: parent.width; height: SettingsState.content-h; rows: SettingsState.content; sel: SettingsState.cfocus; active: root.shown && SettingsState.zone == 1;
+                activated(i) => { SettingsState.content-activated(i); } }
+        }
+    }
+    if root.shown && ControllerDevicesState.shown: ControllerDevicesPage {
+        x: ControllerDevicesState.full ? 0px : root.rail-width;
+        y: 74px;
+        width: root.width - self.x;
+        height: root.height - self.y - FooterState.bar-height;
+        active: SettingsState.zone == 1;
+    }
+    if root.shown && ControllerDevicesState.shown && ControllerDevicesState.modal: ControllerDevicesModal {
+        width: root.width; height: root.height - FooterState.bar-height;
+    }
+    if root.shown && SettingsState.is-anim && AnimPageState.modal: AnimModal { width: root.width; height: root.height; }
+    if root.shown && SettingsState.is-internet && InternetState.dialog-open: InternetDialog { width: root.width; height: root.height; }
+    if SettingsState.is-recording && RecordingSettingsState.open: RecordingSettingsMenu { x: 0px; y: 0px; width: root.width; height: RecordingSettingsState.power ? root.height - FooterState.bar-height : root.height; activated(i) => { SettingsState.content-activated(i); } }
+    if SettingsState.storage-modal: Rectangle {
+        width: root.width; height: root.height; background: #00000099;
+        TouchArea { }
+        Rectangle {
+            x: (root.width - 420px) / 2; y: (root.height - 288px) / 2;
+            width: 420px; height: 288px; background: #23262e;
+            GPageRows { width: parent.width; height: parent.height; rows: SettingsState.storage-modal-rows; sel: SettingsState.storage-modal-focus;
+                activated(i) => { SettingsState.content-activated(SettingsState.storage-modal-start + i); } }
+        }
+    }
+
+}

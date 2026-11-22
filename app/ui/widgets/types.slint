@@ -1,0 +1,60 @@
+// Shared data structs (view-models). Rust fills these; widgets/screens only read them.
+export struct CardData {
+    id: int,
+    name: string,
+    img: image,
+    has-img: bool,
+    wide: image,
+    has-wide: bool,
+    installed: bool,
+    glow: color,
+    caption: string,
+    x: length,
+    w: length,
+}
+
+export struct LibRow {
+    is-header: bool,
+    header: string,
+    cards: [CardData],
+    y: length,
+    h: length,
+}
+
+export struct MenuItem {
+    label: string,
+    icon: image,
+    color-icon: bool,
+    indent: bool,
+    current: bool,
+}
+
+export struct DlItem {
+    name: string,
+    thumb: image,
+    has-thumb: bool,
+    right: string,
+    progress: float,
+    paused: bool,
+}
+
+// Footer hint: `icon` = Steam controller glyph (steam_assets::hint_glyph) when has-icon, else a text keycap.
+export struct Hint {
+    glyph: string,
+    label: string,
+    kind: int, // 0 keycap, 1 circle, 2 pill(menu icon), 3 steam pill
+    icon: image,
+    has-icon: bool,
+}
+
+export struct RailItem {
+    icon: image,
+    label: string,
+}
+
+export struct ListEntry {
+    label: string,
+    value: string,
+    icon: image,
+    has-icon: bool,
+}

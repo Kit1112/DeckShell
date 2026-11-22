@@ -1,0 +1,27 @@
+import { Tokens } from "../tokens.slint";
+import { DS } from "meta.slint";
+
+// Pill tab bar (library tabs, game page tabs): focused pill is solid white with dark text, selected-but-unfocused is translucent.
+// L1/R1 key chips on both ends when there is more than one tab.
+export component TabsPill inherits Rectangle {
+    in property <[string]> tabs;
+    in property <int> selected;
+    in property <bool> focused;
+    in property <string> l-label: "L1";
+    in property <string> r-label: "R1";
+    callback clicked(int);
+    height: Tokens.lib-pill-h;
+    HorizontalLayout {
+        x: 0px; width: root.width; alignment: center; spacing: 10px;
+        for name[i] in root.tabs: Rectangle {
+            width: tt.preferred-width + 2 * Tokens.lib-pill-pad; height: Tokens.lib-pill-h; border-radius: self.height / 2;
+            background: root.focused && root.selected == i ? Tokens.pill-bg-focus : (root.selected == i ? Tokens.pill-bg : transparent);
+            animate background { duration: Tokens.dur-pill; easing: Tokens.ease-css; }
+            accessible-role: tab; accessible-label: name; accessible-description: "tab||B,X,Y,L1,R1,DPAD_LEFT,DPAD_RIGHT,DPAD_DOWN,FOCUS,BLUR,touch,mouse";
+            tt := Text { text: name; color: root.focused && root.selected == i ? Tokens.pill-text-focus : Tokens.lib-pill-color; font-size: Tokens.lib-pill-size; font-weight: Tokens.lib-pill-weight; letter-spacing: Tokens.lib-pill-ls; horizontal-alignment: center; vertical-alignment: center; }
+            TouchArea { clicked => { root.clicked(i); } }
+        }
+    }
+    if root.tabs.length > 1: Rectangle { x: 36px; width: 40px; height: Tokens.lib-pill-h; border-radius: Tokens.hint-chip-radius; background: Tokens.chip-bg; Text { text: root.l-label; color: Tokens.chip-text; font-size: Tokens.hint-key-size; font-weight: Tokens.hint-key-weight; } }
+    if root.tabs.length > 1: Rectangle { x: root.width - 76px; width: 40px; height: Tokens.lib-pill-h; border-radius: Tokens.hint-chip-radius; background: Tokens.chip-bg; Text { text: root.r-label; color: Tokens.chip-text; font-size: Tokens.hint-key-size; font-weight: Tokens.hint-key-weight; } }
+}

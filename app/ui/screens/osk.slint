@@ -1,0 +1,193 @@
+// Виртуальная клавиатура Steam Deck (docs/keyboard-analysis-2026-11-18.md). Геометрия, подписи и состояния считает
+// src/screens/osk_model.rs + osk.rs; здесь только рисование по CSS .DefaultTheme (sp.js/chunk css) и касания.
+// Фокус приглушён, белый используется при нажатии. Переключатели сохраняют цвет Steam #1A9FFF.
+import { GStyle } from "../generated/style.slint";
+import { Icons } from "../widgets/icon.slint";
+
+export struct OskKey {
+    // область нажатия (окно, px)
+    x: length, y: length, w: length, h: length,
+    // видимая клавиша (окно, px)
+    kx: length, ky: length, kw: length, kh: length,
+    // 0 обычная #0e141b, 1 чёрная, 2 прозрачная (эмодзи/вкладка), 3 разделитель
+    tone: int,
+    nav-focus: bool, hover: bool, pressed: bool, on: bool, oneshot: bool, hi: bool,
+    main: string, main-size: length, bold: bool,
+    // 0 по центру, 1 ниже центра (над ней мелкая подпись), 2 снизу слева, 3 снизу справа
+    mode: int,
+    small: string, alt: string,
+    icon: image, has-icon: bool, icon2: image, has-icon2: bool,
+    gl: image, has-gl: bool, gr: image, has-gr: bool,
+    emoji: bool,
+    eimg: image, has-eimg: bool,
+}
+
+// Элемент ряда расширенных символов / оттенков эмодзи (CSS KeyboardExtendedKey 48×44 css).
+export struct OskExt { text: string, sel: bool, img: image, has-img: bool }
+
+export global OskState {
+    in property <bool> open;
+    in property <bool> show-focus;
+    in property <[OskKey]> keys;
+    in property <length> panel-y: 443px;
+    in property <length> panel-h: 357px;
+    in property <string> message;
+    in property <bool> emoji-mode;
+    in property <bool> has-l1: false;
+    in property <image> glyph-l1;
+    in property <image> glyph-r1;
+    in property <bool> pad-l;
+    in property <length> pad-lx;
+    in property <length> pad-ly;
+    in property <bool> pad-ld;
+    in property <bool> pad-r;
+    in property <length> pad-rx;
+    in property <length> pad-ry;
+    in property <bool> pad-rd;
+    // касание панели в координатах окна: клавишу под пальцем находит Rust (`Kb::hit`), одна область касания на всю
+    // панель — перетаскивание (прокрутка эмодзи, выбор в ряду вариантов) не теряется при перестройке клавиш
+    callback touch-down(length, length);
+    callback touch-move(length, length);
+    callback touch-up(length, length);
+    callback touch-cancel();
+    in property <bool> ext-open;
+    in property <bool> ext-nav;
+    in property <length> ext-x;
+    in property <length> ext-y;
+    in property <length> ext-w;
+    in property <[OskExt]> ext;
+    callback dismiss();
+}
+
+component Key inherits Rectangle {
+    in property <OskKey> k;
+    property <bool> focused: OskState.show-focus && k.nav-focus;
+    property <bool> highlighted: k.pressed || root.focused || k.hover;
+    property <color> fg: root.highlighted ? #0e141b : (k.oneshot ? #1a9fff : #ffffff);
+    // Reuse the muted focus gray from Steam's DefaultTheme emoji keys.
+    property <color> bg: k.pressed ? #ffffff
+        : root.focused ? #8b929a
+        : k.hover ? (k.emoji ? #8b929a : #b8bcbf)
+        : k.emoji ? transparent
+        : k.on ? #1a9fff
+        // ToggleOneShot: фон клавиши снят (виден фон панели), текст синий — скриншот 011624
+        : k.oneshot ? transparent
+        : k.hi ? #3d4450
+        : k.tone == 1 ? #000000
+        : k.tone == 2 ? transparent
+        : k.tone == 3 ? #000000 : #0e141b;
+    x: k.kx; y: k.ky; width: k.kw; height: k.kh;
+    background: root.bg;
+    // мелкая подпись (символ Shift) сверху по центру: 14 css, 45 % белого
+    if k.small != "": Text {
+        x: 0px; y: 2px; width: parent.width; height: 28px;
+        text: k.small; font-size: 20.9px; font-family: GStyle.loc-font;
+        color: root.highlighted ? #000000 : #ffffff73; horizontal-alignment: center; vertical-alignment: center;
+    }
+    if k.has-eimg: Image {
+        width: 34px; height: 34px; x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2;
+        source: k.eimg; image-fit: contain;
+    }
+    if k.main != "" && k.mode < 2 && !k.has-eimg: Text {
+        x: 0px; y: k.mode == 1 ? 12px : 0px; width: parent.width; height: parent.height;
+        text: k.main; font-size: k.main-size; font-weight: (k.bold || k.on || k.oneshot) ? 700 : 400;
+        font-family: k.emoji ? "Noto Color Emoji" : GStyle.loc-font;
+        color: root.fg; horizontal-alignment: center; vertical-alignment: center; overflow: elide;
+    }
+    if k.main != "" && k.mode == 2: Text {
+        x: 12px; y: parent.height - 33px; width: parent.width - 24px; height: 24px;
+        text: k.main; font-size: k.main-size; font-family: GStyle.loc-font; font-weight: (k.on || k.oneshot) ? 700 : 400;
+        color: root.fg; horizontal-alignment: left; vertical-alignment: center;
+    }
+    if k.main != "" && k.mode == 3: Text {
+        x: 12px; y: parent.height - 33px; width: parent.width - 24px; height: 24px;
+        text: k.main; font-size: k.main-size; font-family: GStyle.loc-font; font-weight: (k.on || k.oneshot) ? 700 : 400;
+        color: root.fg; horizontal-alignment: right; vertical-alignment: center;
+    }
+    if k.alt != "": Text {
+        x: parent.width - 36px; y: parent.height - 26px; width: 30px; height: 20px;
+        text: k.alt; font-size: 13.4px; font-family: GStyle.loc-font; color: #ffffff73; horizontal-alignment: right;
+    }
+    if k.has-icon: Image {
+        width: 36px; height: 36px; x: (parent.width - self.width) / 2; y: k.has-icon2 ? parent.height - 35px : (parent.height - self.height) / 2;
+        source: Icons.tinted(k.icon, root.fg); image-fit: contain;
+    }
+    if k.has-icon2: Image {
+        width: 24px; height: 24px; x: (parent.width - self.width) / 2; y: 4px;
+        source: Icons.tinted(k.icon2, root.highlighted ? #0e141b : #ffffff73); image-fit: contain;
+    }
+    if k.has-gl: Image {
+        height: 30px; width: self.height * k.gl.width / max(k.gl.height, 1);
+        x: 9px; y: k.mode == 0 ? 25.5px : parent.height - self.height - 6.5px;
+        source: Icons.tinted(k.gl, root.highlighted ? #0e141b : #ffffff); image-fit: contain;
+    }
+    if k.has-gr: Image {
+        height: 30px; width: self.height * k.gr.width / max(k.gr.height, 1);
+        x: parent.width - self.width - 9px; y: k.mode == 0 ? 25.5px : parent.height - self.height - 6.5px;
+        source: Icons.tinted(k.gr, root.highlighted ? #0e141b : #ffffff); image-fit: contain;
+    }
+}
+
+export component Osk inherits Rectangle {
+    in property <length> win-h: 800px;
+    property <bool> open: OskState.open;
+    // Slint меняет направление с текущего положения панели.
+    property <float> progress: root.open ? 1 : 0;
+    animate progress {
+        duration: root.open ? 300ms : 220ms;
+        easing: root.open ? cubic-bezier(0, 0.73, 0.48, 1) : cubic-bezier(0.6, 0, 1, 1);
+    }
+    visible: root.progress > 0;
+    opacity: clamp(root.progress / 0.75, 0, 1);
+    // панель прижата к низу окна; клавиши лежат в оконных координатах, поэтому слой целиком сдвигается вверх при появлении
+    y: (1 - root.progress) * OskState.panel-h;
+    height: root.win-h;
+    Rectangle { x: 0px; y: OskState.panel-y; width: root.width; height: OskState.panel-h; background: #23262e; }
+    if OskState.emoji-mode: Rectangle {
+        // L1 / R1 по краям строки вкладок
+        Image { x: 15px; y: OskState.panel-y + 16.5px; width: 52px; height: 48px; source: Icons.tinted(OskState.glyph-l1, #ffffff); image-fit: contain; }
+        Image { x: 1211.5px; y: OskState.panel-y + 16.5px; width: 52px; height: 48px; source: Icons.tinted(OskState.glyph-r1, #ffffff); image-fit: contain; }
+        if OskState.message != "": Text {
+            x: 0px; y: OskState.panel-y + 110px; width: root.width; height: 120px; text: OskState.message;
+            color: #8b929a; font-size: 24px; font-family: GStyle.loc-font; horizontal-alignment: center; vertical-alignment: center;
+        }
+    }
+    for k[i] in OskState.keys: Key { k: k; }
+    TouchArea {
+        // во время ухода вниз касания не перехватываются
+        enabled: root.open;
+        x: 0px; y: OskState.panel-y; width: root.width; height: OskState.panel-h;
+        pointer-event(e) => {
+            if e.button == PointerEventButton.left || e.button == PointerEventButton.other {
+                if e.kind == PointerEventKind.down { OskState.touch-down(self.mouse-x, OskState.panel-y + self.mouse-y); }
+                else if e.kind == PointerEventKind.up { OskState.touch-up(self.mouse-x, OskState.panel-y + self.mouse-y); }
+                else if e.kind == PointerEventKind.cancel { OskState.touch-cancel(); }
+            }
+        }
+        moved => { OskState.touch-move(self.mouse-x, OskState.panel-y + self.mouse-y); }
+    }
+    // ряд вариантов долгого нажатия: синий #1A9FFF, выбранный — с приглушённым фоном и тёмным текстом
+    if OskState.ext-open: Rectangle {
+        x: OskState.ext-x; y: OskState.ext-y; width: OskState.ext-w; height: 65.7px;
+        background: #1a9fff;
+        for e[j] in OskState.ext: Rectangle {
+            property <bool> selected: e.sel && (!OskState.ext-nav || OskState.show-focus);
+            x: j * 71.71px; y: 0px; width: 71.71px; height: parent.height;
+            background: self.selected ? (OskState.ext-nav ? #8b929a : #b8bcbf) : transparent;
+            if e.has-img: Image { width: 34px; height: 34px; x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2; source: e.img; image-fit: contain; }
+            if !e.has-img: Text {
+                text: e.text; font-size: 23.9px; font-family: GStyle.loc-font; color: parent.selected ? #0e141b : #ffffff;
+                horizontal-alignment: center; vertical-alignment: center;
+            }
+        }
+    }
+    // курсоры тачпадов: круг 10 css (15 px) #1A9FFF с чёрной обводкой; при клике — «вдавлен»
+    if OskState.pad-l: Rectangle {
+        x: OskState.pad-lx - 15px; y: OskState.pad-ly - 15px; width: 30px; height: 30px; border-radius: 15px;
+        background: #1a9fff; border-width: OskState.pad-ld ? 4px : 2px; border-color: #000000; opacity: 0.9;
+    }
+    if OskState.pad-r: Rectangle {
+        x: OskState.pad-rx - 15px; y: OskState.pad-ry - 15px; width: 30px; height: 30px; border-radius: 15px;
+        background: #1a9fff; border-width: OskState.pad-rd ? 4px : 2px; border-color: #000000; opacity: 0.9;
+    }
+}

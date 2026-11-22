@@ -1,0 +1,51 @@
+// Launch cover (task 330, look task 331): shown from Play/Resume until the game window has focus, then removed.
+// Rust drives `LaunchSplashState` (src/launch_splash.rs); the cover swallows pointer input while it is up.
+// Hidden = not rendered at all.
+//
+// Two looks. With the owner's Custom Loader "Cat" theme active, the cover matches Steam's loader: the theme's
+// background colour, and its GIF (decoded by Rust, src/launch_cat.rs) shown 250 x 250, stretched, centred, not
+// rotated. Without the theme, our own drawing (app/ui/assets/launch/cat.svg) turns on a dark background.
+export global LaunchSplashState {
+    in-out property <bool> active: false;
+    // Set by Rust once the theme GIF is decoded.
+    in-out property <bool> theme-cat: false;
+    in-out property <image> cat-frame;
+    // Line under the cat (account switch, task 430); empty for a game launch.
+    in-out property <string> caption;
+}
+
+export component LaunchSplash inherits Rectangle {
+    background: LaunchSplashState.theme-cat ? #e7dfdd : #0d0f14;
+    opacity: LaunchSplashState.active ? 1 : 0;
+    visible: LaunchSplashState.active || self.opacity > 0.005;
+    animate opacity { duration: 150ms; easing: ease-out; }
+
+    if LaunchSplashState.theme-cat : Image {
+        width: 250px;
+        height: 250px;
+        image-fit: fill;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        source: LaunchSplashState.cat-frame;
+    }
+
+    // Fallback: one full turn every 1.6 s, driven by the animation tick so no Rust timer is needed.
+    if !LaunchSplashState.theme-cat : Image {
+        width: 220px;
+        height: 220px;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        source: @image-url("../assets/launch/cat.svg");
+        transform-rotation: (mod(animation-tick() / 1ms, 1600) / 1600) * 360deg;
+    }
+    if LaunchSplashState.caption != "" : Text {
+        text: LaunchSplashState.caption;
+        color: LaunchSplashState.theme-cat ? #3a3433 : #c9ced6;
+        font-size: 20px;
+        horizontal-alignment: center;
+        x: 0px;
+        width: parent.width;
+        y: parent.height / 2 + 150px;
+    }
+    TouchArea { }
+}

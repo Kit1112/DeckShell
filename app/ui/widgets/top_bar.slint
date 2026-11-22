@@ -1,0 +1,119 @@
+// Top bar state: clock, user avatar, battery/network from the bridge (fallback deck-system). Written by app/src/app.rs.
+export global TopBarState {
+    in property <string> clock;
+    // 12-hour clock ("3:17 PM", stock look for en_US-style locales); the text is wider and left-aligned
+    in property <bool> clock-12h;
+    in property <image> avatar;
+    in property <bool> has-avatar;
+    in property <string> persona-name;
+    in property <int> bat-pct: -1;
+    in property <bool> bat-charging;
+    in property <bool> bat-full;
+    // stock BatteryPreferences.bShowBatteryPercentage decided by battery-logic (written by backend.rs / power page)
+    in property <bool> bat-show-pct;
+    in property <string> bat-text;
+    in property <image> battery-icon;
+    // same icon with a dark outline, drawn on the white block of a focused header item
+    in property <image> battery-icon-dark;
+    in property <bool> wifi-offline;  // Steam offline mode glyph
+    in property <int> wifi-strength: 4; // native level when the bridge has sampled the network
+    in property <int> wifi: -1;     // -1 no adapter, 0 off, 1 on
+    in property <int> unread;       // unviewed notifications; bell exists only when > 0
+    in property <bool> has-sdcard; // unformatted-card warning, not card presence
+    // active download (stock header: icon of the game being downloaded + thin progress strip); written by screens/downloads.rs
+    in property <bool> dl-active;
+    in property <image> dl-icon;
+    in property <bool> dl-has-icon;
+    in property <bool> dl-icon-is-capsule;
+    // 0..1, negative = size unknown (no strip)
+    in property <float> dl-progress: -1;
+    // paused or failed: strip is grey
+    in property <bool> dl-muted;
+    in property <bool> search-active;
+    in property <string> search-query;
+    in property <string> search-placeholder;
+    // header buttons (Steam: HeaderActions_*): Rust (screens/chrome.rs) routes them to Settings pages / search / side menu
+    // D-pad cursor on the header (-1 none): 0 avatar, 1 search, 2 SD card, 3 bell, 4 Wi-Fi, 5 battery, 6 downloads
+    in property <int> hfocus: -1;
+    // tap / click on a header target (index as above)
+    callback header-clicked(int);
+}
+
+export global HeaderLayout {
+    out property <length> row-height: 60px;
+    out property <length> padded-offset: 15px;
+    out property <length> avatar-width: 71.875px;
+    out property <length> search-x: 198px;
+    out property <length> min-field-width: 128px;
+    // Focus zone: the D-pad cursor is on the header. The dark strip appears, the content below loses its focus and dims.
+    out property <bool> bar-focused: TopBarState.hfocus >= 0;
+    out property <length> strip-height: 75px;
+    out property <bool> search-expanded: TopBarState.hfocus == 1 || TopBarState.search-active;
+
+    // The stock row is anchored on the right. Each visible item reserves
+    // its own slot, so the search (including the open field) ends before
+    // the download, storage and status controls.
+    out property <length> slot: 60px;
+    out property <length> battery-width: 130.375px;
+    // without the percent text the slot shrinks by the text column (text left edge 115.06 minus icon left edge 56.99 from the right)
+    out property <length> percent-width: 58.07px;
+    out property <length> wifi-width: 56.875px;
+    out property <length> battery-inset: TopBarState.bat-pct >= 0 ? (TopBarState.bat-show-pct ? root.battery-width : root.battery-width - root.percent-width) : 0px;
+    out property <length> wifi-inset: root.battery-inset + (TopBarState.wifi >= 0 ? root.wifi-width : 0px);
+    out property <length> bell-inset: root.wifi-inset + (TopBarState.unread > 0 ? root.slot : 0px);
+    out property <length> sd-inset: root.bell-inset + (TopBarState.has-sdcard ? root.slot : 0px);
+    out property <length> download-inset: root.sd-inset + (TopBarState.dl-active ? root.slot : 0px);
+
+    pure public function search-right(right: length) -> length {
+        return floor((right - root.download-inset) / 1px) * 1px;
+    }
+
+    pure public function search-width(available: length, open: float) -> length {
+        return root.slot + max(0px, available - root.slot) * open;
+    }
+}
+
+import { Icon, Icons } from "icon.slint";
+
+export component DownloadIndicator inherits Rectangle {
+    portrait := Rectangle {
+        width: 36px;
+        height: 36px;
+        x: (parent.width - self.width) / 2;
+        y: 10px;
+        background: #23262e;
+        clip: true;
+        if TopBarState.dl-has-icon: Image {
+            width: parent.width;
+            height: parent.height;
+            source: TopBarState.dl-icon;
+            image-fit: TopBarState.dl-icon-is-capsule ? cover : contain;
+        }
+        if !TopBarState.dl-has-icon: Icon {
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            src: Icons.downloads;
+        }
+    }
+    if TopBarState.dl-progress >= 0: Rectangle {
+        x: portrait.x;
+        y: portrait.y + portrait.height + 1px;
+        width: portrait.width;
+        height: 3px;
+        background: #ffffff40;
+        Rectangle {
+            x: 0px;
+            width: clamp(parent.width * clamp(TopBarState.dl-progress, 0, 1), TopBarState.dl-progress > 0 ? 3px : 0px, parent.width);
+            height: parent.height;
+            background: TopBarState.dl-muted ? #8b929a : #1a9fff;
+        }
+    }
+}
+
+// Dims the content row while the cursor is on the header (stock: the whole tile row goes dull, no tile keeps a ring).
+export component TopFocusDim inherits Rectangle {
+    background: #000000;
+    opacity: HeaderLayout.bar-focused ? 0.45 : 0;
+    animate opacity { duration: 200ms; easing: cubic-bezier(0.25, 0.1, 0.25, 1); }
+    visible: self.opacity > 0.001;
+}

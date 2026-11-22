@@ -1,0 +1,24 @@
+{
+  "ready": true,
+  "invites": 2,
+  "friends": [
+    {"n": "Alpha", "s": 1, "g": "", "a": 1001, "av": true, "u": "https://avatars.example/alpha_medium.jpg"},
+    {"n": "Charlie", "s": 1, "g": "Portal 2", "a": 1003, "av": false, "u": ""},
+    {"n": "Bravo", "s": 0, "g": "", "a": 1002, "av": true, "u": "https://avatars.example/bravo_medium.jpg"}
+  ],
+  "favorites": [
+    {"k": "f", "n": "Alpha", "s": 1, "g": "", "a": 1001, "av": true, "u": "https://avatars.example/alpha_medium.jpg", "c": 0, "m": 0, "p": 0},
+    {"k": "g", "n": "Raid Night", "id": "103582791430000001", "c": 0, "m": 0, "p": 0},
+    {"k": "c", "n": "Deck Club", "id": "", "c": 0, "m": 0, "p": 0},
+    {"k": "f", "n": "Bravo", "s": 0, "g": "", "a": 1002, "av": true, "u": "https://avatars.example/bravo_medium.jpg", "c": 0, "m": 0, "p": 0}
+  ],
+  "groups": [
+    {"k": "g", "n": "Raid Night", "id": "103582791430000001", "c": 0, "m": 0, "p": 0},
+    {"k": "g", "n": "Deck Builders", "id": "103582791430000002", "c": 1, "m": 0, "p": 0}
+  ],
+  "recent": [
+    {"k": "f", "n": "Bravo", "s": 0, "g": "", "a": 1002, "av": true, "u": "https://avatars.example/bravo_medium.jpg", "c": 3, "m": 0, "p": 1},
+    {"k": "g", "n": "Deck Builders", "id": "103582791430000002", "c": 1, "m": 0, "p": 0},
+    {"k": "f", "n": "Alpha", "s": 1, "g": "", "a": 1001, "av": true, "u": "https://avatars.example/alpha_medium.jpg", "c": 1, "m": 0, "p": 0}
+  ]
+}

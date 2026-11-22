@@ -1,0 +1,89 @@
+import { Icons } from "../widgets/icon.slint";
+// Страница «Настройки <режим>» источника и стоковый выпадающий список; кадры владельца 21.11 (controls/03, 04, 05–11), 1280×800 = 1:1.
+import { GStyle } from "../generated/style.slint";
+// kind: 0 ползунок, 1 переключатель, 2 выпадающий список, 3 заголовок раздела.
+export struct PadRow { kind: int, label-lines: [string], desc-lines: [string], value: string, fraction: float, on: bool, y: length, h: length, label-cy: length, desc-top: length, box-w: length, }
+export struct ChoiceItem { label: string, icon: int, image: image, y: length, h: length, }
+
+export component ControllerPadView inherits Rectangle {
+    in property <[string]> sections;
+    in property <[PadRow]> rows;
+    in property <length> content-height;
+    in property <length> scroll-y;
+    in property <int> active-section;
+    in property <int> focused-row: -1;
+    in property <bool> rail-focus;
+    in property <bool> slider-active;
+    in property <string> source;
+    in property <string> subtitle;
+    callback row-clicked(int);
+    callback section-clicked(int);
+    background: #090e12;
+    Rectangle { x: 0px; y: 0px; width: 360px; height: parent.height; background: #252a30;
+        Text { x: 0px; y: 74px; width: parent.width; height: 32px; text: root.source; color: #8d949c; font-size: 19px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; font-family: GStyle.loc-font; }
+        Text { x: 0px; y: 108px; width: parent.width; height: 34px; text: root.subtitle; color: #dcdedf; font-size: 24px; horizontal-alignment: center; vertical-alignment: center; overflow: elide; font-family: GStyle.loc-font; }
+        Flickable { x: 0px; y: 181px; width: parent.width; height: parent.height - self.y;
+            viewport-height: max(self.height, root.sections.length * 63px);
+            viewport-y: -clamp((root.active-section + 1) * 63px - self.height, 0px, self.viewport-height - self.height);
+            interactive: false;
+            for section[i] in root.sections: Rectangle { x: 0px; y: i * 63px; width: parent.width; height: 63px; background: root.active-section == i ? #43464b : transparent;
+                Text { x: 36px; width: 310px; height: parent.height; text: section; color: root.active-section == i ? #ffffff : #b3b7bb; font-size: 25px; vertical-alignment: center; overflow: elide; font-family: GStyle.loc-font; }
+                TouchArea { clicked => { root.section-clicked(i); } }
+            }
+        }
+    }
+    Flickable { x: 397px; y: 0px; width: 849px; height: parent.height; viewport-height: root.content-height; viewport-y: -root.scroll-y; interactive: false;
+        for row[i] in root.rows: Rectangle { x: 0px; y: row.y; width: 849px; height: row.h;
+            property <bool> foc: root.focused-row == i;
+            if row.kind == 3: Text { x: 0px; y: 46px - 24px; width: 800px; height: 48px; text: row.label-lines[0]; color: #ffffff; font-size: 34px; font-weight: 700; vertical-alignment: center; font-family: GStyle.loc-font; }
+            if row.kind != 3: Rectangle { x: 0px; y: 0px; width: parent.width; height: parent.height; background: foc ? #373a41 : #23262f; border-radius: 3px;
+                for l[k] in row.label-lines: Text { x: 18px; y: row.label-cy + k * 30px - 20px; width: parent.width - 36px - (row.kind == 2 ? row.box-w + 20px : 0px); height: 40px; text: l; color: #e1e3e5; font-size: 24px; vertical-alignment: center; font-family: GStyle.loc-font; }
+                for l[k] in row.desc-lines: Text { x: 18px; y: row.desc-top + k * 24px; width: parent.width - 24px; height: 24px; text: l; color: #8d949c; font-size: 18px; vertical-alignment: center; font-family: GStyle.loc-font; }
+                if row.kind == 0: Rectangle { x: parent.width - 18px - 96px; y: 19px; width: 96px; height: 42px; border-radius: 3px; background: foc ? #23262f : transparent;
+                    Text { x: 0px; y: 0px; width: parent.width - (foc ? 0px : 0px); height: parent.height; text: row.value; color: #8d949c; font-size: 24px; horizontal-alignment: foc ? center : right; vertical-alignment: center; font-family: GStyle.loc-font; }
+                }
+                if row.kind == 0: Rectangle { x: 18px; y: 93px - 4.5px; width: parent.width - 36px; height: 9px; border-radius: 4.5px; background: #56575c;
+                    Rectangle { x: 0px; y: 0px; width: parent.width * Math.max(0, Math.min(1, row.fraction)); height: parent.height; border-radius: 4.5px; background: #1f9cf8; }
+                    Rectangle { x: parent.width * Math.max(0, Math.min(1, row.fraction)) - 18px; y: -13.5px; width: 36px; height: 36px; border-radius: 18px; background: #ffffff; border-width: foc && root.slider-active ? 3px : 0px; border-color: #1f9cf8; }
+                    Path { x: parent.width * Math.max(0, Math.min(1, row.fraction)) - 9px; y: -29px; width: 18px; height: 10px; viewbox-width: 18; viewbox-height: 10; commands: "M 0 0 L 18 0 L 9 10 Z"; fill: #8d949c; }
+                }
+                if row.kind == 1: Rectangle { x: parent.width - 24px - 57px; y: row.label-cy - 16.5px; width: 57px; height: 33px; border-radius: 16.5px; background: row.on ? #239bfa : #46474b;
+                    Rectangle { x: row.on ? parent.width - self.width - 3px : 3px; y: 3px; width: 27px; height: 27px; border-radius: 13.5px; background: #ffffff; }
+                }
+                if row.kind == 2: Rectangle { x: parent.width - 18px - row.box-w; y: 18px; width: row.box-w; height: 60px; border-radius: 3px; background: foc ? #ffffff : #46474b; clip: true;
+                    Text { x: 24px; y: 0px; width: parent.width - 66px; height: parent.height; text: row.value; color: foc ? #0e141b : #dcdedf; font-size: 24px; vertical-alignment: center; overflow: clip; font-family: GStyle.loc-font; }
+                    Path { x: parent.width - 47px; y: 25px; width: 20px; height: 11px; viewbox-width: 20; viewbox-height: 11; commands: "M 0 0 L 20 0 L 10 11 Z"; fill: foc ? #0e141b : #dcdedf; }
+                }
+                TouchArea { clicked => { root.row-clicked(i); } }
+            }
+        }
+    }
+}
+
+// Стоковый выпадающий список: окно по центру, белая строка фокуса, значки у режимов, «Отмена» под чертой.
+export component ControllerChoiceList inherits Rectangle {
+    in property <[ChoiceItem]> items;
+    in property <int> cursor;
+    in property <length> list-width: 420px;
+    in property <length> list-height: 399px;
+    callback selected(int);
+    background: #0000008c;
+    TouchArea { }
+    Flickable { x: (parent.width - root.list-width) / 2; y: 380.5px - self.height / 2 - root.y;
+        width: root.list-width; height: min(root.list-height, 630px);
+        viewport-height: root.list-height;
+        viewport-y: root.items.length > 0 ? -clamp(root.items[root.cursor].y + root.items[root.cursor].h - self.height, 0px, self.viewport-height - self.height) : 0px;
+        interactive: false;
+        Rectangle { width: root.list-width; height: root.list-height; background: #23262d; }
+        if root.items.length > 0: Rectangle { x: 0px; y: root.items[root.items.length - 1].y - 3px; width: parent.width; height: 3px; background: #050608; }
+        for item[i] in root.items: Rectangle { x: 0px; y: item.y; width: parent.width; height: item.h; background: root.cursor == i ? #ffffff : transparent;
+            if item.icon > 0: Image {
+                x: 18px; y: (parent.height - 34px) / 2; width: 42px; height: 34px;
+                image-fit: contain;
+                source: Icons.tinted(item.image, root.cursor == i ? #0e141b : #dcdedf);
+            }
+            Text { x: item.icon > 0 ? 78px : 21px; width: parent.width - (item.icon > 0 ? 99px : 42px); height: parent.height; text: item.label; color: root.cursor == i ? #0e141b : #dcdedf; font-size: 24px; vertical-alignment: center; wrap: word-wrap; font-family: GStyle.loc-font; }
+            TouchArea { clicked => { root.selected(i); } }
+        }
+    }
+}

@@ -1,0 +1,258 @@
+{
+  "schema": "rust-anything/bridge@1",
+  "root": "/home/kit/.local/state/dispatcher/worktrees/repo-cf5bc645/task-476/tools/rust-anything/battery",
+  "unit": "battery.mjs",
+  "language": "ts",
+  "kind": "wasm",
+  "crate_name": "battery-rs",
+  "exports": [
+    {
+      "name": "confidenceOnBatteryUpdate",
+      "file": "battery.mjs",
+      "line": 6,
+      "params": [
+        {
+          "name": "prevAc",
+          "ts_type": "unknown",
+          "optional": false,
+          "rest": false
+        },
+        {
+          "name": "newAc",
+          "ts_type": "unknown",
+          "optional": false,
+          "rest": false
+        },
+        {
+          "name": "confidence",
+          "ts_type": "unknown",
+          "optional": false,
+          "rest": false
+        }
+      ],
+      "returns": "unknown",
+      "is_async": false,
+      "is_generator": false,
+      "type_params": [],
+      "uses_instanceof": false
+    },
+    {
+      "name": "confidenceTimerDelayMs",
+      "file": "battery.mjs",
+      "line": 11,
+      "params": [
+        {
+          "name": "confidence",
+          "ts_type": "unknown",
+          "optional": false,
+          "rest": false
+        }
+      ],
+      "returns": "unknown",
+      "is_async": false,
+      "is_generator": false,
+      "type_params": [],
+      "uses_instanceof": false
+    },
+    {
+      "name": "confidenceAfterTimer",
+      "file": "battery.mjs",
+      "line": 18,
+      "params": [
+        {
+          "name": "confidence",
+          "ts_type": "unknown",
+          "optional": false,
+          "rest": false
+        }
+      ],
+      "returns": "unknown",
+      "is_async": false,
+      "is_generator": false,
+      "type_params": [],
+      "uses_instanceof": false
+    },
+    {
+      "name": "sayFullAction",
+      "file": "battery.mjs",
+      "line": 24,
+      "params": [
+        {
+          "name": "prevBatteryState",
+          "ts_type": "unknown",
+          "optional": false,
+          "rest": false
+        },
+        {
+          "name": "newBatteryState",
+          "ts_type": "unknown",
+          "optional": false,
+          "rest": false
+        }
+      ],
+      "returns": "unknown",
+      "is_async": false,
+      "is_generator": false,
+      "type_params": [],
+      "uses_instanceof": false
+    },
+    {
+      "name": "batteryTimeParts",
+      "file": "battery.mjs",
+      "line": 31,
+      "params": [
+        {
+          "name": "secondsRemaining",
+          "ts_type": "unknown",
+          "optional": false,
+          "rest": false
+        }
+      ],
+      "returns": "unknown",
+      "is_async": false,
+      "is_generator": false,
+      "type_params": [],
+      "uses_instanceof": false
+    },
+    {
+      "name": "batteryTimeShown",
+      "file": "battery.mjs",
+      "line": 41,
+      "params": [
+        {
+          "name": "confidence",
+          "ts_type": "unknown",
+          "optional": false,
+          "rest": false
+        }
+      ],
+      "returns": "unknown",
+      "is_async": false,
+      "is_generator": false,
+      "type_params": [],
+      "uses_instanceof": false
+    },
+    {
+      "name": "batteryTimeCaptionToken",
+      "file": "battery.mjs",
+      "line": 46,
+      "params": [
+        {
+          "name": "batteryState",
+          "ts_type": "unknown",
+          "optional": false,
+          "rest": false
+        },
+        {
+          "name": "confidence",
+          "ts_type": "unknown",
+          "optional": false,
+          "rest": false
+        }
+      ],
+      "returns": "unknown",
+      "is_async": false,
+      "is_generator": false,
+      "type_params": [],
+      "uses_instanceof": false
+    },
+    {
+      "name": "batteryPercentText",
+      "file": "battery.mjs",
+      "line": 58,
+      "params": [
+        {
+          "name": "level",
+          "ts_type": "unknown",
+          "optional": false,
+          "rest": false
+        }
+      ],
+      "returns": "unknown",
+      "is_async": false,
+      "is_generator": false,
+      "type_params": [],
+      "uses_instanceof": false
+    },
+    {
+      "name": "showHeaderPercent",
+      "file": "battery.mjs",
+      "line": 64,
+      "params": [
+        {
+          "name": "prefShow",
+          "ts_type": "unknown",
+          "optional": false,
+          "rest": false
+        },
+        {
+          "name": "neverShow",
+          "ts_type": "unknown",
+          "optional": false,
+          "rest": false
+        },
+        {
+          "name": "region",
+          "ts_type": "unknown",
+          "optional": false,
+          "rest": false
+        },
+        {
+          "name": "isFull",
+          "ts_type": "unknown",
+          "optional": false,
+          "rest": false
+        },
+        {
+          "name": "hintVisible",
+          "ts_type": "unknown",
+          "optional": false,
+          "rest": false
+        }
+      ],
+      "returns": "unknown",
+      "is_async": false,
+      "is_generator": false,
+      "type_params": [],
+      "uses_instanceof": false
+    },
+    {
+      "name": "batteryPrefShow",
+      "file": "battery.mjs",
+      "line": 70,
+      "params": [
+        {
+          "name": "storedJson",
+          "ts_type": "unknown",
+          "optional": false,
+          "rest": false
+        }
+      ],
+      "returns": "unknown",
+      "is_async": false,
+      "is_generator": false,
+      "type_params": [],
+      "uses_instanceof": false
+    },
+    {
+      "name": "batteryPrefStored",
+      "file": "battery.mjs",
+      "line": 78,
+      "params": [
+        {
+          "name": "v",
+          "ts_type": "unknown",
+          "optional": false,
+          "rest": false
+        }
+      ],
+      "returns": "unknown",
+      "is_async": false,
+      "is_generator": false,
+      "type_params": [],
+      "uses_instanceof": false
+    }
+  ],
+  "classes": [],
+  "js_only": []
+}

@@ -1,0 +1,157 @@
+// QAM "Decky" tab: plugin list + each plugin's panel (replica of Decky Loader's PluginView + the 14 installed plugins' frontends).
+// Layout data: app/ui/generated/decky/panels.json (tools/compile-ui/decky/compile-decky.mjs, from the Decky ledger rows / fiber dumps).
+// Values: app/src/plugins (talks to the real Decky Loader backend on :1337 and the plugins' settings files).
+// Coordinates: component origin = top-left of the QAM popup content (the 48 css px tab rail is part of that space); 1 css px = 1.2 px.
+// Hosting (qam.slint owner): `DeckyTab { x: <panel left>; y: <panel top>; width: 417.6px; height: <panel h>; }`, route the QAM tab to it while
+// `DeckyState.active`, forward actions to `plugins::handle(Action)`, and export `DeckyState` from appwindow.slint (`export { DeckyState } from ...`).
+import { Tokens } from "../../tokens.slint";
+import { Icon, Icons } from "../../widgets/icon.slint";
+import { Toggle } from "../../widgets/toggle.slint";
+import { Slider } from "../../widgets/slider.slint";
+
+export struct DeckyNode { desc: string, label: string, x: length, y: length, w: length, h: length }
+// kind: 0 button, 1 toggle, 2 slider, 3 select, 4 collapse, 5 chip, 6 text, 7 section header
+export struct DeckyItem {
+    kind: int, x: length, y: length, w: length, h: length,
+    label: string, desc: string, value: string, on: bool, frac: float, focusable: bool, busy: bool,
+    has-row: bool, row-label: string, row-desc: string, nodes: [DeckyNode],
+    cx: length, cy: length, cw: length, ch: length, // main control rect relative to the item
+}
+
+export global DeckyState {
+    in property <bool> active;          // Decky tab selected in the QAM
+    in property <int> view;             // 0 plugin list, 1 plugin panel
+    in property <string> title;
+    in property <[DeckyItem]> items;
+    in property <[DeckyNode]> header;   // title-view buttons (back + plugin actions)
+    in property <[image]> header-icons;
+    in property <int> focus: 0;         // item index, or -1 - k = header button k
+    in property <length> scroll: 0px;
+    in property <length> content-h: 0px;
+    in property <string> root-label;
+    in property <string> root-desc: "button||touch,mouse";
+    in property <bool> emit-rail-node: true; // the 48 css tab-rail container (`button ''`, ledger index 0) is emitted here unless qam.slint draws it
+    in property <string> status;        // small status line (backend offline / dry-run)
+    callback activate(int);
+    callback adjust-to(int, float);     // slider touch: absolute fraction
+    callback scrolled(length);
+    callback back();
+}
+
+component DeckyBtn inherits Rectangle {
+    in property <string> text;
+    in property <bool> focused;
+    in property <bool> align-left;
+    in property <int> pw: 700;
+    border-radius: 2.4px;
+    background: root.focused ? #ffffff : #ffffff26;
+    animate background { duration: 100ms; }
+    Text {
+        x: root.align-left ? 14.4px : 0px; width: parent.width - (root.align-left ? 28.8px : 0px); height: parent.height;
+        text: root.text; color: root.focused ? #0e141b : Tokens.qam-row-color; font-size: 16.8px; font-weight: root.pw;
+        horizontal-alignment: root.align-left ? TextHorizontalAlignment.left : TextHorizontalAlignment.center; vertical-alignment: center; overflow: elide;
+    }
+}
+
+export component DeckyTab inherits Rectangle {
+    private property <length> rail: 57.6px;
+    background: transparent;
+    clip: true;
+    // QuickAccess-Menu root (ledger: the whole 854 css px popup is a clickable div whose text is every visible string). Everything below is its
+    // descendant, so plain Text/TouchArea items do not show up as extra tree nodes; only the described rectangles do.
+    popup := Rectangle {
+        x: 0px; y: 0px; width: 1024.8px; height: parent.height;
+        accessible-role: button; accessible-label: DeckyState.root-label; accessible-description: DeckyState.root-desc;
+    if DeckyState.emit-rail-node: Rectangle { x: 0px; y: 0px; width: root.rail; height: parent.height; accessible-role: button; accessible-label: ""; accessible-description: "button||touch,mouse"; }
+
+    // title-view buttons come first in Steam's DOM: their tree nodes (invisible) precede the content, the visible buttons are drawn on top below
+    for h in DeckyState.header: Rectangle { x: h.x; y: h.y; width: h.w; height: h.h; accessible-role: button; accessible-label: ""; accessible-description: h.desc; }
+    // wheel scrolling (below the content: item TouchAreas reject scroll events, so they fall through to this one)
+    TouchArea {
+        width: parent.width; height: parent.height;
+        scroll-event(e) => { DeckyState.scrolled(-e.delta-y); return accept; }
+    }
+    // ---- scrolling content (a Flickable so that scrolled-away rows stay in the exported tree like Steam's DOM) ----
+    Flickable {
+        x: 0px; y: 0px; width: parent.width; height: parent.height;
+        interactive: false;
+        viewport-width: parent.width; viewport-height: DeckyState.content-h;
+        viewport-y: -DeckyState.scroll;
+        animate viewport-y { duration: 180ms; easing: ease-in-out; }
+        Rectangle {
+            x: 0px; y: 0px; width: parent.width; height: DeckyState.content-h;
+            for it[i] in DeckyState.items: item := Rectangle {
+                x: it.x; y: it.y; width: it.w; height: it.h;
+                property <bool> foc: DeckyState.focus == i;
+                // row highlight (toggle / slider / select rows focus as a whole)
+                if it.has-row: Rectangle {
+                    width: parent.width; height: parent.height; border-radius: Tokens.qam-row-radius;
+                    background: (parent.foc && (it.kind == 1 || it.kind == 2)) ? Tokens.hover-bg : transparent;
+                    accessible-role: button; accessible-label: it.row-label; accessible-description: it.row-desc;
+                }
+                // ---- 7 section header
+                if it.kind == 7: Text { x: 19.2px; width: parent.width - 38.4px; height: parent.height; text: it.label; color: Tokens.qam-section-color; font-size: 14.4px; font-weight: 700; letter-spacing: 0.6px; vertical-alignment: center; }
+                // ---- 6 plain text
+                if it.kind == 6: Text { x: 19.2px; width: parent.width - 38.4px; height: parent.height; text: it.label; color: Tokens.qam-row-color; font-size: 16.8px; wrap: word-wrap; vertical-alignment: center; }
+                // ---- 1 toggle / 2 slider / 3 select: label + description stack
+                if it.kind == 1 || it.kind == 2 || it.kind == 3: VerticalLayout {
+                    x: 19.2px; y: 0px; width: parent.width - 38.4px - (it.kind == 1 ? 57.6px : (it.kind == 3 ? it.cw + 9.6px : 0px)); height: it.kind == 2 ? it.cy - 2px : parent.height;
+                    padding-top: 12px; padding-bottom: 8px; spacing: 4px;
+                    alignment: it.desc == "" ? center : start;
+                    Text { text: it.label; color: Tokens.qam-row-color; font-size: 16.8px; wrap: word-wrap; vertical-stretch: 0; }
+                    if it.desc != "" && it.kind != 2: Text { text: it.desc; color: Tokens.qam-caption-color; font-size: 13.2px; wrap: word-wrap; vertical-stretch: 0; }
+                }
+                if it.kind == 2 && it.desc != "": Text { x: 19.2px; y: it.cy + it.ch + 8px; width: parent.width - 38.4px; text: it.desc; color: Tokens.qam-caption-color; font-size: 13.2px; wrap: word-wrap; }
+                if it.kind == 1: Toggle { x: it.cx; y: it.cy + (it.ch - self.height) / 2; on: it.on ? 1 : 0; }
+                if it.kind == 2: Rectangle {
+                    x: it.cx; y: it.cy; width: it.cw; height: it.ch;
+                    Slider { width: parent.width; height: parent.height; value: it.frac; focused: item.foc; }
+                    if it.value != "": Text { y: parent.height; width: parent.width; text: it.value; color: Tokens.qam-caption-color; font-size: 12px; horizontal-alignment: center; }
+                }
+                if it.kind == 3: DeckyBtn { x: it.cx; y: it.cy; width: it.cw; height: it.ch; text: it.value; focused: parent.foc; pw: 400; }
+                // ---- 0 button (+ description below), 5 chip
+                if it.kind == 0: DeckyBtn { x: it.cx; y: it.cy; width: it.cw; height: it.ch; text: it.label; focused: parent.foc; align-left: it.busy; }
+                if it.kind == 0 && it.desc != "": Text { x: 19.2px; y: it.cy + it.ch + 6px; width: parent.width - 38.4px; text: it.desc; color: Tokens.qam-caption-color; font-size: 13.2px; wrap: word-wrap; }
+                if it.kind == 5: DeckyBtn { width: parent.width; height: parent.height; text: it.label; focused: parent.foc; }
+                // ---- 4 collapsible section arrow
+                if it.kind == 4: DeckyBtn {
+                    x: it.cx; y: it.cy; width: it.cw; height: it.ch; text: ""; focused: parent.foc;
+                    Path {
+                        x: (parent.width - 14.4px) / 2; y: (parent.height - 8.4px) / 2; width: 14.4px; height: 8.4px; viewbox-width: 14.4; viewbox-height: 8.4;
+                        commands: it.on ? "M 1.2 7.2 L 7.2 1.2 L 13.2 7.2" : "M 1.2 1.2 L 7.2 7.2 L 13.2 1.2";
+                        stroke: parent.focused ? #0e141b : #dcdedf; stroke-width: 2px; stroke-line-cap: round; fill: transparent;
+                    }
+                }
+                // ledger child nodes (accessible metadata only)
+                for n in it.nodes: Rectangle { x: n.x; y: n.y; width: n.w; height: n.h; accessible-role: button; accessible-label: n.label; accessible-description: n.desc; }
+                if it.focusable: TouchArea {
+                    width: parent.width; height: parent.height;
+                    clicked => {
+                        if it.kind == 2 { DeckyState.adjust-to(i, clamp((self.mouse-x - it.cx) / it.cw, 0, 1)); } else { DeckyState.activate(i); }
+                    }
+                }
+            }
+        }
+    }
+
+    // ---- title view (fixed): back button + title + plugin action buttons ----------------------
+    Rectangle {
+        x: 0px; y: 0px; width: parent.width; height: 60px; background: Tokens.bg;
+    }
+    for h[k] in DeckyState.header: DeckyBtn {
+        x: h.x; y: h.y; width: h.w; height: h.h;
+        focused: DeckyState.focus == -1 - k;
+        if k == 0 && DeckyState.view == 1: Path {
+            x: (parent.width - 9.6px) / 2; y: (parent.height - 16.8px) / 2; width: 9.6px; height: 16.8px; viewbox-width: 9.6; viewbox-height: 16.8;
+            commands: "M 8.4 1.2 L 1.2 8.4 L 8.4 15.6"; stroke: DeckyState.focus == -1 ? #0e141b : #dcdedf; stroke-width: 2px; stroke-line-cap: round; fill: transparent;
+        }
+        if k >= 1 || DeckyState.view == 0: Icon { x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2; s: 19.2px; src: k < DeckyState.header-icons.length ? DeckyState.header-icons[k] : Icons.settings; c: DeckyState.focus == -1 - k ? #0e141b : #dcdedf; }
+        TouchArea { clicked => { DeckyState.activate(-1 - k); } }
+    }
+    Text {
+        x: DeckyState.view == 1 ? 136px : 76.8px; y: (DeckyState.header.length > 0 ? DeckyState.header[0].y : 24px) - 1px; height: 33.6px; width: 200px; text: DeckyState.title; color: Tokens.qam-title-color; font-size: 19.2px; font-weight: 700; vertical-alignment: center; overflow: elide;
+    }
+    if DeckyState.status != "": Rectangle { y: parent.height - 24px; height: 24px; width: parent.width; background: Tokens.bg; opacity: 0.9; }
+    if DeckyState.status != "": Text { x: 76.8px; y: parent.height - 22px; width: parent.width - 96px; height: 18px; text: DeckyState.status; color: Tokens.qam-caption-color; font-size: 11px; opacity: 0.7; }
+    }
+}

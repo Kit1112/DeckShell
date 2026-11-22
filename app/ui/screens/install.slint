@@ -1,0 +1,182 @@
+// Install wizard modal. Colours, type and focus follow the DeckShell side menus (Steam menu / QAM):
+// Tokens.menu-bg panel, Tokens.hover-bg focused row with the accent bar, Tokens.menu-item labels.
+import { HorizontalBox, VerticalBox } from "std-widgets.slint";
+import { Tokens } from "../tokens.slint";
+import { Theme } from "../theme.slint";
+import { GStyle } from "../generated/style.slint";
+export struct InstallCompatRow {
+    text: string,
+    icon: image,
+    note: bool,
+}
+
+export global InstallState {
+    in-out property <bool> open: false;
+    in-out property <bool> busy: false;
+    in-out property <bool> reading-eula: false;
+    in-out property <string> title;
+    in-out property <string> body;
+    in-out property <[string]> rows;
+    in-out property <int> cursor: 0;
+    in-out property <length> scroll-y;
+    in-out property <length> scroll-height;
+    in-out property <length> view-height;
+    in-out property <bool> compatibility: false;
+    in-out property <InstallCompatRow> rating;
+    in-out property <color> rating-label-color;
+    in-out property <string> summary;
+    in-out property <[InstallCompatRow]> checks;
+    in-out property <bool> developer-post: false;
+    in-out property <length> compatibility-scroll-y;
+    in-out property <length> compatibility-scroll-height;
+    in-out property <length> compatibility-view-height;
+    callback pick(int);
+    callback pick-compatibility(int);
+}
+export component InstallWizard inherits Rectangle {
+    visible: InstallState.open;
+    background: #000000cc; // same dimming as behind the Steam side menu
+    // Catch pointer events before the underlying page; controller input is modal too.
+    TouchArea { }
+    Rectangle {
+        visible: !InstallState.compatibility;
+        x: 100px; y: 76px; width: parent.width - 200px; height: parent.height - 152px;
+        background: Tokens.menu-bg; border-width: 3px; border-color: Theme.panel;
+        drop-shadow-color: #00000080; drop-shadow-blur: 24px;
+        VerticalBox {
+            padding: 27px; spacing: 12px;
+            Text { text: InstallState.title; color: Tokens.text; font-size: 26px; font-weight: 700; overflow: elide; font-family: GStyle.loc-font; }
+            Rectangle { height: 3px; background: @linear-gradient(90deg, transparent 2%, Theme.panel-hi 50%, transparent 98%); }
+            body := Flickable {
+                min-height: 80px; vertical-stretch: 1;
+                viewport-height: content.height;
+                viewport-y <=> InstallState.scroll-y;
+                changed height => { InstallState.view-height = self.height; }
+                content := Text {
+                    changed height => { InstallState.scroll-height = self.height; }
+                    width: body.width; text: InstallState.body; wrap: word-wrap;
+                    color: Tokens.text-body; font-size: 20px; font-family: GStyle.loc-font;
+                }
+            }
+            buttons := Flickable {
+                height: min(180px, self.viewport-height);
+                viewport-height: rows.preferred-height;
+                viewport-y: -max(0px, min(self.viewport-height - self.height, InstallState.cursor * 48px - self.height + 48px));
+                rows := VerticalBox {
+                    padding: 0px; spacing: 6px;
+                    for label[i] in InstallState.rows: Rectangle {
+                        property <bool> focused: i == InstallState.cursor;
+                        height: 42px; background: self.focused ? Tokens.hover-bg : transparent;
+                        accessible-role: button; accessible-label: label;
+                        if self.focused: Rectangle { x: 0px; y: (parent.height - self.height) / 2; width: 6px; height: 28.8px; border-radius: 3px; background: Tokens.accent; }
+                        Text {
+                            x: 24px; width: parent.width - 48px; height: parent.height; text: label; overflow: elide; vertical-alignment: center;
+                            color: parent.focused ? Tokens.menu-item-focus : Tokens.menu-item;
+                            font-size: Tokens.menu-label-size; font-weight: Tokens.menu-label-weight; font-family: GStyle.loc-font;
+                        }
+                        TouchArea { enabled: !InstallState.busy; clicked => { InstallState.pick(i); } }
+                    }
+                }
+            }
+            Text { text: InstallState.busy ? "Запуск установки…" : InstallState.reading-eula ? "A — выбрать   B — отклонить   LT / RT — читать" : "A — выбрать   B — отмена"; color: Tokens.text-dim; font-size: 16px; font-family: GStyle.loc-font; }
+        }
+    }
+    Rectangle {
+        opacity: InstallState.compatibility ? 1 : 0;
+        visible: InstallState.compatibility;
+        animate opacity { duration: Tokens.dur-modal; easing: Tokens.ease-focus; }
+        width: min(parent.width - 64px, 760px);
+        height: min(parent.height - 96px, 620px);
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        background: Tokens.menu-bg;
+        border-width: 3px;
+        border-color: Theme.panel;
+
+        VerticalBox {
+            padding: 28px;
+            spacing: 12px;
+
+            Text {
+                text: "Совместимость со Steam Deck";
+                color: Tokens.text; font-size: 26px; font-weight: 700; font-family: GStyle.loc-font;
+            }
+            Rectangle { height: 3px; background: @linear-gradient(90deg, transparent 2%, Theme.panel-hi 50%, transparent 98%); }
+            Text {
+                text: InstallState.title; overflow: elide;
+                color: Tokens.text; font-size: 20px; font-weight: 700; font-family: GStyle.loc-font;
+            }
+            HorizontalBox {
+                alignment: start; spacing: 10px;
+                Image {
+                    source: InstallState.rating.icon; width: 26px; height: 26px;
+                }
+                Text {
+                    text: InstallState.rating.text; color: InstallState.rating-label-color;
+                    font-size: 20px; font-weight: 700; vertical-alignment: center; font-family: GStyle.loc-font;
+                }
+            }
+            report := Flickable {
+                min-height: 50px; vertical-stretch: 1;
+                content-height: report-content.preferred-height;
+                content-y <=> InstallState.compatibility-scroll-y;
+                changed height => { InstallState.compatibility-view-height = self.height; }
+                changed content-height => { InstallState.compatibility-scroll-height = self.content-height; }
+
+                report-content := VerticalBox {
+                    width: report.width; padding: 0px; spacing: 10px;
+                    Text {
+                        text: InstallState.summary; wrap: word-wrap;
+                        color: Tokens.text-body; font-size: 18px; font-family: GStyle.loc-font;
+                    }
+                    if InstallState.checks.length > 0: Rectangle { height: 1px; background: Theme.panel-hi; }
+                    for check in InstallState.checks: HorizontalBox {
+                        spacing: 15px;
+                        Rectangle {
+                            width: 20px; min-height: 20px;
+                            if !check.note: Image { y: 1px; width: 20px; height: 20px; source: check.icon; }
+                        }
+                        Text {
+                            text: check.text; wrap: word-wrap; horizontal-stretch: 1;
+                            color: check.note ? Tokens.text-dim : Tokens.text;
+                            font-italic: check.note; font-size: 16px; font-family: GStyle.loc-font;
+                        }
+                    }
+                }
+            }
+
+            HorizontalBox {
+                padding: 0px; spacing: 12px;
+                for label[i] in InstallState.rows: Rectangle {
+                    property <bool> focused: i == InstallState.cursor;
+                    height: 46px;
+                    horizontal-stretch: 1;
+                    border-radius: 2px;
+                    background: self.focused ? Tokens.hover-bg : Theme.panel;
+                    animate background { duration: Tokens.dur-menu-row; easing: Tokens.ease-focus; }
+                    accessible-role: button; accessible-label: label;
+                    if self.focused: Rectangle { x: 0px; width: 5px; border-radius: 2px; background: Tokens.accent; }
+                    Text {
+                        text: label; horizontal-alignment: center; vertical-alignment: center;
+                        color: parent.focused ? Tokens.menu-item-focus : Tokens.menu-item;
+                        font-size: 18px; font-weight: 700; font-family: GStyle.loc-font;
+                    }
+                    TouchArea { clicked => { InstallState.pick-compatibility(i); } }
+                }
+            }
+            HorizontalBox {
+                padding: 0px; alignment: space-between;
+                Text { text: "A — выбрать   B — отмена"; color: Tokens.text-dim; font-size: 16px; font-family: GStyle.loc-font; }
+                if InstallState.developer-post: Rectangle {
+                    accessible-role: button; accessible-label: post-label.text;
+                    min-width: post-label.preferred-width; min-height: 24px;
+                    post-label := Text {
+                        text: "Y — перейти к посту разработчика"; color: Tokens.text-body;
+                        font-size: 16px; font-family: GStyle.loc-font; vertical-alignment: center;
+                    }
+                    TouchArea { clicked => { InstallState.pick-compatibility(2); } }
+                }
+            }
+        }
+    }
+}

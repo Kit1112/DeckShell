@@ -1,0 +1,51 @@
+import { Tokens } from "../tokens.slint";
+
+// Brightness / volume popup: the owner's CSS Loader theme "DellyVolume" (~/homebrew/themes/DellyVolume, Lineral
+// animation from config_USER.json), applied to Steam's own VolumePopin. Values measured in Big Picture over CDP
+// (read-only) and the theme's shared.css / effects/lineral.css:
+//   container: 268 x 34 at (8, 8), transparent, no shadow, no icon, no label;
+//              shown transform none, hidden translateY(-51px) and opacity 0.2; transform/opacity 0.5 s ease-in-out;
+//   content:   17 px side inset, 5 px top/bottom padding -> track 234 x 6 at (25, 22), radius 3 px;
+//   track:     rgba(35, 35, 35, 0.557) = #2323238E;
+//   fill:      #FFFFFFF0 (theme --left-track-color), width follows the value with a 0.05 s linear transition (Lineral).
+// Task 354 keeps those motion timings and the existing percentage; a Steam glyph identifies brightness/volume/mute.
+// Track inset makes room for the glyph. Driven by app/src/level.rs.
+export component LevelBar inherits Rectangle {
+    in property <int> kind;     // 0 brightness, 1 volume (same look)
+    in property <float> value;  // 0..1
+    in property <bool> shown;
+    in property <image> icon;
+
+    x: 8px;
+    y: root.shown ? 8px : -43px;
+    width: 268px;
+    height: 34px;
+    background: #00000000;
+    opacity: root.shown ? 1 : 0.2;
+    animate y { duration: 500ms; easing: ease-in-out; }
+    animate opacity { duration: 500ms; easing: ease-in-out; }
+
+    Image { x: 0px; y: 8px; width: 18px; height: 18px; source: root.icon; image-fit: contain; }
+
+    // Number of the scale position, the same integer the QAM slider row shows for it (task 285).
+    Text {
+        x: 210px; y: 0px; width: 42px; height: parent.height;
+        text: round(clamp(root.value, 0, 1) * 100) + "%";
+        color: #FFFFFFF0;
+        font-size: 13px;
+        horizontal-alignment: right;
+        vertical-alignment: center;
+    }
+
+    Rectangle {
+        x: 25px; y: 14px; width: 178px; height: 6px;
+        background: #2323238E;
+        border-radius: 3px;
+        Rectangle {
+            x: 0px; y: 0px; width: parent.width * clamp(root.value, 0, 1); height: parent.height;
+            background: #FFFFFFF0;
+            border-radius: 3px;
+            animate width { duration: 50ms; easing: linear; }
+        }
+    }
+}

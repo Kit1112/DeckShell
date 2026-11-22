@@ -1,0 +1,152 @@
+// /routes/library/tab/<id> - tab pill + capsule grid (+ popup menus: sort Y, filter X, tile options START/long-press, TabMaster).
+// Layout metrics, pill, header, badge, caption and menu list come from the Steam dumps (generated/library/library.slint, compile-library.mjs).
+// Focus + scroll are driven by the Steam focus engine port (src/nav, registered in screens/library.rs); this file only draws.
+import { Tokens } from "../tokens.slint";
+import { Shell } from "../shell.slint";
+import { LibRow } from "../widgets/types.slint";
+import { HeaderLayout, TopFocusDim } from "../widgets/top_bar.slint";
+import { Page } from "../widgets/page.slint";
+import { Card } from "../widgets/capsule_tile.slint";
+import { DS } from "../widgets/meta.slint";
+import { GLib, GLibPill, GLibHeader, GLibBadge, GLibCaption, GLibMenu } from "../generated/library/library.slint";
+
+export global LibraryState {
+    in property <[string]> tabs: [];
+    in property <int> tab;
+    in property <int> zone; // 0 tabs 1 grid
+    in property <[LibRow]> rows;
+    in property <int> focus-row;
+    in property <int> focus-col;
+    in property <length> focus-top;
+    in property <length> focus-bottom;
+    in property <int> count;
+    in property <string> empty-text;
+    // popup menus (sort / filter / tile options / TabMaster): one list, drawn by SortMenu at window level
+    in property <string> sort-title;
+    in property <[string]> sort-options: [];
+    in property <int> sort-idx;
+    in property <int> sort-focus;
+    in property <bool> sort-open;          // true while ANY library popup is open (app.rs mirrors lb.sort_open)
+    in property <[string]> menu-labels: [];
+    in property <[int]> menu-flags: [];
+    in property <int> menu-focus;
+    in property <int> menu-current: -1;
+    in property <string> menu-title;
+    in property <string> menu-role: "list-item";
+    in property <length> menu-x: 450px;
+    in property <length> menu-y: 8.4px;
+    in property <length> menu-w: 380.4px;
+    in property <length> menu-pad-top: 0px;
+    in property <length> menu-pad-bottom: 0px;
+    in property <bool> menu-page: false;   // X filter: the dialog is a full-page element in the Steam tree
+    // scroll model (Rust drives it with the engine's curves; Flickable drag / wheel reports back through user-scrolled)
+    in-out property <length> scroll-y: 0px;
+    in property <length> content-h: 0px;
+    in-out property <int> cols: 5; // computed by the screen from the window width
+    callback tab-clicked(int);
+    callback card-clicked(int, int); // flat row index, column
+    callback card-held(int, int);    // legacy (chrome.rs owns it)
+    callback card-menu(int, int);    // touch press-and-hold on a tile = tile options menu (like START)
+    callback row-visible(int);
+    callback sort-picked(int);
+    callback menu-picked(int);
+    callback cols-changed(int);
+    callback user-scrolled(length);
+    callback close-sort;
+}
+
+export component LibraryScreen inherits Page {
+    shown: Shell.page == 1;
+    row-pad: "B,X,Y,START,L1,R1,DPAD_UP,DPAD_DOWN,DPAD_LEFT,DPAD_RIGHT,FOCUS,BLUR,long_press";
+    property <int> c: max(1, floor((root.width - 44px) / GLib.pitch-x));
+    // Steam's scroller spans the page under the header (y 48); its content has 56 px of padding above the first row so rows slide under the pill
+    property <length> list-y: 48px;
+    property <length> pad-top: GLib.tile-y0 - 28px - 48px;
+    property <length> view-h: root.height - root.list-y - Tokens.footer-h;
+    init => { LibraryState.cols = root.c; }
+    changed c => { LibraryState.cols = root.c; LibraryState.cols-changed(root.c); }
+
+    lf := Flickable {
+        x: 0px; y: root.list-y; width: root.width; height: root.view-h;
+        content-width: self.width; content-height: max(LibraryState.content-h + root.pad-top, self.height);
+        interactive: true;
+        accessible-role: list; accessible-description: "scroll-region||A,B,DPAD_UP,DPAD_DOWN,DPAD_LEFT,DPAD_RIGHT,scroll,touch,mouse";
+        property <length> sy: LibraryState.scroll-y;
+        changed sy => { self.content-y = -LibraryState.scroll-y; }
+        property <length> vy: self.content-y;
+        changed vy => { LibraryState.user-scrolled(-self.content-y); }
+        // whole-grid nodes of the Steam tree (container button / row spanning all rows)
+        Rectangle { x: GLib.grid-pad-x; y: root.pad-top; width: root.width - 2 * GLib.grid-pad-x; height: LibraryState.content-h;
+            accessible-role: button; accessible-description: "button||A,B,X,Y,DPAD_UP,DPAD_DOWN,DPAD_LEFT,DPAD_RIGHT,FOCUS,BLUR,touch,mouse"; }
+        Rectangle { x: GLib.grid-pad-x; y: root.pad-top + 4px; width: root.width - 2 * GLib.grid-pad-x; height: max(0px, LibraryState.content-h - 8px);
+            accessible-role: groupbox; accessible-description: "row||B,L1,R1,DPAD_UP,DPAD_DOWN,DPAD_LEFT,DPAD_RIGHT,FOCUS,BLUR"; }
+        for row[ri] in LibraryState.rows: Rectangle {
+            y: root.pad-top + row.y; height: row.h; width: root.width;
+            property <bool> in-view: row.y + row.h > LibraryState.scroll-y - 1500px && row.y < LibraryState.scroll-y + root.view-h + 1500px;
+            changed in-view => { if (self.in-view && !row.is-header) { LibraryState.row-visible(ri); } }
+            // rows within ~1500 px of the viewport exist (Steam keeps ~6 rows of the virtualised grid in the DOM)
+            if self.in-view: Rectangle {
+                init => { if (!row.is-header) { LibraryState.row-visible(ri); } }
+                if row.is-header: Rectangle {
+                    width: parent.width; height: parent.height;
+                    GLibHeader { y: 14px; width: parent.width; height: 26px; text: row.header; }
+                    Rectangle { x: GLib.grid-pad-x + 8px + ht.preferred-width + 16px; y: 27px; width: root.width - 2 * GLib.grid-pad-x - 16px - ht.preferred-width - 16px; height: 1px; background: #ffffff22; }
+                    ht := Text { x: GLib.grid-pad-x + 8px; y: 14px; text: row.header; color: transparent; font-size: 21.6px; font-weight: 500; }
+                }
+                for c[ci] in row.cards: Rectangle {
+                    x: (root.width - (LibraryState.cols * GLib.pitch-x - (GLib.pitch-x - GLib.tile-w))) / 2 + ci * GLib.pitch-x;
+                    y: 28px; width: GLib.tile-w; height: GLib.tile-h;
+                    property <bool> foc: root.shown && !HeaderLayout.bar-focused && LibraryState.zone == 1 && ri == LibraryState.focus-row && ci == LibraryState.focus-col;
+                    Card {
+                        width: parent.width; height: parent.height;
+                        img: (c.id == Shell.anim-id) ? Shell.anim-image : c.img;
+                        has-img: c.has-img || c.id == Shell.anim-id; name: c.name; installed: true; glow: c.glow; caption: "";
+                        dim: 1 - Tokens.tile-brightness-lib; focus-scale: Tokens.lib-focus-scale; outline: Tokens.tile-outline-lib; ambient: Shell.kenburns;
+                        focused: parent.foc;
+                        tapped => { LibraryState.card-clicked(ri, ci); }
+                        held => { LibraryState.card-menu(ri, ci); }
+                    }
+                    if ri < 2 && ci == 0: Rectangle { accessible-role: groupbox; accessible-description: "row||A,B,X,Y,START,L1,R1,DPAD_UP,DPAD_DOWN,DPAD_LEFT,DPAD_RIGHT,FOCUS,BLUR,touch,mouse"; }
+                    if !c.installed: GLibBadge { tile-focused: parent.foc; }
+                    GLibCaption { text: c.caption; tile-focused: parent.foc; }
+                }
+            }
+        }
+    }
+    TopFocusDim { x: 0px; y: root.list-y; width: root.width; height: root.view-h; }
+    // scrolled rows disappear under the header+pill panel (docs/reference/live/05-library-pagedown-scrolled.png: dark translucent, hard edge at the content padding)
+    Rectangle { y: 0px; height: GLib.grid-pad-top; background: @linear-gradient(180deg, #0b0f14f2 0%, #0b0f14dc 100%); }
+    GLibPill {
+        x: 0px; width: root.width;
+        tabs: LibraryState.tabs; selected: LibraryState.tab; focused: root.shown && LibraryState.zone == 0 && !HeaderLayout.bar-focused;
+        activated(i) => { LibraryState.tab-clicked(i); }
+    }
+    // extra nodes of the Steam tree: scroller button (viewport), the taller page row, first tile holder
+    Rectangle { x: 0px; y: root.list-y; width: root.width; height: root.height - root.list-y + 1.6px;
+        accessible-role: button; accessible-description: "button||A,B,X,Y,START,L1,R1,DPAD_UP,DPAD_DOWN,DPAD_LEFT,DPAD_RIGHT,FOCUS,BLUR,touch,mouse,long_press"; }
+    Rectangle { x: 0px; y: 0px; width: root.width; height: 850px;
+        accessible-role: groupbox; accessible-description: "row||B,L1,R1,DPAD_UP,DPAD_DOWN,DPAD_LEFT,DPAD_RIGHT,FOCUS,BLUR"; }
+    Text { visible: LibraryState.count == 0; y: 260px; width: root.width; horizontal-alignment: center; text: LibraryState.empty-text; color: Tokens.text-dim; font-size: 20px; }
+}
+
+// Popup menus (Y sort / X filter / START + long-press tile options / TabMaster). Placed at window level (above top bar/footer) by appwindow.slint.
+export component SortMenu inherits Rectangle {
+    Rectangle {
+        background: #000000; opacity: LibraryState.sort-open ? 0.6 : 0;
+        animate opacity { duration: Tokens.dur-modal; easing: Tokens.ease-in-page; }
+        visible: self.opacity > 0.01;
+        TouchArea { clicked => { LibraryState.close-sort(); } }
+    }
+    GLibMenu {
+        x: LibraryState.menu-x; y: LibraryState.menu-y; width: LibraryState.menu-w;
+        labels: LibraryState.menu-labels; flags: LibraryState.menu-flags; focused-idx: LibraryState.menu-focus; current: LibraryState.menu-current; title: LibraryState.menu-title;
+        opacity: LibraryState.sort-open ? 1 : 0;
+        transform-scale: LibraryState.sort-open ? 1.0 : 0.95;
+        animate opacity, transform-scale { duration: Tokens.dur-modal; easing: Tokens.ease-hero; }
+        visible: self.opacity > 0.01;
+        role: LibraryState.menu-role; pad-top: LibraryState.menu-pad-top; pad-bottom: LibraryState.menu-pad-bottom;
+        activated(i) => { LibraryState.menu-picked(i); }
+    }
+    if LibraryState.sort-open && LibraryState.menu-page: Rectangle { x: 0px; y: 48px; width: parent.width; height: parent.height - 48px - Tokens.footer-h;
+        accessible-role: button; accessible-description: "footer-hint||A,B,FOCUS,BLUR,touch,mouse"; }
+}

@@ -1,0 +1,9 @@
+{
+  "_comment": "Синтетическая фикстура в форме js::DOWNLOADS после правки: нативная установка, progress[] по стадиям 0..6; bytes/total берутся только из стадии 2. Не снимок реальной сессии.",
+  "downloads": {
+    "overview": {"state": "Downloading", "appid": 77, "net": 3000000, "peak": 5000000, "disc": 2000000, "upload": false, "paused": false, "throttling_suspended": false, "lan_peer_hostname": "", "percent": 25, "eta": 120, "dl_bytes": 2000, "dl_total": 8000},
+    "items": [
+      {"appid": 77, "name": "Native", "active": true, "paused": false, "completed": false, "queue_index": 0, "percent": 25, "eta": 120, "bytes": 2000, "total": 8000, "launch_on_completion": false, "deferred_time": 0, "completed_time": 0, "update_result": 0, "update_error": null, "auto_update": 0, "disabled_by_app": false, "dl_bytes": 2000, "dl_total": 8000}
+    ]
+  }
+}

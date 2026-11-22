@@ -1,0 +1,47 @@
+// Source fixture: Gaming Mode stick settings capture 24d, DPR 1.5.
+import { GStyle } from "../generated/style.slint";
+export struct ControllerSettingRow { kind: int, label: string, description: string, value: string, fraction: float, y: length, h: length, }
+export component ControllerSettingsView inherits Rectangle {
+    in property <[string]> sections;
+    in property <[ControllerSettingRow]> rows;
+    in property <length> content-height;
+    in property <length> scroll-y;
+    in property <int> active-section;
+    in property <int> focused-row: -1;
+    in property <string> title;
+    in property <string> source;
+    in property <string> status;
+    callback row-clicked(int);
+    callback section-clicked(int);
+    background: #0e141b;
+    Rectangle { x: 0px; y: 0px; width: 360px; height: parent.height; background: #20252a;
+        Text { x: 36px; y: 76px; width: 288px; height: 30px; text: root.source; color: #8b929a; font-size: 19px; font-weight: 700; horizontal-alignment: center; overflow: elide; font-family: GStyle.loc-font; }
+        Text { x: 36px; y: 110px; width: 288px; height: 34px; text: "Настройки Джойстик"; color: #dcdedf; font-size: 24px; horizontal-alignment: center; overflow: elide; font-family: GStyle.loc-font; }
+        for section[i] in root.sections: Rectangle { x: 0px; y: 181px + i * 63px; width: parent.width; height: 63px; background: root.active-section == i ? #40444b : transparent;
+            TouchArea { clicked => { root.section-clicked(i); } }
+            Text { x: 36px; y: 0px; width: 300px; height: parent.height; text: section; color: root.active-section == i ? #ffffff : #b8bcbf; font-size: 25px; vertical-alignment: center; overflow: elide; font-family: GStyle.loc-font; }
+        }
+    }
+    Text { x: 397px; y: 25px; width: 840px; height: 45px; text: root.title; color: #ffffff; font-size: 34px; font-weight: 700; font-family: GStyle.loc-font; }
+    Text { x: 397px; y: parent.height - 56px; width: parent.width - 431px; height: 50px; text: root.status; color: #8b929a; font-size: 19px; wrap: word-wrap; font-family: GStyle.loc-font; }
+    Flickable { x: 397px; y: 81px; width: parent.width - 431px; height: parent.height - 141px; viewport-height: root.content-height; viewport-y: -root.scroll-y;
+        for row[i] in root.rows: Rectangle { x: 0px; y: row.y; width: parent.width; height: row.h; background: root.focused-row == i ? #34373f : #20232b; border-radius: 3px;
+            Text { x: 18px; y: 12px; width: row.kind == 2 ? parent.width - 430px : parent.width - 180px; height: row.description != "" ? 58px : 48px; text: row.label; color: #dcdedf; font-size: 24px; vertical-alignment: center; wrap: word-wrap; overflow: elide; font-family: GStyle.loc-font; }
+            if row.description != "": Text { x: 18px; y: 82px; width: row.kind == 2 ? parent.width - 430px : parent.width - 36px; height: parent.height - 94px; text: row.description; color: #8b929a; font-size: 18px; wrap: word-wrap; overflow: elide; font-family: GStyle.loc-font; }
+            if row.kind == 0: Rectangle { x: parent.width - 114px; y: 18px; width: 96px; height: 42px; border-radius: 3px; background: root.focused-row == i ? #20232b : transparent;
+                Text { x: 0px; y: 0px; width: parent.width; height: parent.height; text: row.value; color: #8b929a; font-size: 24px; horizontal-alignment: center; vertical-alignment: center; font-family: GStyle.loc-font; }
+            }
+            if row.kind == 0: Rectangle { x: 18px; y: parent.height - 49px; width: parent.width - 54px; height: 9px; border-radius: 4.5px; background: #555b63;
+                Rectangle { x: 0px; y: 0px; width: parent.width * Math.max(0, Math.min(1, row.fraction)); height: parent.height; border-radius: 4.5px; background: #1a9fff; }
+                Rectangle { x: parent.width * Math.max(0, Math.min(1, row.fraction)) - 18px; y: -13px; width: 36px; height: 36px; border-radius: 18px; background: #ffffff; }
+            }
+            if row.kind == 1: Rectangle { x: parent.width - 80px; y: 18px; width: 56px; height: 34px; border-radius: 17px; background: row.fraction > 0 ? #1a9fff : #40434b;
+                Rectangle { x: row.fraction > 0 ? parent.width - self.width : 0px; y: 0px; width: 34px; height: 34px; border-radius: 17px; background: #ffffff; }
+            }
+            if row.kind == 2: Rectangle { x: parent.width - 393px; y: 18px; width: 375px; height: 60px; border-radius: 3px; background: #40434b;
+                Text { x: 24px; width: parent.width - 48px; height: parent.height; text: row.value; color: #dcdedf; font-size: 24px; vertical-alignment: center; overflow: elide; font-family: GStyle.loc-font; }
+            }
+            TouchArea { clicked => { root.row-clicked(i); } }
+        }
+    }
+}

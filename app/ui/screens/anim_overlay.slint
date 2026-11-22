@@ -1,0 +1,27 @@
+// Full-window black cover that plays boot / suspend / shutdown animations (src/anim/). Frames are pushed from Rust
+// (AnimState.frame); the overlay swallows pointer input while it is up. Hidden = not rendered at all.
+export global AnimState {
+    in-out property <bool> active: false;
+    in-out property <image> frame;
+    in-out property <bool> has-frame: false;
+    // fade duration used for the next change of `active` (0 = instant)
+    in-out property <int> fade-ms: 0;
+    callback clicked();
+    callback level-cover-changed();
+    changed active => { self.level-cover-changed(); }
+}
+
+export component AnimOverlay inherits Rectangle {
+    background: #000000;
+    opacity: AnimState.active ? 1 : 0;
+    visible: AnimState.active || self.opacity > 0.005;
+    animate opacity { duration: AnimState.fade-ms * 1ms; easing: ease-out; }
+
+    if AnimState.has-frame : Image {
+        x: 0px; y: 0px;
+        width: parent.width; height: parent.height;
+        source: AnimState.frame;
+        image-fit: contain;
+    }
+    TouchArea { clicked => { AnimState.clicked(); } }
+}

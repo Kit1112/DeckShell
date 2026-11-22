@@ -1,0 +1,8 @@
+DeckShell - unofficial fan project, not affiliated with Valve Corporation.
+
+DeckShell's own code: PolyForm Noncommercial License 1.0.0 (see LICENSE) - free for any non-commercial use,
+copying, forking and sharing; no commercial use.
+
+Third-party components keep their own licenses (Rust crates: see Cargo.lock; Slint: https://slint.dev/terms-and-conditions).
+Steam(R), Steam Deck(R) and SteamOS(R) and related interface assets/glyphs/strings belong to Valve Corporation and other rights holders;
+no ownership is claimed, and any part (or the whole repository) will be removed at a rights holder's request.

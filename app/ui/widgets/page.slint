@@ -1,0 +1,23 @@
+import { Tokens } from "../tokens.slint";
+import { DS } from "meta.slint";
+
+// Page container: route in 600ms (+200 delay) / out 200ms (cdp-spec Animations: Page route in/out).
+export component Page inherits Rectangle {
+    in property <bool> shown;
+    // whole-page nodes of the Steam tree (dynamic rows matched by role + rect): root button, root row, scroll region
+    in property <string> root-pad: DS.page-root;
+    in property <string> row-pad: "B,L1,R1,DPAD_UP,DPAD_DOWN,DPAD_LEFT,DPAD_RIGHT,FOCUS,BLUR";
+    in property <string> scroll-pad: "A,B,DPAD_UP,DPAD_DOWN,DPAD_LEFT,scroll,touch,mouse";
+    Rectangle { x: 0px; y: 0px; width: parent.width; height: parent.height; accessible-role: button; accessible-description: "button||" + root.root-pad; }
+    Rectangle { x: 0px; y: 0px; width: parent.width; height: parent.height; accessible-role: groupbox; accessible-description: "row||" + root.row-pad; }
+    Rectangle { x: 0px; y: 0px; width: parent.width; height: parent.height; accessible-role: list; accessible-description: "scroll-region||" + root.scroll-pad; }
+    opacity: 0;
+    visible: self.opacity > 0.01;
+    states [
+        on when root.shown: {
+            opacity: 1;
+            in { animate opacity { duration: Tokens.dur-page-in; delay: Tokens.dur-page-in-delay; easing: Tokens.ease-in-page; } }
+            out { animate opacity { duration: Tokens.dur-page-out; easing: Tokens.ease-out-page; } }
+        }
+    ]
+}

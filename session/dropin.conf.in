@@ -1,0 +1,14 @@
+# deckshell-managed - remove with uninstall.sh / uninstall-root.sh (or just delete this file)
+[Service]
+Environment=DECKSHELL_RUN=@RUN@
+# OS short-session tracker would "repair" (re-bootstrap) Steam after 3 sub-60s runs
+ExecStartPre=
+ExecStopPost=
+ExecStart=
+ExecStart=@SESSION@
+# stock ExecStop kills the *first child* of MAINPID; our script handles TERM itself
+ExecStop=
+ExecStop=/bin/kill -TERM $MAINPID
+KillSignal=SIGTERM
+KillMode=mixed
+TimeoutStopSec=60

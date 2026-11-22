@@ -1,0 +1,32 @@
+// Cross-screen shell state: the ONLY global every screen may read besides Tokens.
+// Written by app/src/app.rs (router + overlays). Screens never write to it.
+export global Shell {
+    // router page: 0 home, 1 library, 2 game, 3 downloads, 4 settings, 5 media, 6 search (library grid in search mode)
+    in property <int> page;
+    // Menu-only alpha frame; the compositor continues to draw the selected game.
+    in property <bool> game-overlay;
+    in property <string> library-status;
+    // idle animations (hero ken-burns, focus outline pulse); DECKSHELL_NOKENBURNS=1 disables
+    in property <bool> kenburns: true;
+    // frame-capped idle animation waves, written by app.rs UI clock (Slint iteration-count:-1 animations force vsync-rate redraws):
+    // focus outline alpha factor 1 -> 0.4 (ease-in-out, 600ms half period) and hero ken-burns scale 1.0 -> 1.1 (25s, linear)
+    in property <float> pulse: 1;
+    in property <float> kb: 1.0;
+    // animated cover of the focused tile (home/library)
+    in property <int> anim-id: -1;
+    in property <image> anim-image;
+    // Steam native recording: start awaiting confirmation or a session observed (app/src/screens/capture.rs)
+    in property <bool> recording;
+    // brightness / volume popup (app/src/level.rs): kind 0 brightness, 1 volume
+    in property <int> level-kind;
+    in property <float> level-value;
+    in property <bool> level-shown;
+    in property <bool> level-external;
+    in property <image> level-icon;
+    // key presses from the window's FocusScope -> Rust input layer (returns true if handled)
+    callback key(string, bool, bool) -> bool;
+    callback animation-key(string, bool, bool, bool) -> bool;
+    callback animation-key-reset();
+    // footer hint click: -1 = left (STEAM) hint, i = FooterState.hints[i]; Rust maps it to the same action as the pad button
+    callback footer-clicked(int);
+}

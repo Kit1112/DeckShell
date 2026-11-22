@@ -1,0 +1,36 @@
+[package]
+name = "deckshell"
+version.workspace = true
+edition.workspace = true
+build = "build.rs"
+
+[dependencies]
+steam-data = { path = "../crates/steam-data" }
+steam-bridge = { path = "../crates/steam-bridge" }
+steam-assets = { path = "../crates/steam-assets" }
+steam-control = { path = "../crates/steam-control" }
+steam-auth = { path = "../crates/steam-auth" }
+qrcodegen = "1.8"   # QR-вход в Steam (src/screens/account_auth.rs): чистый Rust, без зависимостей
+deck-system = { path = "../crates/deck-system" }
+media = { path = "../crates/media" }
+battery-logic = { path = "../crates/battery-logic" }
+slint = { version = "1.18", default-features = false, features = ["std", "backend-winit", "renderer-femtovg", "compat-1-2", "unstable-fontique-011", "unstable-winit-030"] }
+gilrs = "0.11"
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "gif", "webp", "ico"] }
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+rodio = { version = "0.21", default-features = false, features = ["playback", "wav"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+libc = "0.2"
+lz4_flex = "0.14"   # anim frame cache (src/anim/cache.rs)
+ureq = { version = "2.12", default-features = false, features = ["tls", "gzip"] }   # Steam artwork and steamdeckrepo.com
+x11rb = { version = "0.13", default-features = false }   # gamescope atoms / ready file (src/gamescope.rs); pure Rust, no libxcb
+ttf-parser = { version = "0.25", default-features = false, features = ["std", "opentype-layout"] }   # цветные эмодзи Noto из CBDT (src/screens/osk_emoji_img.rs): Slint/femtovg цветной шрифт не рисует
+
+[build-dependencies]
+slint-build = "1.18"
+
+[dev-dependencies]
+slint = { version = "1.18", default-features = false, features = ["renderer-software"] }
+i-slint-backend-testing = { version = "=1.18.1", features = ["renderer-software"] }
+i-slint-core = { version = "=1.18.1", default-features = false }

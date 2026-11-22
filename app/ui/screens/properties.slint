@@ -1,0 +1,191 @@
+// /routes/app/<id>/properties/<page> - game Properties (gamepad): left rail (title + pages) + content fields, plus the modal layer shared with the
+// game menu: drop-down / file picker list, text prompt with on-screen keyboard, confirm dialog. Layout follows docs/cdp/surfaces/props-nonsteam-*.png;
+// field geometry (y/h) is flowed in Rust (src/screens/properties.rs), pages and setters are ported from the sp.js AppProperties component.
+import { Tokens } from "../tokens.slint";
+import { Toggle } from "../widgets/toggle.slint";
+import { GStyle } from "../generated/style.slint";
+
+// kind: 0 section header, 1 paragraph, 2 toggle row, 3 drop-down row, 4 captioned input (+ optional button), 5 button row, 6 key/value row, 7 input row (label left, box right)
+export struct PField { kind: int, label: string, desc: string, value: string, btn: string, on: bool, dis: bool, y: length, h: length, caption: string, }
+
+export global PropsState {
+    in property <bool> open;
+    in property <string> title;
+    in property <string> page-title;
+    in property <[string]> rail;
+    in property <int> tab;
+    in property <int> zone;              // 0 rail, 1 content
+    in property <[PField]> fields;
+    in property <int> fidx: -1;
+    in property <int> fsub;              // 0 field, 1 its button
+    in property <length> content-h: 600px;
+    in-out property <length> vy;
+    in property <bool> loading;
+    // list popup (drop-down / file picker)
+    in property <bool> popup-open;
+    in property <string> popup-title;
+    in property <string> popup-sub;
+    in property <[string]> popup-items;
+    in property <int> popup-idx;
+    in property <int> popup-cur: -1;     // checked option
+    in-out property <length> popup-vy;
+    // text prompt
+    in property <bool> osk-open;
+    in property <string> osk-title;
+    in property <string> osk-text;
+    // confirm
+    in property <bool> dlg-open;
+    in property <string> dlg-title;
+    in property <string> dlg-text;
+    in property <[string]> dlg-btns;
+    in property <int> dlg-idx;
+    callback rail-clicked(int);
+    callback field-clicked(int, int);
+    callback popup-clicked(int);
+    callback popup-dismiss();
+    callback dlg-clicked(int);
+    callback back();
+}
+
+component FieldRow inherits Rectangle {
+    in property <PField> f;
+    in property <bool> foc;
+    in property <int> fsub;
+    in property <int> idx;
+    callback clicked(int);
+    property <length> btn-w: f.btn != "" ? 192px : 0px;
+    // 0: section header
+    if f.kind == 0: Text { x: 0px; y: 0px; height: 38px; text: f.label; color: #dcdedf; font-size: 19.2px; font-weight: 500; vertical-alignment: center; font-family: GStyle.loc-font; }
+    // 1: paragraph
+    if f.kind == 1: Text { x: 0px; width: parent.width; text: f.label; color: #8b929a; font-size: 15.6px; wrap: word-wrap; vertical-alignment: top; font-family: GStyle.loc-font; }
+    // 2: toggle row
+    if f.kind == 2: Rectangle {
+        background: root.foc ? #3a3f4b : #23262e; opacity: f.dis ? 0.4 : 1;
+        animate background { duration: 120ms; }
+        Text { x: 14px; y: 12px; width: parent.width - 100px; height: 28px; text: f.label; color: #dcdedf; font-size: 19.2px; vertical-alignment: center; font-family: GStyle.loc-font; overflow: elide; }
+        if f.desc != "": Text { x: 14px; y: 42px; width: parent.width - 100px; height: parent.height - 48px; text: f.desc; color: #8b929a; font-size: 14.4px; wrap: word-wrap; vertical-alignment: top; font-family: GStyle.loc-font; }
+        Toggle { x: parent.width - self.width - 16px; y: 17px; on: f.on ? 1 : 0; }
+        if root.foc: Rectangle { border-width: 2px; border-color: #ffffffcc; }
+        TouchArea { enabled: !f.dis; clicked => { root.clicked(0); } }
+    }
+    // 3: drop-down row (label + description left, current value box right)
+    if f.kind == 3: Rectangle {
+        background: #23262e; opacity: f.dis ? 0.5 : 1;
+        Text { x: 14px; y: 10px; width: parent.width - 500px; height: 30px; text: f.label; color: #dcdedf; font-size: 19.2px; vertical-alignment: center; font-family: GStyle.loc-font; overflow: elide; }
+        if f.desc != "": Text { x: 14px; y: 42px; width: parent.width - 500px; height: parent.height - 46px; text: f.desc; color: #8b929a; font-size: 14.4px; wrap: word-wrap; vertical-alignment: top; font-family: GStyle.loc-font; }
+        Rectangle { x: parent.width - 462px; y: (parent.height - 44px) / 2; width: 448px; height: 44px; border-radius: 2px; background: root.foc ? #ffffff : #3d4450; animate background { duration: 120ms; }
+            Text { x: 14px; width: parent.width - 48px; height: parent.height; text: f.value; color: root.foc ? #0e141b : #dcdedf; font-size: 17px; vertical-alignment: center; overflow: elide; font-family: GStyle.loc-font; }
+            Text { x: parent.width - 32px; width: 24px; height: parent.height; text: "v"; color: root.foc ? #0e141b : #8b929a; font-size: 15px; horizontal-alignment: center; vertical-alignment: center; }
+        }
+        TouchArea { enabled: !f.dis; clicked => { root.clicked(0); } }
+    }
+    // 4: captioned input (+ button): caption above, box below
+    if f.kind == 4: Rectangle {
+        if f.caption != "": Text { x: 0px; y: 0px; height: 30px; text: f.caption; color: #8b929a; font-size: 16.8px; vertical-alignment: center; font-family: GStyle.loc-font; }
+        Rectangle { x: 0px; y: f.caption != "" ? 34px : 0px; width: parent.width - (f.btn != "" ? 202px : 0px); height: 48px;
+            background: root.foc && root.fsub == 0 ? #ffffff : #3d445080;
+            animate background { duration: 120ms; }
+            Text { x: 19px; width: parent.width - 38px; height: parent.height; text: f.value; color: root.foc && root.fsub == 0 ? #0e141b : #8b929a; font-size: 18px; vertical-alignment: center; overflow: elide; font-family: GStyle.loc-font; }
+            TouchArea { clicked => { root.clicked(0); } }
+        }
+        if f.btn != "": Rectangle { x: parent.width - 192px; y: f.caption != "" ? 34px : 0px; width: 192px; height: 48px; background: root.foc && root.fsub == 1 ? #ffffff : #3d4450;
+            animate background { duration: 120ms; }
+            Text { text: f.btn; color: root.foc && root.fsub == 1 ? #0e141b : #dcdedf; font-size: 18px; horizontal-alignment: center; vertical-alignment: center; font-family: GStyle.loc-font; }
+            TouchArea { clicked => { root.clicked(1); } }
+        }
+    }
+    // 5: button row (label + description left, button right)
+    if f.kind == 5: Rectangle {
+        background: #23262e; opacity: f.dis ? 0.45 : 1;
+        Text { x: 14px; y: 10px; width: parent.width - 390px; height: parent.height - 20px; text: f.label; color: #dcdedf; font-size: 17px; wrap: word-wrap; vertical-alignment: center; font-family: GStyle.loc-font; }
+        Rectangle { x: parent.width - 362px; y: (parent.height - 46px) / 2; width: 348px; height: 46px; border-radius: 2px; background: root.foc ? #ffffff : #3d4450; animate background { duration: 120ms; }
+            Text { x: 8px; width: parent.width - 16px; height: parent.height; text: f.btn; color: root.foc ? #0e141b : #dcdedf; font-size: 17px; horizontal-alignment: center; vertical-alignment: center; overflow: elide; font-family: GStyle.loc-font; }
+        }
+        TouchArea { enabled: !f.dis; clicked => { root.clicked(0); } }
+    }
+    // 6: key / value
+    if f.kind == 6: Rectangle {
+        Text { x: 0px; width: parent.width * 0.5; height: parent.height; text: f.label; color: #8b929a; font-size: 16.8px; vertical-alignment: center; font-family: GStyle.loc-font; }
+        Text { x: parent.width * 0.5; width: parent.width * 0.5; height: parent.height; text: f.value; color: #dcdedf; font-size: 16.8px; vertical-alignment: center; overflow: elide; font-family: GStyle.loc-font; }
+    }
+    // 7: input row: label + description left, value box right
+    if f.kind == 7: Rectangle {
+        background: root.foc ? #2c303a : #23262e;
+        Text { x: 14px; y: 10px; width: parent.width - 410px; height: 30px; text: f.label; color: #dcdedf; font-size: 19.2px; vertical-alignment: center; font-family: GStyle.loc-font; overflow: elide; }
+        if f.desc != "": Text { x: 14px; y: 42px; width: parent.width - 410px; height: parent.height - 46px; text: f.desc; color: #8b929a; font-size: 14.4px; wrap: word-wrap; vertical-alignment: top; font-family: GStyle.loc-font; }
+        Rectangle { x: parent.width - 366px; y: 14px; width: 352px; height: 48px; background: root.foc ? #ffffff : #3d4450; animate background { duration: 120ms; }
+            Text { x: 14px; width: parent.width - 28px; height: parent.height; text: f.value; color: root.foc ? #0e141b : #dcdedf; font-size: 17px; vertical-alignment: center; overflow: elide; font-family: GStyle.loc-font; } }
+        TouchArea { clicked => { root.clicked(0); } }
+    }
+}
+
+export component PropertiesScreen inherits Rectangle {
+    visible: PropsState.open || PropsState.popup-open || PropsState.osk-open || PropsState.dlg-open;
+    background: PropsState.open ? #1b1d23 : transparent;
+    property <length> rail-w: Tokens.menu-w;
+    property <length> cx: root.rail-w + 36px;
+    property <length> cw: root.width - root.rail-w - 36px - 35px;
+    if PropsState.open: Rectangle {
+        TouchArea { }
+        // rail
+        Rectangle { x: 0px; y: 0px; width: root.rail-w; height: root.height; background: #23262e;
+            Text { x: 32px; y: 62px; width: root.rail-w - 52px; height: 150px; text: PropsState.title; color: #ffffff; font-size: 26.4px; font-weight: 700; wrap: word-wrap; vertical-alignment: top; overflow: elide; font-family: GStyle.loc-font; }
+            for r[i] in PropsState.rail: Rectangle { y: 212px + i * 50.4px; height: 50.4px;
+                background: PropsState.tab == i ? @linear-gradient(90deg, #1a9fff55 0%, #1a9fff08 100%) : transparent;
+                accessible-role: tab; accessible-label: r; accessible-description: "tab||A,B,DPAD_UP,DPAD_DOWN,FOCUS,touch,mouse";
+                if PropsState.tab == i: Rectangle { x: 0px; width: 3px; background: Tokens.accent; }
+                Text { x: PropsState.tab == i ? 32px : 34px; height: parent.height; text: r; font-size: 19.2px; vertical-alignment: center; font-family: GStyle.loc-font;
+                    color: PropsState.tab == i ? (PropsState.zone == 0 ? #ffffff : #dcdedf) : #8b929a; }
+                if PropsState.tab == i && PropsState.zone == 0: Rectangle { border-width: 0px; }
+                TouchArea { clicked => { PropsState.rail-clicked(i); } }
+            }
+        }
+        // content
+        Rectangle { x: root.rail-w; y: 48px; width: root.width - root.rail-w; height: root.height - 48px - 50.2px; clip: true;
+            Text { x: 36px; y: 22px; width: parent.width - 71px; height: 46px; text: PropsState.page-title; color: #ffffff; font-size: 26.4px; font-weight: 700; vertical-alignment: center; font-family: GStyle.loc-font; }
+            if PropsState.loading: Text { x: 36px; y: 90px; text: "…"; color: #8b929a; font-size: 22px; }
+            Flickable { y: 70px; width: parent.width; height: parent.height - 70px; viewport-y <=> PropsState.vy; viewport-height: PropsState.content-h; accessible-role: list; accessible-label: "properties"; accessible-description: "scroll-region||DPAD_UP,DPAD_DOWN,scroll,touch,mouse";
+                for f[i] in PropsState.fields: FieldRow { x: 36px; y: f.y; width: parent.width - 71px; height: f.h; f: f; idx: i; fsub: PropsState.fsub; foc: PropsState.zone == 1 && PropsState.fidx == i;
+                    accessible-role: button; accessible-label: f.label; accessible-description: (f.kind >= 2 && f.kind != 6 ? "button||A,FOCUS,touch,mouse" : "label||");
+                    clicked(s) => { PropsState.field-clicked(i, s); } }
+            }
+        }
+    }
+    // list popup: BasicUIContextMenu look
+    if PropsState.popup-open: Rectangle { background: #000000aa;
+        TouchArea { clicked => { PropsState.popup-dismiss(); } }
+        Rectangle { width: 560px; height: min(root.height - 190px, 76px + PropsState.popup-items.length * 52px); x: (root.width - self.width) / 2; y: 60px + (root.height - 190px - self.height) / 2; background: #23262e; clip: true;
+            Text { x: 20px; y: 6px; width: parent.width - 40px; height: 40px; text: PropsState.popup-title; color: #ffffff; font-size: 19.2px; font-weight: 500; vertical-alignment: center; overflow: elide; font-family: GStyle.loc-font; }
+            Text { x: 20px; y: 40px; width: parent.width - 40px; height: 26px; text: PropsState.popup-sub; color: #8b929a; font-size: 13.2px; vertical-alignment: center; overflow: elide; font-family: GStyle.loc-font; }
+            Flickable { y: 72px; height: parent.height - 72px; viewport-y <=> PropsState.popup-vy; viewport-height: PropsState.popup-items.length * 52px;
+                for it[i] in PropsState.popup-items: Rectangle { y: i * 52px; height: 52px; background: PropsState.popup-idx == i ? #dcdedf : transparent;
+                    accessible-role: button; accessible-label: it; accessible-description: "menu-item||A,B,DPAD_UP,DPAD_DOWN,FOCUS,touch,mouse";
+                    Text { x: 20px; width: parent.width - 70px; height: parent.height; text: it; color: PropsState.popup-idx == i ? #23262e : #b8bcbf; font-size: 18px; vertical-alignment: center; overflow: elide; font-family: GStyle.loc-font; }
+                    if PropsState.popup-cur == i: Text { x: parent.width - 44px; width: 30px; height: parent.height; text: "✓"; color: PropsState.popup-idx == i ? #23262e : Tokens.accent; font-size: 18px; vertical-alignment: center; horizontal-alignment: center; }
+                    TouchArea { clicked => { PropsState.popup-clicked(i); } } }
+            }
+        }
+    }
+    // confirm dialog
+    if PropsState.dlg-open: Rectangle { background: #000000b0;
+        TouchArea { }
+        Rectangle { width: 640px; height: 250px; x: (root.width - self.width) / 2; y: (root.height - self.height) / 2 - 20px; background: #23262e;
+            Text { x: 28px; y: 18px; width: parent.width - 56px; height: 40px; text: PropsState.dlg-title; color: #ffffff; font-size: 22px; font-weight: 700; vertical-alignment: center; font-family: GStyle.loc-font; }
+            Text { x: 28px; y: 66px; width: parent.width - 56px; height: 100px; text: PropsState.dlg-text; color: #b8bcbf; font-size: 16.8px; wrap: word-wrap; vertical-alignment: top; font-family: GStyle.loc-font; }
+            for b[i] in PropsState.dlg-btns: Rectangle { x: parent.width - 28px - (PropsState.dlg-btns.length - i) * 206px + 6px; y: parent.height - 70px; width: 200px; height: 48px; border-radius: 2px;
+                background: PropsState.dlg-idx == i ? #ffffff : #3d4450;
+                accessible-role: button; accessible-label: b; accessible-description: "button||A,B,FOCUS,touch,mouse";
+                Text { text: b; color: PropsState.dlg-idx == i ? #0e141b : #dcdedf; font-size: 18px; horizontal-alignment: center; vertical-alignment: center; font-family: GStyle.loc-font; }
+                TouchArea { clicked => { PropsState.dlg-clicked(i); } } }
+        }
+    }
+    // запрос текста: заголовок и поле над общей виртуальной клавиатурой (screens/osk.slint, слой OskState)
+    if PropsState.osk-open: Rectangle { background: #000000aa;
+        TouchArea { }
+        Rectangle { x: 40px; y: root.height - 357px - 112px; width: root.width - 80px; height: 104px; background: #1c232b; border-radius: 4px;
+            Text { x: 16px; y: 6px; width: parent.width - 32px; height: 26px; text: PropsState.osk-title; color: #8b929a; font-size: 14.4px; vertical-alignment: center; overflow: elide; font-family: GStyle.loc-font; }
+            Rectangle { x: 16px; y: 40px; width: parent.width - 32px; height: 50px; border-radius: 4px; background: #0b1017;
+                Text { x: 14px; width: parent.width - 28px; text: PropsState.osk-text + "|"; color: #ffffff; font-size: 22px; vertical-alignment: center; overflow: elide; font-family: GStyle.loc-font; } }
+        }
+    }
+}

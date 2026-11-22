@@ -1,0 +1,96 @@
+{
+ "unit": "device px",
+ "elements": [
+  {
+   "comp": "game",
+   "name": "bar.button",
+   "rect": [
+    35.86,
+    676.19,
+    252,
+    57.59
+   ],
+   "probe": "tile"
+  },
+  {
+   "comp": "game",
+   "name": "bar.info",
+   "rect": [
+    307.04,
+    677.39,
+    162.1,
+    50.39
+   ],
+   "probe": "ink",
+   "lum": 95
+  },
+  {
+   "comp": "game",
+   "name": "bar.ctrl",
+   "rect": [
+    1117.96,
+    676.19,
+    57.59,
+    57.59
+   ],
+   "probe": "tile"
+  },
+  {
+   "comp": "game",
+   "name": "bar.gear",
+   "rect": [
+    1187.54,
+    676.19,
+    57.59,
+    57.59
+   ],
+   "probe": "tile"
+  },
+  {
+   "comp": "game",
+   "name": "logo",
+   "rect": [
+    31.19,
+    488.99,
+    256,
+    144
+   ],
+   "probe": "ink",
+   "thr": 60,
+   "dyn": true
+  },
+  {
+   "comp": "game",
+   "name": "hltb",
+   "rect": [
+    1003.44,
+    216.46,
+    241.7,
+    232
+   ],
+   "probe": "tile"
+  },
+  {
+   "comp": "game",
+   "name": "badge",
+   "rect": [
+    1116.01,
+    60,
+    140.99,
+    29.59
+   ],
+   "probe": "tile"
+  },
+  {
+   "comp": "game",
+   "name": "tabs.first",
+   "rect": [
+    354.12,
+    767.36,
+    155.74,
+    40.76
+   ],
+   "probe": "tile"
+  }
+ ]
+}

@@ -1,0 +1,85 @@
+export global ControllerGyroState {
+    in property <bool> shown;
+    in property <string> title;
+    in property <string> device;
+    in property <string> detail;
+    in property <float> progress: -1;
+    in property <string> primary;
+    in property <string> secondary;
+    callback action(bool);
+}
+
+component GyroButton inherits Rectangle {
+    in property <string> label;
+    in property <bool> primary;
+    callback clicked;
+    height: 48px;
+    background: primary ? white : #414c5b;
+    accessible-role: button;
+    accessible-label: label;
+    accessible-action-default => { root.clicked(); }
+    Text {
+        text: root.label;
+        color: root.primary ? #17191f : white;
+        font-size: 21px;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+    TouchArea { clicked => { root.clicked(); } }
+}
+
+export component ControllerGyroModal inherits Rectangle {
+    background: #000000c0;
+    TouchArea { }
+    Rectangle {
+        width: min(620px, parent.width - 48px);
+        height: body.preferred-height + 48px;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        background: #252b35;
+        body := VerticalLayout {
+            x: 24px; y: 24px;
+            width: parent.width - 48px;
+            spacing: 14px;
+            Text {
+                text: ControllerGyroState.title;
+                color: white;
+                font-size: 27px;
+            }
+            if ControllerGyroState.device != "": Text {
+                text: ControllerGyroState.device;
+                color: #c0d2e2;
+                font-size: 18px;
+                overflow: elide;
+            }
+            Text {
+                text: ControllerGyroState.detail;
+                color: white;
+                font-size: 21px;
+                wrap: word-wrap;
+            }
+            if ControllerGyroState.progress >= 0: Rectangle {
+                height: 8px;
+                background: #414c5b;
+                Rectangle {
+                    width: parent.width * ControllerGyroState.progress;
+                    height: parent.height;
+                    background: #59bfff;
+                }
+            }
+            if ControllerGyroState.primary != "" || ControllerGyroState.secondary != "": HorizontalLayout {
+                spacing: 12px;
+                if ControllerGyroState.primary != "": GyroButton {
+                    label: ControllerGyroState.primary;
+                    primary: true;
+                    clicked => { ControllerGyroState.action(true); }
+                }
+                if ControllerGyroState.secondary != "": GyroButton {
+                    label: ControllerGyroState.secondary;
+                    primary: ControllerGyroState.primary == "";
+                    clicked => { ControllerGyroState.action(false); }
+                }
+            }
+        }
+    }
+}

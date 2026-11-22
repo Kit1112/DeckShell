@@ -1,0 +1,9 @@
+[package]
+name = "steam-control"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+deck-system = { path = "../deck-system" }
+steam-data = { path = "../steam-data" }
+libc = "0.2"

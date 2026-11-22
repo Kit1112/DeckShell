@@ -1,0 +1,60 @@
+import { GStyle } from "../generated/style.slint";
+
+export struct ToastData {
+    title: string, body: string, logo: image, glyph: image,
+    friend: bool, screenshot: bool, mounted: bool, entered: bool,
+    fading: bool, in-game: bool, rank: int,
+}
+export global ToastState {
+    in-out property <[ToastData]> items;
+    in-out property <bool> external;
+}
+// Steam modules 21728 (ShortTemplate), 26711 (GamepadToastPopup).
+// Gaming Mode capture DPR=1.5; scale with our 800-high output, not legacy BP's 1.2.
+export component NotificationToast inherits Rectangle {
+    in property <ToastData> data;
+    in property <length> viewport-width: 1280px;
+    in property <length> viewport-height: 800px;
+    in property <float> scale: root.viewport-height / 800px * 1.5;
+    width: 300px * root.scale;
+    height: max(40px * root.scale, min(60px * root.scale, body.preferred-height + 24px * root.scale));
+    x: root.viewport-width - self.width + (root.data.entered && !root.data.fading ? 0px : 300px * root.scale);
+    y: root.viewport-height - (root.data.in-game ? 30px : 70px) * root.scale - self.height / 2 - root.data.rank * 70px * root.scale;
+    visible: root.data.mounted;
+    opacity: 1;
+    animate y { duration: root.data.mounted ? 300ms : 0ms; easing: ease-out; }
+    animate x { duration: root.data.mounted ? 300ms : 0ms; easing: cubic-bezier(0, 0.73, 0.48, 1); }
+    background: #0e141b;
+    drop-shadow-blur: 20px * root.scale;
+    drop-shadow-color: #00000080;
+    Rectangle {
+        x: 0px; y: (parent.height - self.height) / 2; width: 40px * root.scale; height: self.width; clip: true;
+        Image { width: root.data.screenshot ? parent.width * 2.5 : parent.width; height: root.data.screenshot ? self.width * self.source.height / max(1, self.source.width) : parent.height;
+            x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2; source: root.data.logo; image-fit: cover; }
+    }
+    if root.data.friend: Rectangle { x: 40px * root.scale; width: 3px * root.scale; height: parent.height; background: #59bf40; }
+    Image { x: (root.data.friend ? 55px : 52px) * root.scale; y: 5px * root.scale; width: 13px * root.scale; height: self.width; source: root.data.glyph; }
+    Text {
+        x: (root.data.friend ? 76px : 73px) * root.scale; y: 5px * root.scale;
+        width: parent.width - self.x - 12px * root.scale; height: 14px * root.scale;
+        text: root.data.title; font-family: GStyle.loc-font; font-size: 11px * root.scale; font-weight: 500;
+        color: white; overflow: elide; vertical-alignment: center;
+    }
+    body := Text {
+        x: (root.data.friend ? 55px : 52px) * root.scale; y: 19px * root.scale;
+        width: parent.width - self.x - 12px * root.scale; height: root.height - 24px * root.scale + 1px;
+        text: root.data.body; font-family: GStyle.loc-font; font-size: 12px * root.scale;
+        color: #b8bcbf; wrap: word-wrap; overflow: elide; max-lines: 2;
+        line-height-factor: 1.14541387; // DejaVu Sans: 16 CSS px at font-size12; see controller_browser.slint
+    }
+}
+
+export component NotificationStack inherits Rectangle {
+    in property <length> viewport-width: 1280px;
+    in property <length> viewport-height: 800px;
+    width: root.viewport-width; height: root.viewport-height;
+    background: transparent;
+    for item in ToastState.items: NotificationToast {
+        data: item; viewport-width: root.viewport-width; viewport-height: root.viewport-height;
+    }
+}

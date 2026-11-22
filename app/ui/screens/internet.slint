@@ -1,0 +1,201 @@
+// Settings → «Интернет» (task 451): the stock Wi-Fi page and its dialogs. Geometry is computed in src/screens/internet.rs
+// (window px, scroll 0, like AnimPage) so the Rust layout lint and the pad focus table test what is drawn here.
+// Row kinds: see `rk` / `dk` in internet.rs. Colours: panel #23262e, label #dcdedf, dim #8b929a, focused = white with dark text.
+import { Tokens } from "../tokens.slint";
+import { Toggle } from "../widgets/toggle.slint";
+import { Icon, Icons } from "../widgets/icon.slint";
+
+export struct WifiRow {
+    kind: int, y: length, h: length, label: string, desc: string, btn: string, btn-w: length,
+    on: int, bars: int, lock: bool, mark: int, warn: bool, focused: bool, ptr: bool,
+}
+
+export struct WifiDRow {
+    kind: int, y: length, h: length, label: string, value: string, hint: string,
+    on: int, focus: int, a: int, b: int, w2: length, item: int,
+}
+
+export global InternetState {
+    in property <[WifiRow]> rows;
+    in property <bool> offline;
+    in property <bool> dialog-open;
+    in property <length> box-y;
+    in property <length> box-h;
+    in property <length> content-h;
+    in property <length> scroll;
+    in property <[WifiDRow]> drows;
+    callback row-clicked(int);
+    callback dialog-clicked(int, int);
+    callback backdrop-clicked();
+}
+
+component PageRow inherits Rectangle {
+    in property <WifiRow> r;
+    in property <int> i;
+    // Bluetooth page (`warn` on toggle / device rows): cards of the stock settings field, as on the power page — #23262d, focused #373a41
+    // with light text and the toggle's grey outer ring; the other pages keep the white focused card with dark text.
+    property <bool> soft: r.warn && (r.kind == 2 || r.kind == 8);
+    property <bool> f: r.focused && !soft;
+    x: 396px; width: 849px; y: r.y; height: r.h;
+    background: r.kind == 1 || r.kind == 7 ? transparent : (soft ? (r.focused ? #373a41 : #23262d) : (f ? #ffffff : #23262e));
+    border-radius: r.kind == 1 ? 0px : 3px;
+    opacity: r.kind == 5 ? 0.6 : 1;
+    // section header
+    // (Bluetooth page: `mark == 2` adds the scanning spinner after the title, 1.3em high with a 0.5em gap, as the stock header)
+    if r.kind == 1: Rectangle {
+        title := Text { x: 0px; width: parent.width; height: parent.height; text: r.label; color: #dcdedf; font-size: r.warn ? 24px : 22px; vertical-alignment: center; }
+        if r.mark == 2: Icon {
+            x: Math.min(title.preferred-width, parent.width - 40px) + 11px; y: (parent.height - self.height) / 2; src: Icons.spinner; s: 29px; c: #ffffff;
+            transform-rotation: -Math.mod(animation-tick() / 1ms, 1000) / 1000 * 360deg;
+        }
+    }
+    // plain label rows (toggle, other network, disabled hint, warning)
+    if r.kind != 1 && r.kind != 3 && r.kind != 6 && r.kind != 8: Text {
+        x: r.kind == 7 || (r.kind == 2 && r.mark == 3) ? 58px : 19px; width: parent.width - 120px; height: parent.height; text: r.label; color: f ? #23262e : #dcdedf; font-size: 22px; vertical-alignment: center; overflow: elide;
+    }
+    // Bluetooth page: the main toggle carries the Bluetooth glyph (`mark == 3`)
+    if r.kind == 2 && r.mark == 3: Icon { x: 19px; y: (parent.height - self.height) / 2; src: Icons.device-icons[0]; s: 30px; c: f ? #23262e : #dcdedf; }
+    // Bluetooth device row (`bars` = icon index, `on == 1` dim «not connected», `desc` right text, `btn` + `btn-w` battery label and percent, `mark == 2` spinner)
+    if r.kind == 8: Rectangle {
+        property <color> ink: f ? #23262e : (r.on == 1 && !r.focused ? #67707b : #ffffff);
+        Icon { x: 17px; y: (parent.height - self.height) / 2; src: Icons.device-icons[Math.max(0, Math.min(6, r.bars))]; s: 30px; c: ink; }
+        Text { x: 63px; width: parent.width - 63px - 220px; height: parent.height; text: r.label; color: ink; font-size: 24px; vertical-alignment: center; overflow: elide; }
+        if r.desc != "": Text { x: parent.width - 19px - 200px; width: 200px; height: parent.height; text: r.desc; color: f ? #23262e99 : #8b929a; font-size: 15px; font-weight: 700; letter-spacing: 1px; horizontal-alignment: right; vertical-alignment: center; }
+        if r.btn != "": Rectangle {
+            Text { x: parent.width - 19px - 110px; width: 70px; height: parent.height; text: r.btn; color: f ? #23262e : #ffffff; font-size: 18px; horizontal-alignment: right; vertical-alignment: center; }
+            Rectangle { x: parent.width - 19px - 28px; y: (parent.height - 16px) / 2; width: 24px; height: 16px; border-width: 2px; border-radius: 2px; border-color: f ? #23262e : #ffffff;
+                Rectangle { x: 2px; y: 2px; width: (parent.width - 4px) * Math.max(0, Math.min(1, r.btn-w / 100px)); height: parent.height - 4px; background: f ? #23262e : #ffffff; } }
+        }
+        if r.mark == 2: Icon {
+            x: parent.width - 19px - 30px; y: (parent.height - self.height) / 2; src: Icons.spinner; s: 30px; c: f ? #23262e : #ffffff;
+            transform-rotation: Math.mod(animation-tick() / 1ms, 1000) / 1000 * 360deg;
+        }
+    }
+    if r.kind == 7: Icon { x: 19px; y: (parent.height - self.height) / 2; src: Icons.caution; s: 28px; c: #ffc82c; }
+    if r.kind == 2: Toggle { x: parent.width - self.width - 24px; y: (parent.height - self.height) / 2; on: r.on; focused: r.focused; }
+    // access point
+    if r.kind == 3: Rectangle {
+        if r.mark == 1: Icon { x: 18px; y: (parent.height - self.height) / 2; src: Icons.checkmark; s: 30px; c: #59bf40; }
+        if r.mark == 2: Icon {
+            x: 18px; y: (parent.height - self.height) / 2; src: Icons.spinner; s: 30px; c: f ? #23262e : #ffffff;
+            transform-rotation: Math.mod(animation-tick() / 1ms, 1000) / 1000 * 360deg;
+        }
+        Text { x: r.mark > 0 ? 62px : 19px; width: parent.width - 180px; height: parent.height; text: r.label; color: f ? #23262e : #dcdedf; font-size: 22px; vertical-alignment: center; overflow: elide; }
+        if r.lock: Icon { x: parent.width - 96px; y: (parent.height - self.height) / 2; src: Icons.lock; s: 36px; c: f ? #23262e99 : #67707b; }
+        Icon { x: parent.width - 48px; y: (parent.height - self.height) / 2; src: Icons.wifi-levels[Math.max(0, Math.min(4, r.bars))]; s: 36px; c: f ? #23262e : #dcdedf; }
+    }
+    // setting: label (+ description) and a button on the right
+    if r.kind == 6: Rectangle {
+        Text { x: r.warn ? 58px : 19px; y: r.desc == "" ? (parent.height - self.height) / 2 : 14px; width: parent.width - r.btn-w - 80px; text: r.label; color: f ? #23262e : #dcdedf; font-size: 22px; wrap: word-wrap; }
+        if r.desc != "": Text { x: 19px; y: 74px; width: parent.width - r.btn-w - 80px; text: r.desc; color: f ? #23262e99 : #8b929a; font-size: 18px; }
+        Rectangle { x: parent.width - r.btn-w - 19px; y: (parent.height - 60px) / 2 - (r.desc != "" ? 0px : 0px); width: r.btn-w; height: 60px; border-radius: 3px;
+            background: r.on == 1 ? #3d4450 : (f ? #1a9fff : #3d4450); opacity: r.on == 1 ? 0.5 : 1;
+            Text { width: parent.width; height: parent.height; text: r.btn; color: #ffffff; font-size: 20px; horizontal-alignment: center; vertical-alignment: center; overflow: elide; } }
+    }
+    if r.kind == 6 && r.warn: Icon { x: 19px; y: (parent.height - self.height) / 2; src: Icons.caution; s: 28px; c: #ad66bb; }
+    if r.ptr: TouchArea { clicked => { InternetState.row-clicked(root.i); } }
+}
+
+export component InternetPage inherits Rectangle {
+    for r[i] in InternetState.rows: PageRow { r: r; i: i; }
+}
+
+component Link inherits Rectangle {
+    // Stock: empty, three progress dots, checkmark, or close.
+    in property <int> st;
+    width: 100px;
+    height: 40px;
+    if st >= 2: Icon {
+        x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2;
+        src: st == 2 ? Icons.checkmark : Icons.close; s: 32px; c: st == 3 ? #de3618 : #ffffff;
+    }
+    for i in (st == 1 ? 3 : 0): Rectangle {
+        // Three staggered pulses from Steam's ConnectingThrobber CSS (702 ms).
+        property <float> phase: Math.mod(animation-tick() / 1ms + 281 - i * 94, 702) / 702;
+        property <float> pulse: Math.max(0, Math.min(phase / 0.2, (0.8 - phase) / 0.6));
+        x: parent.width / 2 - 22px + i * 16px + (12px - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        width: (0.66 + 0.34 * pulse) * 12px; height: self.width; border-radius: self.width / 2;
+        background: #ffffff; opacity: 0.3 + 0.7 * pulse;
+    }
+}
+
+component Btn inherits Rectangle {
+    in property <string> text;
+    in property <bool> focused;
+    in property <bool> enabled: true;
+    border-radius: 3px;
+    background: focused ? #ffffff : #3d4450;
+    Text { width: parent.width; height: parent.height; text: root.text; color: focused ? #23262e : (enabled ? #ffffff : #ffffff66); font-size: 22px; horizontal-alignment: center; vertical-alignment: center; overflow: elide; }
+}
+
+component DlgRow inherits Rectangle {
+    in property <WifiDRow> r;
+    in property <length> w;
+    width: w; height: r.h;
+    property <bool> f: r.focus == 1;
+    // field / drop-down / button row / toggle / info
+    if r.kind == 2 || r.kind == 3 || r.kind == 4 || r.kind == 5 || r.kind == 6: Rectangle {
+        background: r.kind == 6 && r.item < 0 ? #23262e : (r.kind == 4 || r.kind == 5 || r.kind == 6 ? (f ? #ffffff : #23262e) : #23262e);
+        border-radius: 3px;
+        Text { x: 19px; width: r.kind == 5 ? parent.width - 110px : parent.width / 2 - 30px; height: parent.height; text: r.label; color: (r.kind != 2 && r.kind != 3) && f ? #23262e : #dcdedf; font-size: 22px; vertical-alignment: center; overflow: elide; }
+        if r.kind == 2 || r.kind == 3: Rectangle { x: parent.width - 375px - 19px; y: (parent.height - 60px) / 2; width: 375px; height: 60px; background: f ? #ffffff : #3d4450;
+            Text { x: 16px; width: parent.width - (r.a > 0 ? 80px : 32px); height: parent.height; text: r.value == "" && r.kind == 2 ? r.hint : r.value; color: f ? #23262e : (r.value == "" ? #8b929a : #ffffff); font-size: 22px; vertical-alignment: center; overflow: elide; }
+            if r.kind == 2 && f && r.on == 0: Rectangle { x: parent.width - 100px; width: 0px; }
+            if r.kind == 3: Icon {
+                x: parent.width - 43px; y: (parent.height - self.height) / 2; src: Icons.carat-down; s: 22px; c: f ? #23262e : #ffffff;
+            }
+            if r.a > 0: Icon {
+                x: parent.width - 46px; y: (parent.height - self.height) / 2;
+                src: r.a == 2 ? Icons.feature-visible : Icons.feature-hidden; s: 26px; c: f ? #23262e : #ffffff;
+            }
+        }
+        if r.kind == 4: Rectangle { x: parent.width - r.w2 - 19px; y: (parent.height - 60px) / 2; width: r.w2; height: 60px; border-radius: 3px; background: f ? #1a9fff : #3d4450;
+            Text { width: parent.width; height: parent.height; text: r.value; color: #ffffff; font-size: 22px; horizontal-alignment: center; vertical-alignment: center; } }
+        // focused row is white: the off rail would vanish, so the focused toggle takes the dark rail and the ring of the settings pages
+        if r.kind == 5: Toggle { x: parent.width - self.width - 24px; y: (parent.height - self.height) / 2; on: r.on; focused: f; }
+        if r.kind == 6: Text { x: parent.width / 2; width: parent.width / 2 - 19px; height: parent.height; text: r.value; color: f ? #23262e : #8b929a; font-size: 22px; vertical-alignment: center; horizontal-alignment: right; overflow: elide; }
+    }
+    if r.kind == 7: Text { x: 19px; width: parent.width; height: parent.height; text: r.label; color: #8b929a; font-size: 18px; font-weight: 700; vertical-alignment: center; }
+    // pair of buttons: value left, label right
+    if r.kind == 8: Rectangle {
+        Btn { x: 0px; width: parent.width / 2 - 12px; height: parent.height; text: r.value; focused: r.focus == 1; enabled: r.on == 1; }
+        Btn { x: parent.width / 2 + 12px; width: parent.width / 2 - 12px; height: parent.height; text: r.label; focused: r.focus == 2; }
+    }
+    if r.kind == 9: Btn { x: parent.width / 4; width: parent.width / 2; height: parent.height; text: r.value; focused: r.focus == 1; }
+    if r.kind == 10: Text { x: 0px; width: parent.width; height: parent.height; text: r.label; color: #dcdedf; font-size: 24px; wrap: word-wrap; }
+    if r.kind == 11: Rectangle {
+        Icon { x: parent.width / 2 - 306px; y: 35px; src: Icons.deck; s: 96px; }
+        Link { x: parent.width / 2 - 179px; y: 63px; st: r.a; }
+        Icon { x: parent.width / 2 - 34px; y: 49px; src: Icons.wifi; s: 68px; c: r.a == 3 ? #de3618 : #ffffff; }
+        Link { x: parent.width / 2 + 79px; y: 63px; st: r.b; }
+        Icon { x: parent.width / 2 + 225px; y: 49px; src: Icons.globe; s: 68px; c: r.b == 3 ? #de3618 : #ffffff; }
+    }
+    if r.kind == 12: Text { width: parent.width; height: parent.height; text: r.label; color: r.on == 1 ? #ff6b6b : #dcdedf99; font-size: 24px; horizontal-alignment: center; vertical-alignment: center; wrap: word-wrap; }
+    if r.kind == 13: Rectangle { background: #23262e; border-radius: 3px;
+        Btn { x: parent.width / 2 - 187px; y: 18px; width: 375px; height: 60px; text: r.value; focused: true; } }
+    if r.kind == 14: Rectangle { background: r.focus == 1 ? #ffffff : #23262e; border-radius: 3px;
+        Text { x: 19px; width: parent.width - 80px; height: parent.height; text: r.label; color: r.focus == 1 ? #23262e : #dcdedf; font-size: 22px; vertical-alignment: center; }
+        if r.on == 1: Icon { x: parent.width - 50px; y: (parent.height - 26px) / 2; src: Icons.checkmark; s: 26px; c: r.focus == 1 ? #23262e : #59bf40; } }
+    if r.kind == 0: Text { x: 0px; width: parent.width; height: parent.height; text: r.label; color: #ffffff; font-size: 32px; font-weight: 700; vertical-alignment: center; }
+    if r.kind == 1: Text { x: 0px; width: parent.width; height: parent.height; text: r.label; color: #ff6b6b; font-size: 22px; vertical-alignment: center; }
+    if r.item >= 0 && r.kind != 8 && r.kind != 13: TouchArea { clicked => { InternetState.dialog-clicked(r.item, 0); } }
+    if r.item >= 0 && r.kind == 8: Rectangle {
+        TouchArea { x: 0px; width: parent.width / 2; clicked => { InternetState.dialog-clicked(r.item, 0); } }
+        TouchArea { x: parent.width / 2; width: parent.width / 2; clicked => { InternetState.dialog-clicked(r.item, 1); } }
+    }
+    if r.kind == 13: TouchArea { clicked => { InternetState.dialog-clicked(r.item, 0); } }
+}
+
+export component InternetDialog inherits Rectangle {
+    background: #000000a0;
+    TouchArea { clicked => { InternetState.backdrop-clicked(); } }
+    Rectangle {
+        x: 148px; y: InternetState.box-y; width: 987px; height: InternetState.box-h;
+        background: #0e141b; border-width: 2px; border-color: #1f2a38; clip: true;
+        TouchArea { }
+        Rectangle { x: 36px; y: -InternetState.scroll; width: 915px; height: InternetState.content-h;
+            for r in InternetState.drows: DlgRow { y: r.y; w: 915px; r: r; }
+        }
+    }
+}

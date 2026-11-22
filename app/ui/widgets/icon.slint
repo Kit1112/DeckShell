@@ -1,0 +1,72 @@
+// Steam icons from the local asset cache and the Internet SVGs generated at build time.
+// Rust fills `Icons`. `Icon.c` tints the white alpha masks.
+// Tinting is never left to the renderer's recolour pass: Icons.tinted returns a separate pixel buffer per
+// (icon, colour), so two icons, or one icon in two colours, never share a recoloured texture.
+export global Icons {
+    pure callback tinted(image, color) -> image;
+    in property <image> home;
+    in property <image> library;
+    in property <image> store;
+    in property <image> friends;
+    in property <image> media;
+    in property <image> downloads;
+    in property <image> settings;
+    in property <image> power;
+    in property <image> search;
+    in property <image> sdcard;
+    in property <image> harddrive;
+    in property <image> bell;
+    in property <image> wifi;
+    in property <image> wifi-off;
+    in property <image> wifi-offline;
+    in property <image> wifi-offline-focused;
+    in property <image> lock;
+    in property <image> deck;
+    in property <image> configurator-deck;
+    in property <image> configurator-xbox;
+    in property <image> globe;
+    in property <image> checkmark;
+    in property <image> close;
+    in property <image> caution;
+    in property <image> spinner;
+    in property <image> feature-visible;
+    in property <image> feature-hidden;
+    in property <image> carat-down;
+    in property <[image]> wifi-levels;
+    in property <image> battery;
+    in property <image> play;
+    in property <image> star;
+    in property <image> controller;
+    in property <image> info;
+    in property <image> chat;
+    in property <image> performance;
+    in property <image> plugin;
+    in property <image> sleep;
+    in property <image> restart;
+    in property <image> desktop;
+    in property <image> pause;
+    in property <image> trash;
+    in property <image> check;
+    in property <image> volume;
+    in property <image> volume-muted;
+    in property <image> bluetooth;
+    in property <image> brightness;
+    in property <image> tag;
+    // Bluetooth device icons by index: bluetooth, headphones, volume, controller, mobile, display, keyboard
+    in property <[image]> device-icons;
+}
+
+export component Icon inherits Rectangle {
+    in property <image> src;
+    in property <color> c: white;
+    in property <length> s: 24px;
+    // false: draw the icon with its own opacity/two-tone shading (battery), true: flat colour `c`
+    in property <bool> tint: true;
+    width: s;
+    height: s;
+    background: transparent;
+    Image {
+        width: parent.width; height: parent.height; image-fit: contain;
+        source: root.tint ? Icons.tinted(root.src, root.c) : root.src;
+    }
+}

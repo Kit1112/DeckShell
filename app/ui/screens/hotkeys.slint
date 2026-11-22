@@ -1,0 +1,163 @@
+// Chord hints (STEAM + button) and the long-STEAM power menu, Steam Deck look (docs/hotkeys/capture/deck-*.png).
+// Data (rows, labels) come from Rust (src/hotkeys/hint.rs); glyphs are the Deck knockout SVGs embedded below, indexed like hint::ROWS.
+import { Tokens } from "../tokens.slint";
+
+export struct HintRow { header: bool, text: string, glyph: int, activator: string }
+export struct PowerRow { label: string, sep: bool, enabled: bool, y: length }
+
+export global HotkeyGlyphs {
+    out property <[image]> list: [
+        @image-url("../../assets/hotkeys/shared_button_b.svg"),
+        @image-url("../../assets/hotkeys/shared_lstick_up.svg"),
+        @image-url("../../assets/hotkeys/shared_lstick_down.svg"),
+        @image-url("../../assets/hotkeys/sd_button_view.svg"),
+        @image-url("../../assets/hotkeys/sd_l1.svg"),
+        @image-url("../../assets/hotkeys/shared_button_x.svg"),
+        @image-url("../../assets/hotkeys/shared_dpad_right.svg"),
+        @image-url("../../assets/hotkeys/shared_dpad_down.svg"),
+        @image-url("../../assets/hotkeys/shared_dpad_left.svg"),
+        @image-url("../../assets/hotkeys/sd_rtrackpad_swipe.svg"),
+        @image-url("../../assets/hotkeys/shared_rstick.svg"),
+        @image-url("../../assets/hotkeys/sd_rtrackpad_click.svg"),
+        @image-url("../../assets/hotkeys/sd_l2_half.svg"),
+        @image-url("../../assets/hotkeys/sd_r2_half.svg"),
+        @image-url("../../assets/hotkeys/sd_r1.svg"),
+        @image-url("../../assets/hotkeys/shared_button_y.svg"),
+        @image-url("../../assets/hotkeys/shared_button_a.svg"),
+        @image-url("../../assets/hotkeys/shared_dpad_up.svg")
+    ];
+    out property <image> pill: @image-url("../../assets/hotkeys/steam_pill.svg");
+}
+
+export global HotkeysState {
+    // "..." held: overlay on top of the current screen, no dimming, no focus
+    in property <bool> hold-open;
+    // modal opened from the power menu (A on the first item)
+    in property <bool> modal-open;
+    in property <bool> power-open;
+    in property <string> title;
+    in property <string> power-title;
+    in property <string> power-menu-label;
+    in property <string> power-select-label;
+    in property <string> power-back-label;
+    in property <[HintRow]> left;
+    in property <[HintRow]> right;
+    in property <[PowerRow]> power-items;
+    in property <int> power-focus;
+    in property <length> power-content-height;
+    in-out property <length> power-scroll;
+    in-out property <length> power-viewport: 632px;
+    callback power-click(int);
+    callback close;
+}
+
+component HintLine inherits Rectangle {
+    in property <HintRow> d;
+    in property <length> label-w: 152px;
+    in property <length> act-w: 120px;
+    height: d.header ? 38px : max(32px, lbl.preferred-height + 12px);
+    lbl := Text { visible: !d.header; x: 0px; y: (root.height - self.preferred-height) / 2; width: root.label-w; text: d.header ? "" : d.text; wrap: word-wrap; font-size: 12px; color: #dcdedf; }
+    if d.header: Text { y: parent.height - 18px; text: d.text; color: #8b929a; font-size: 12px; font-weight: 700; }
+    if !d.header: Rectangle {
+        Image { x: root.label-w + 1px; y: (parent.height - 40px) / 2; width: 40px; height: 40px; source: HotkeyGlyphs.pill; image-fit: contain; }
+        Text { x: root.label-w + 49px; y: (parent.height - self.preferred-height) / 2; text: "+"; font-size: 12px; color: #dcdedf; }
+        Image { x: root.label-w + 62px; y: (parent.height - 24px) / 2; width: 24px; height: 24px; source: HotkeyGlyphs.list[d.glyph]; image-fit: contain; }
+        Text { x: root.label-w + 92px; y: (parent.height - self.preferred-height) / 2; width: root.act-w; text: d.activator; font-size: 11px; color: #dcdedf; overflow: clip; wrap: no-wrap; }
+        Rectangle { y: parent.height - 1px; height: 1px; background: #23262e; }
+    }
+}
+
+component HintColumn inherits Rectangle {
+    in property <[HintRow]> rows;
+    in property <length> label-w;
+    in property <length> act-w;
+    VerticalLayout {
+        y: -22px;
+        alignment: start;
+        for r in root.rows: HintLine { d: r; label-w: root.label-w; act-w: root.act-w; }
+    }
+}
+
+export component HotkeysLayer inherits Rectangle {
+    // hold form: x195 y165 w891 h470 at 1280x800, bg #0e141b, grey caps title, wide columns
+    if HotkeysState.hold-open && !HotkeysState.modal-open: Rectangle {
+        x: (root.width - self.width) / 2; y: (root.height - self.height) / 2 - 35px; width: 891px; height: 470px;
+        background: #0e141b; border-radius: 3px; clip: true;
+        accessible-role: groupbox; accessible-label: HotkeysState.title;
+        Text { x: 11px; y: 12px; text: HotkeysState.title; font-size: 14px; font-weight: 700; color: #67707b; }
+        HintColumn { x: 11px; y: 60px; width: 415px; height: parent.height - 70px; rows: HotkeysState.left; label-w: 190px; act-w: 150px; }
+        HintColumn { x: 465px; y: 60px; width: 415px; height: parent.height - 70px; rows: HotkeysState.right; label-w: 190px; act-w: 150px; }
+    }
+    // modal form: x246 y117 w790 h565, bg #0e141b, dimmed Big Picture behind
+    if HotkeysState.modal-open: Rectangle {
+        background: #000000a0;
+        TouchArea { clicked => { HotkeysState.close(); } }
+        Rectangle {
+            x: (root.width - self.width) / 2; y: (root.height - self.height) / 2 - 17px; width: 790px; height: 565px;
+            background: #0e141b; border-width: 1px; border-color: #ffffff1a; clip: true;
+            accessible-role: groupbox; accessible-label: HotkeysState.title; accessible-description: "dialog||B,touch,mouse";
+            TouchArea { }
+            Text { x: 36px; y: 36px; text: HotkeysState.title; font-size: 26px; font-weight: 700; color: #ffffff; }
+            HintColumn { x: 36px; y: 112px; width: 339px; height: parent.height - 120px; rows: HotkeysState.left; label-w: 152px; act-w: 90px; }
+            HintColumn { x: 414px; y: 112px; width: 339px; height: parent.height - 120px; rows: HotkeysState.right; label-w: 152px; act-w: 90px; }
+        }
+    }
+    // Shared native context-menu CSS (powermenu dump): 16px font, 14px
+    // row padding, title 18/22px. Mapped to actual Gaming Mode DPR1.5;
+    // the old desktop/BP button list is not the Deck action set.
+    property <length> power-viewport: min(HotkeysState.power-content-height, max(120px, root.height - 168px));
+    init => { HotkeysState.power-viewport = self.power-viewport; }
+    changed power-viewport => { HotkeysState.power-viewport = self.power-viewport; }
+    if HotkeysState.power-open && !HotkeysState.modal-open: Rectangle {
+        background: #07090d80;
+        TouchArea { clicked => { HotkeysState.close(); } }
+        measure := Text { visible: false; text: HotkeysState.power-items[0].label; font-size: 24px; }
+        Text { y: power-panel.y - 33px; height: 33px; width: parent.width; horizontal-alignment: center; text: HotkeysState.power-title; font-size: 27px; color: #ffffffd9; }
+        power-panel := Rectangle {
+            width: min(parent.width - 48px, max(420px, measure.preferred-width + 42px));
+            height: root.power-viewport;
+            x: (parent.width - self.width) / 2;
+            y: 60px + max(0px, (parent.height - 120px - self.height - 48px) / 2) + 48px;
+            background: #23262e; clip: true;
+            Flickable {
+                content-width: self.width; content-height: max(self.height, HotkeysState.power-content-height);
+                property <length> sy: HotkeysState.power-scroll;
+                changed sy => { self.content-y = -self.sy; }
+                property <length> vy: self.content-y;
+                changed vy => { HotkeysState.power-scroll = max(0px, -self.content-y); }
+                for it[i] in HotkeysState.power-items: Rectangle {
+                    y: it.y; height: 72px;
+                    background: HotkeysState.power-focus == i ? #ffffff : #23262e;
+                    accessible-role: button; accessible-label: it.label; accessible-enabled: it.enabled;
+                    accessible-description: it.enabled ? "menu-item||A,B,DPAD_UP,DPAD_DOWN,FOCUS,touch,mouse" : "menu-item||unavailable";
+                    if it.sep: Rectangle { y: -3px; height: 3px; background: #0e141b; }
+                    Text { x: 21px; width: parent.width - 42px; height: parent.height; vertical-alignment: center; text: it.label; font-size: 24px; color: HotkeysState.power-focus == i ? #0e141b : (it.enabled ? #b8bcbf : #67707b); overflow: elide; }
+                    TouchArea { enabled: it.enabled; clicked => { HotkeysState.power-click(i); } }
+                }
+            }
+        }
+        // The modal owns its footer; the underlying page may show different hints.
+        // Positions and Deck glyphs follow capture/deck-power-menu.png at 1280x800.
+        Rectangle {
+            y: parent.height - 60px; height: 60px; background: #090d0f;
+            Image { x: 32px; y: (parent.height - 73px) / 2; width: 73px; height: 73px; source: HotkeyGlyphs.pill; image-fit: contain; opacity: 0.55; }
+            Text { x: 115px; height: parent.height; vertical-alignment: center; text: HotkeysState.power-menu-label; font-size: 14px; font-weight: 700; color: #8b8e91; }
+            TouchArea { x: 24px; width: 155px; clicked => { HotkeysState.close(); } }
+            HorizontalLayout {
+                x: parent.width - self.width - 32px; width: self.preferred-width; height: parent.height; spacing: 20px;
+                Rectangle {
+                    width: 28px + 10px + select-label.preferred-width;
+                    Image { x: 0px; y: (parent.height - 30px) / 2; width: 30px; height: 30px; source: @image-url("../../assets/hotkeys/shared_button_a.svg"); image-fit: contain; opacity: 0.55; }
+                    select-label := Text { x: 38px; height: parent.height; vertical-alignment: center; text: HotkeysState.power-select-label; font-size: 14px; font-weight: 700; color: #8b8e91; }
+                    TouchArea { clicked => { HotkeysState.power-click(HotkeysState.power-focus); } }
+                }
+                Rectangle {
+                    width: 28px + 10px + back-label.preferred-width;
+                    Image { x: 0px; y: (parent.height - 30px) / 2; width: 30px; height: 30px; source: @image-url("../../assets/hotkeys/shared_button_b.svg"); image-fit: contain; opacity: 0.55; }
+                    back-label := Text { x: 38px; height: parent.height; vertical-alignment: center; text: HotkeysState.power-back-label; font-size: 14px; font-weight: 700; color: #8b8e91; }
+                    TouchArea { clicked => { HotkeysState.close(); } }
+                }
+            }
+        }
+    }
+}

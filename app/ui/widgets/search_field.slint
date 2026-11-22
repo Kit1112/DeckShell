@@ -1,0 +1,48 @@
+import { Tokens } from "../tokens.slint";
+import { HeaderLayout } from "top_bar.slint";
+import { Icon, Icons } from "icon.slint";
+
+// Text caret split of the query (set by src/screens/search.rs): the field draws `before | after` while it is active.
+export global SearchCaret {
+    in property <string> before;
+    in property <string> after;
+}
+
+// Library search field in the compact top bar (A on it opens /routes/search; see screens/search.slint).
+export component SearchField inherits Rectangle {
+    in property <bool> active;
+    in property <string> query;
+    in property <string> placeholder;
+    in property <float> open;
+    property <bool> caret-on: true;
+    background: transparent;
+    clip: true;
+    Timer { running: root.active; interval: 530ms; triggered => { root.caret-on = !root.caret-on; } }
+    Rectangle {
+        x: 0px; y: 0px; width: root.width; height: root.height;
+        background: Tokens.top-search-focus-bg;
+        opacity: root.open;
+    }
+    Icon {
+        x: (HeaderLayout.slot - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        src: Icons.search;
+        s: 26.99px;
+        c: root.open > 0.5 ? Tokens.chip-text : Tokens.text;
+    }
+    if root.active && root.query != "": Rectangle {
+        x: 50px; width: max(0px, parent.width - 60px); height: parent.height; clip: true;
+        HorizontalLayout {
+            alignment: start;
+            Text { vertical-alignment: center; font-size: Tokens.clock-size; font-weight: Tokens.clock-weight; text: SearchCaret.before; color: Tokens.chip-text; }
+            Rectangle { width: 2px; background: root.caret-on ? Tokens.chip-text : transparent; y: 0px; }
+            Text { vertical-alignment: center; font-size: Tokens.clock-size; font-weight: Tokens.clock-weight; text: SearchCaret.after; color: Tokens.chip-text; }
+        }
+    }
+    if root.active && root.query == "": Rectangle { x: 50px; y: (parent.height - 26px) / 2; width: 2px; height: 26px; background: root.caret-on ? Tokens.chip-text : transparent; opacity: root.open; }
+    if !(root.active && root.query != ""): Text {
+        x: 50px; width: max(0px, parent.width - 60px); height: parent.height; vertical-alignment: center; font-size: Tokens.clock-size; font-weight: Tokens.clock-weight; font-italic: root.query == "";
+        text: root.query == "" ? root.placeholder : root.query;
+        color: Tokens.text-dim; overflow: elide; opacity: root.open;
+    }
+}
