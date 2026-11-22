@@ -1,4 +1,5 @@
 //! Steam editor session data. Keep raw bindings for lossless Undo (including icons/settings).
+use steam_assets::i18n::tr_ref;
 use steam_bridge::{controller_edit::BindingTarget, controller_layout::{fields, parse_layout, Wire}, Result, Error};
 #[derive(Clone, Debug)]
 pub struct BindingRow { pub label: String, pub target: BindingTarget, pub binding: Vec<u8> }
@@ -15,11 +16,11 @@ pub fn binding_at(raw: &[u8], t: &BindingTarget) -> Result<Vec<u8>> {
             if number(i,1)? != t.input_key { continue; }
             let acts=msg(i,2)?;
             if let Some(act)=acts.get(t.activator_index as usize) {
-                return msg(act,2)?.get(t.binding_index as usize).map(|b|b.to_vec()).ok_or_else(||Error::Protocol("Привязка отсутствует в ответе Steam".into()));
+                return msg(act,2)?.get(t.binding_index as usize).map(|b|b.to_vec()).ok_or_else(||Error::Protocol(tr_ref("controller.binding_missing_from_the_steam_reply").into()));
             }
         }
     }
-    Err(Error::Protocol("Вход отсутствует в ответе Steam".into()))
+    Err(Error::Protocol(tr_ref("controller.input_missing_from_the_steam_reply").into()))
 }
 /// Activation type (`EControllerActivationType`) of the addressed activator, if the activator exists.
 pub fn activation_at(raw:&[u8],t:&BindingTarget)->Option<i64>{
@@ -44,7 +45,7 @@ pub fn rows(raw: &[u8]) -> Result<Vec<BindingRow>> {
     for set in &layout.action_sets {
         for mode in &layout.modes {
             for input in &mode.inputs {
-                let label=match input.key {12=>"A",10=>"B",11=>"X",9=>"Y",51=>"Выбрать",52=>"Начать",53=>"Левый бампер",54=>"Правый бампер",55=>"L4",56=>"R4",57=>"L5",58=>"R5",
+                let label=match input.key {12=>"A",10=>"B",11=>"X",9=>"Y",51=>tr_ref("controller.select"),52=>tr_ref("controller.start"),53=>tr_ref("controller.left_bumper"),54=>tr_ref("controller.right_bumper"),55=>"L4",56=>"R4",57=>"L5",58=>"R5",
                     // Other sources (D-pad, triggers, pads, sticks): rows are named by controller_pages, not by this label.
                     1=>"N",3=>"E",5=>"S",7=>"W",13=>"Click",15=>"Edge",50=>"Touch",_=>continue};
                 let t=BindingTarget {action_set_key:set.key.clone(),action_set_layer_key:None,source_binding_key:0,mode_shift:false,input_key:input.key,activator_index:0,binding_index:0,source_mode:mode.mode,modeid:mode.modeid as i64};
@@ -97,7 +98,7 @@ pub fn string(raw:&[u8],field:u32)->Result<String>{Ok(msg(raw,field)?.first().ma
 pub struct Parameter {pub label:String,pub value:i64,pub min:i64,pub max:i64,pub choices:Vec<String>}
 impl Parameter {
     fn number(label:&str,value:i64,min:i64,max:i64)->Self{Self{label:label.into(),value,min,max,choices:vec![]}}
-    fn toggle(label:&str,value:bool)->Self{Self{label:label.into(),value:value as i64,min:0,max:1,choices:vec!["Нет".into(),"Да".into()]}}
+    fn toggle(label:&str,value:bool)->Self{Self{label:label.into(),value:value as i64,min:0,max:1,choices:vec![tr_ref("controller.none_2").into(),tr_ref("controller.yes").into()]}}
     pub fn text(&self)->String{self.choices.get(self.value as usize).cloned().unwrap_or_else(||self.value.to_string())}
     pub fn step(&mut self,dir:i64){self.value=(self.value+dir).clamp(self.min,self.max);}
 }
@@ -114,16 +115,16 @@ impl CommandDialog {
                     if action==0 && key!=target.action_set_key {names.push(string(set,2)?);sets.push((key.clone(),None));}
                     if action!=0 && key==target.action_set_key {for layer in msg(set,4)? {names.push(string(layer,2)?);sets.push((string(layer,1)?,None));}}
                 }
-                if action==0 {for (label,n) in [("Нет",32767),("Следующий набор",32766),("Предыдущий набор",32765)]{names.push(label.into());sets.push((String::new(),Some(n)));}}
-                if names.is_empty(){return Err(Error::Protocol("В раскладке нет слоёв набора действий".into()))}
-                parameters.push(Parameter{label:if action==0{"Набор действий"}else{"Слой"}.into(),value:0,min:0,max:names.len() as i64-1,choices:names});
-                parameters.push(Parameter::toggle("Показывать название",true));parameters.push(Parameter::toggle("Звуковой сигнал",true));
+                if action==0 {for (label,n) in [(tr_ref("controller.none_2"),32767),(tr_ref("controller.next_set"),32766),(tr_ref("controller.previous_set"),32765)]{names.push(label.into());sets.push((String::new(),Some(n)));}}
+                if names.is_empty(){return Err(Error::Protocol(tr_ref("controller.the_layout_has_no_action_set_layers").into()))}
+                parameters.push(Parameter{label:if action==0{tr_ref("controller.action_set_2")}else{tr_ref("controller.layer")}.into(),value:0,min:0,max:names.len() as i64-1,choices:names});
+                parameters.push(Parameter::toggle(tr_ref("controller.show_name"),true));parameters.push(Parameter::toggle(tr_ref("controller.play_sound"),true));
             }
-            3|36=>{parameters.push(Parameter::number("X",0,-32768,32767));parameters.push(Parameter::number("Y",0,-32768,32767));if action==3 {parameters.push(Parameter::toggle("Вернуть курсор",true));}}
-            31=>parameters.push(Parameter::number("Номер игрока",1,1,4)),
-            37=>{parameters.push(Parameter::number("Задержка, мс",33,0,100));parameters.push(Parameter::number("Угол сброса",90,45,135));}
-            38=>{parameters.push(Parameter::number("Длительность, мс",250,0,1000));parameters.push(Parameter::number("Угол поворота",360,-360,360));}
-            39=>{parameters.push(Parameter{label:"Направление от".into(),value:0,min:0,max:5,choices:["Левый стик","Правый стик","Левый трекпад","Правый трекпад","Крестовина","Лицевые кнопки"].into_iter().map(String::from).collect()});parameters.push(Parameter::number("Длительность, мс",75,0,1000));parameters.push(Parameter::toggle("Последнее направление в мёртвой зоне",false));}
+            3|36=>{parameters.push(Parameter::number("X",0,-32768,32767));parameters.push(Parameter::number("Y",0,-32768,32767));if action==3 {parameters.push(Parameter::toggle(tr_ref("controller.restore_cursor"),true));}}
+            31=>parameters.push(Parameter::number(tr_ref("controller.player_number"),1,1,4)),
+            37=>{parameters.push(Parameter::number(tr_ref("controller.delay_ms"),33,0,100));parameters.push(Parameter::number(tr_ref("controller.reset_angle"),90,45,135));}
+            38=>{parameters.push(Parameter::number(tr_ref("controller.duration_ms"),250,0,1000));parameters.push(Parameter::number(tr_ref("controller.turn_angle"),360,-360,360));}
+            39=>{parameters.push(Parameter{label:tr_ref("controller.direction_from").into(),value:0,min:0,max:5,choices:[tr_ref("controller.left_stick"),tr_ref("controller.right_stick"),tr_ref("controller.left_trackpad_2"),tr_ref("controller.right_trackpad_2"),tr_ref("controller.dpad"),tr_ref("controller.face_buttons_2")].into_iter().map(String::from).collect()});parameters.push(Parameter::number(tr_ref("controller.duration_ms"),75,0,1000));parameters.push(Parameter::toggle(tr_ref("controller.last_direction_in_deadzone"),false));}
             _=>return Ok(None),
         }
         Ok(Some(Self{target,action,parameters,cursor:0,sets}))
@@ -152,7 +153,7 @@ pub fn same_command(a:&[u8],b:&[u8])->Result<bool>{
             Wire::Varint(n)=>n.to_le_bytes().to_vec(),
             Wire::Len(v) if message_fields.contains(&f.number)=>format!("{:?}",canonical(v,&[])?).into_bytes(),
             Wire::Len(v) if v.is_empty()=>continue,
-            Wire::Len(v)=>v.to_vec(),_=>return Err(Error::Protocol("Неизвестные поля команды".into()))};out.push((f.number,bytes));}out.sort();Ok(out)
+            Wire::Len(v)=>v.to_vec(),_=>return Err(Error::Protocol(tr_ref("controller.unknown_command_fields").into()))};out.push((f.number,bytes));}out.sort();Ok(out)
     }
     // Work on the command submessage only; key_binding_data may contain generated labels/icons.
     let kind=number(b,1)?;if number(a,1)?!=kind{return Ok(false)}

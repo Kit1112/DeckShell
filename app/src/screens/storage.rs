@@ -1,4 +1,5 @@
 //! Read-only storage view backed by Steam's InstallFolder snapshot.
+use steam_assets::i18n;
 use serde_json::Value;
 use super::PRow;
 
@@ -70,23 +71,23 @@ fn row(k: i32, label: String, x: f32, y: f32, w: f32, h: f32) -> PRow {
     PRow { k, lab: label, x, y, w, h, ..Default::default() }
 }
 pub fn rows(drives: &[Drive], selected: Option<i64>, sort: usize, menu: bool) -> (Vec<PRow>, Option<i64>) {
-    if drives.is_empty() { return (vec![row(12, "Нет доступных библиотек Steam".into(), 270., 125., 650., 32.)], None); }
+    if drives.is_empty() { return (vec![row(12, i18n::tr_ref("storage.there_are_no_steam_libraries_available").into(), 270., 125., 650., 32.)], None); }
     let selected = selected.filter(|id| drives.iter().any(|d| d.id == *id)).unwrap_or(drives[0].id);
     let mut rows = Vec::new();
     for (i, d) in drives.iter().enumerate() {
         let label = if !d.label.trim().is_empty() { d.label.clone() }
-            else if d.id == 0 { "Внутренний накопитель".into() }
-            else if d.drive.contains("mmcblk") { "Карта microSD".into() }
+            else if d.id == 0 { i18n::tr_ref("storage.internal_storage").into() }
+            else if d.drive.contains("mmcblk") { i18n::tr_ref("storage.microsd_card").into() }
             else if !d.drive.is_empty() { d.drive.clone() }
-            else if d.fixed == Some(false) { "Съёмный накопитель".into() }
-            else { format!("Диск {}", i + 1) };
+            else if d.fixed == Some(false) { i18n::tr_ref("storage.removable_drive").into() }
+            else { i18n::tr_args("storage.drive", &[("index", &(i + 1).to_string())]) };
         // Device cards use a two-column layout; the wider Steam rail is applied
         // by the settings screen when converting these rows.
         // Gaming Mode stock capture places the device selector at y=168 px.
         // These rows still use the legacy 1.1985 scale, so its logical y is 140.
         let mut r = row(24, label, 270. + (i % 2) as f32 * 378., 140. + (i / 2) as f32 * 82., 358., 76.);
         // Steam sets the card capacity caption in uppercase bold (task 123 comparison); the label stays mixed case.
-        let caption: String = if d.id < 0 { format!("Нет библиотеки Steam · {}", size(d.capacity)) } else if d.mounted == Some(true) { format!("{} / {}", size(d.free), size(d.capacity)) } else { "Недоступно".into() };
+        let caption: String = if d.id < 0 { i18n::tr_args("storage.no_steam_library", &[("capacity", &(size(d.capacity)).to_string())]) } else if d.mounted == Some(true) { format!("{} / {}", size(d.free), size(d.capacity)) } else { i18n::tr_ref("storage.unavailable").into() };
         r.desc = caption.to_uppercase();
         r.full = if d.drive.contains("mmcblk") { "sd" } else { "drive" }.into();
         r.role = "tab".into(); r.tok = format!("storage:{}", d.id); r.f = true; r.pad = "A,FOCUS,touch,mouse".into();
@@ -97,8 +98,8 @@ pub fn rows(drives: &[Drive], selected: Option<i64>, sort: usize, menu: bool) ->
     // Steam's legend includes Other and Free; Other is the value the bar draws, when the breakdown is shown.
     let mut legend_other: Option<u64> = None;
     let unadopted = d.id < 0;
-    let status = match d.mounted { Some(true) => "", Some(false) => " · не подключён", None => " · состояние неизвестно" };
-    let space = if unadopted { "На устройстве нет библиотеки Steam".into() } else if d.mounted == Some(true) && !d.path.is_empty() { d.path.to_uppercase() } else if d.mounted == Some(true) { format!("Свободно: {} из {}", size(d.free), size(d.capacity)) } else { format!("Данные о пространстве недоступны{}", status) };
+    let status = match d.mounted { Some(true) => "", Some(false) => i18n::tr_ref("storage.unconnected"), None => i18n::tr_ref("storage.state_of_unknown_state") };
+    let space = if unadopted { i18n::tr_ref("storage.there_is_no_steam_library_on_the").into() } else if d.mounted == Some(true) && !d.path.is_empty() { d.path.to_uppercase() } else if d.mounted == Some(true) { i18n::tr_args("storage.free_of", &[("free", &(size(d.free)).to_string()), ("capacity", &(size(d.capacity)).to_string())]) } else { i18n::tr_args("storage.capacity_information_unavailable", &[("status", &(status).to_string())]) };
     rows.push(row(11, space, 270., y, 768., 20.));
     if let (Some(capacity), Some(free)) = (d.capacity, d.free) {
         if d.mounted == Some(true) && capacity > 0 && free <= capacity {
@@ -134,11 +135,11 @@ pub fn rows(drives: &[Drive], selected: Option<i64>, sort: usize, menu: bool) ->
     // Steam draws round dots and bold uppercase labels (task 123 comparison): swatch sub "dot", label sub "legend".
     let mut legend_end = y;
     if d.mounted == Some(true) {
-        let mut legend: Vec<(i32, &str, u64)> = ["Игры", "Дополнения", "Мастерская", "Обновления", "Шейдеры", "Медиа"].iter().zip(d.categories[..6].iter()).enumerate()
+        let mut legend: Vec<(i32, &str, u64)> = [i18n::tr_ref("storage.games"), i18n::tr_ref("storage.supplements"), i18n::tr_ref("storage.workshop"), i18n::tr_ref("storage.updates"), i18n::tr_ref("storage.shaders"), i18n::tr_ref("storage.media")].iter().zip(d.categories[..6].iter()).enumerate()
             .filter_map(|(i, (name, value))| value.filter(|v| *v > 0).map(|v| (if i == 5 { 25 } else { 18 + i as i32 }, *name, v))).collect();
-        if let Some(other) = legend_other.filter(|v| *v > 0) { legend.push((23, "Другое", other)); }
+        if let Some(other) = legend_other.filter(|v| *v > 0) { legend.push((23, i18n::tr_ref("storage.more"), other)); }
         if let (Some(capacity), Some(free)) = (d.capacity, d.free) {
-            if free <= capacity { legend.push((17, "Свободно", free)); }
+            if free <= capacity { legend.push((17, i18n::tr_ref("storage.free"), free)); }
         }
         for (n, (kind, name, value)) in legend.iter().enumerate() {
             let lx = 270. + (n % 3) as f32 * 250.;
@@ -154,18 +155,18 @@ pub fn rows(drives: &[Drive], selected: Option<i64>, sort: usize, menu: bool) ->
     }
     // The app header sits 40 px above the list; keep it clear of a third legend row.
     y = (y + 132.).max(442.).max(legend_end + 48.);
-    rows.push(row(11, if d.mounted != Some(true) { "Приложения: данные недоступны".into() } else { format!("Приложений: {}", d.apps.len()) }, 270., y - 40., 440., 32.));
+    rows.push(row(11, if d.mounted != Some(true) { i18n::tr_ref("storage.applications_data_not_available").into() } else { i18n::tr_args("storage.apps", &[("len", &(d.apps.len()).to_string())]) }, 270., y - 40., 440., 32.));
     if d.mounted == Some(true) && d.apps.is_empty() {
-        rows.push(row(12, "Нет установленных приложений".into(), 270., y, 650., 32.));
+        rows.push(row(12, i18n::tr_ref("storage.no_installed_applications").into(), 270., y, 650., 32.));
     }
     // Steam defaults to size on disk, descending. Keep unknown sizes after known
     // sizes and retain their input order instead of inventing a value.
-    let mut sort_row = row(9, format!("Сортировка: {}  ▾", ["Размер", "Название", "Последний запуск"][sort % 3]), 730., y - 40., 250., 32.);
+    let mut sort_row = row(9, i18n::tr_args("storage.sort", &[("sort", &([i18n::tr_ref("storage.size"), i18n::tr_ref("storage.title"), i18n::tr_ref("storage.last_played")][sort % 3]).to_string())]), 730., y - 40., 250., 32.);
     sort_row.tok = "storage-sort".into(); sort_row.f = true; sort_row.pad = "A,FOCUS,touch,mouse".into(); rows.push(sort_row);
     let mut direction = row(9, if sort >= 3 { "↑" } else { "↓" }.into(), 990., y - 40., 40., 32.);
     direction.tok = "storage-direction".into(); direction.f = true; direction.pad = "A,FOCUS,touch,mouse".into(); rows.push(direction);
     if menu {
-        for (i, (mode, label)) in [(1, "По алфавиту"), (2, "По дате запуска"), (0, "По размеру на диске"), (3, "Отмена")].iter().enumerate() {
+        for (i, (mode, label)) in [(1, i18n::tr_ref("storage.alphabetical")), (2, i18n::tr_ref("storage.last_played_2")), (0, i18n::tr_ref("storage.size_on_disk")), (3, i18n::tr_ref("storage.cancel"))].iter().enumerate() {
             let mut option = row(4, (*label).into(), 730., y + i as f32 * 40., 300., 36.);
             option.tok = format!("storage-sort-option:{mode}"); option.f = true; option.pad = "A,FOCUS,touch,mouse".into(); rows.push(option);
         }
@@ -195,240 +196,5 @@ pub fn rows(drives: &[Drive], selected: Option<i64>, sort: usize, menu: bool) ->
     (rows, Some(selected))
 }
 #[cfg(test)]
-mod tests {
-    use super::*; use serde_json::json;
-    #[test] fn inventory_matches_mounts_and_keeps_unadopted_removable_disks() {
-        let mut drives = parse(&json!([{ "id": 0, "path": "/home/deck/.local/share/Steam", "mounted": true, "apps": [] },
-            { "id": 1, "path": "/run/media/card/steamapps", "mounted": true, "apps": [] }])).unwrap();
-        let inventory = json!({"blockdevices": [
-            {"type":"disk", "path":"/dev/nvme0n1", "tran":"nvme", "size":1000},
-            {"type":"disk", "path":"/dev/mmcblk0", "tran":"mmc", "size":2000,
-             "children":[{"mountpoints":["/run/media/card"]}]},
-            {"type":"disk", "path":"/dev/sda", "tran":"usb", "size":3000, "mountpoints":[]}
-        ]});
-        merge_devices(&mut drives, &inventory);
-        assert_eq!(drives.len(), 3);
-        assert_eq!(drives[1].drive, "/dev/mmcblk0");
-        assert!(drives[2].id < 0);
-        assert_eq!(drives[2].capacity, Some(3000));
-        assert!(rows(&drives, Some(drives[2].id), 0, false).0.iter().any(|r| r.lab == "На устройстве нет библиотеки Steam"));
-    }
-
-    #[test] fn device_cards_and_art_use_their_own_data() {
-        let d = parse(&json!([
-            {"id":0,"drive":"/home/deck","mounted":true,"capacity":100000000000u64,"free":25000000000u64,"apps":[{"id":42,"name":"A game"}]},
-            {"id":1,"drive":"/run/media/mmcblk0p1","mounted":true,"capacity":200000000000u64,"free":150000000000u64,"apps":[]}
-        ])).unwrap();
-        let (r, _) = rows(&d, None, 0, false);
-        let cards: Vec<_> = r.iter().filter(|r| r.role == "tab").collect();
-        assert_eq!(cards.len(), 2);
-        assert_eq!(cards[0].lab, "Внутренний накопитель");
-        assert_eq!(cards[1].lab, "Карта microSD");
-        assert_eq!(cards[1].full, "sd");
-        assert_ne!(cards[0].desc, cards[1].desc);
-        assert!(r.iter().any(|r| r.tok == "storage-art:42" && r.k == 6));
-    }
-
-    // Row geometry only: this does not measure rendered text or effective clipping.
-    #[test] fn storage_fixture_row_geometry_has_no_overlaps() {
-        let d = parse(&json!([
-            {"id":0,"label":"A long device name that must be elided at the card boundary", "mounted":true,"capacity":1000,"free":400,"game":200,"dlc":100,"workshop":50,"staged":20,"shader":30,"apps":[{"id":1,"name":"A long game title that must be elided at the row boundary","size":42}]},
-            {"id":1,"drive":"/run/media/mmcblk0p1","mounted":true,"apps":[]}
-        ])).unwrap();
-        let (r, _) = rows(&d, None, 0, false);
-        for (i, a) in r.iter().enumerate() {
-            assert!(a.x >= 270. && a.x + a.w <= 1038. && a.y >= 0. && a.w > 0. && a.h > 0.);
-            for b in &r[i + 1..] {
-                assert!(a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y, "overlap: {:?} / {:?}", a.lab, b.lab);
-            }
-        }
-    }
-
-    #[test] fn selected_folder_displays_its_path() {
-        let drives = parse(&json!([{"id": 0, "path": "/home/deck/Steam", "mounted": true, "apps": []}])).unwrap();
-        let (rows, _) = rows(&drives, None, 0, false);
-        assert!(rows.iter().any(|row| row.lab == "/HOME/DECK/STEAM"));
-    }
-
-    #[test] fn selecting_drive_filters_apps() {
-        let d = parse(&json!([
-            {"id":1,"mounted":true,"apps":[{"id":11,"name":"First"}]},
-            {"id":2,"mounted":true,"apps":[{"id":22,"name":"Second"}]}
-        ])).unwrap();
-        let (r, selected) = rows(&d, Some(2), 0, false);
-        assert_eq!(selected, Some(2));
-        assert!(r.iter().any(|r| r.lab == "Second"));
-        assert!(!r.iter().any(|r| r.lab == "First"));
-        assert_eq!(rows(&d, Some(99), 0, false).1, Some(1));
-    }
-    #[test] fn parse_states_and_geometry() {
-        assert!(parse(&json!([])).unwrap().is_empty());
-        assert!(parse(&json!([{"id":0,"apps":null}])).is_err());
-        let d = parse(&json!([{"id":0,"mounted":true,"apps":[{"id":42,"name":"Game","size":"1200"}],"capacity":2000,"free":800}])).unwrap();
-        let (r, selected) = rows(&d, None, 0, false); assert_eq!(selected, Some(0));
-        assert_eq!(r.iter().filter(|r| r.f).count(), 4);
-        let tab = r.iter().find(|r| r.role == "tab").unwrap();
-        assert_eq!((tab.x, tab.y, tab.w, tab.h), (270., 140., 358., 76.));
-        let game = r.iter().find(|r| r.lab == "Game").unwrap();
-        assert_eq!((game.y, game.h), (442., 58.));
-        assert!(r.iter().all(|r| r.w > 0. && r.h > 0.));
-        for (i, a) in r.iter().enumerate() {
-            for b in &r[i + 1..] {
-                assert!(a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y);
-            }
-        }
-        assert!(r.iter().any(|r| r.lab == "Game"));
-
-    }
-    #[test] fn storage_unknown_mount_regression() {
-        for mounted in [None, Some(false), Some(true)] {
-            for populated in [false, true] {
-                let apps = if populated { json!([{"id":42,"name":"Game","size":1000000000}]) } else { json!([]) };
-                let d = parse(&json!([{"id":1,"mounted":mounted,"capacity":2000000000u64,"free":1000000000u64,"apps":apps}])).unwrap();
-                let (r, _) = rows(&d, None, 0, false);
-                assert_eq!(r.iter().any(|r| r.lab == "Game"), mounted == Some(true) && populated);
-                assert_eq!(r.iter().any(|r| r.lab == "Нет установленных приложений"), mounted == Some(true) && !populated);
-                assert_eq!(r.iter().any(|r| r.lab.contains("Свободно: 0.9 GB из 1.9 GB")), mounted == Some(true));
-                assert_eq!(r.iter().any(|r| r.lab == "Приложения: данные недоступны"), mounted != Some(true));
-                assert_eq!(r.iter().filter(|r| r.f).count(), 3 + usize::from(mounted == Some(true) && populated));
-                assert!(r.iter().filter(|r| r.role == "listitem").all(|r| r.f));
-            }
-        }
-    }
-
-    #[test] fn navigation_moves_between_tabs_and_app_rows_in_both_directions() {
-        use crate::screens::settings::spatial;
-        let d = parse(&json!([{ "id": 1, "mounted": true, "apps": [
-            {"id": 11, "name": "First"}, {"id": 12, "name": "Second"}
-        ] }])).unwrap();
-        let (rows, _) = rows(&d, None, 0, false);
-        let tab = rows.iter().position(|r| r.role == "tab").unwrap();
-        let first = rows.iter().position(|r| r.lab == "First").unwrap();
-        let second = rows.iter().position(|r| r.lab == "Second").unwrap();
-        let sort = rows.iter().position(|r| r.tok == "storage-sort").unwrap();
-        assert_eq!(spatial(&rows, tab, 1), Some(sort));
-        assert_eq!(spatial(&rows, sort, 1), Some(first));
-        assert_eq!(spatial(&rows, first, 1), Some(second));
-        assert_eq!(spatial(&rows, second, 0), Some(first));
-        assert_eq!(spatial(&rows, first, 0), Some(sort));
-        assert_eq!(spatial(&rows, second, 1), None);
-    }
-
-    #[test] fn defaults_to_descending_size_with_unknown_sizes_last() {
-        let d = parse(&json!([{ "id": 1, "mounted": true, "apps": [
-            {"id": 1, "name": "Small", "size": 10},
-            {"id": 2, "name": "Unknown"},
-            {"id": 3, "name": "Large", "size": 30},
-            {"id": 4, "name": "Equal", "size": 10}
-        ] }])).unwrap();
-        let (rows, _) = rows(&d, None, 0, false);
-        let names: Vec<_> = rows.iter().filter(|r| r.role == "listitem").map(|r| r.lab.as_str()).collect();
-        assert_eq!(names, ["Large", "Small", "Equal", "Unknown"]);
-    }
-
-    #[test] fn sort_menu_choices_and_direction_preserve_unknown_sizes() {
-        let d = parse(&json!([{ "id": 1, "mounted": true, "apps": [
-            {"id": 1, "name": "Small", "size": 10}, {"id": 2, "name": "Unknown"},
-            {"id": 3, "name": "Large", "size": 30}
-        ] }])).unwrap();
-        let (menu, _) = rows(&d, None, 0, true);
-        assert_eq!(menu.iter().filter(|r| r.tok.starts_with("storage-sort-option:")).count(), 4);
-        assert!(menu.iter().any(|r| r.tok == "storage-direction"));
-        let names: Vec<_> = rows(&d, None, 3, false).0.into_iter().filter(|r| r.role == "listitem").map(|r| r.lab).collect();
-        assert_eq!(names, ["Small", "Large", "Unknown"]);
-    }
-
-    #[test] fn storage_bar_uses_only_confirmed_capacity_and_free_space() {
-        for (mounted, capacity, free, widths) in [
-            (Some(true), Some(100), Some(25), Some((576., 192.))),
-            (Some(true), Some(100), Some(101), None),
-            (Some(true), None, Some(25), None),
-            (Some(false), Some(100), Some(25), None),
-        ] {
-            let d = Drive { id: 1, label: String::new(), drive: String::new(), path: String::new(), fixed: None, mounted, capacity, free, apps: vec![], categories: [None; 7] };
-            let (rows, _) = rows(&[d], None, 0, false);
-            // Bar segments are 12 px high; the legend's Free swatch shares kind 17 but is 10 px.
-            let bar: Vec<_> = rows.iter().filter(|r| (r.k == 16 || r.k == 17) && r.h == 12.).map(|r| r.w).collect();
-            match widths { Some((used, free)) => assert_eq!(bar, vec![used, free]), None => assert!(bar.is_empty()) }
-        }
-    }
-
-    #[test] fn categories_and_sort_modes_use_steam_data() {
-        let d = parse(&json!([{ "id": 1, "mounted": true, "capacity": 1000, "free": 400,
-            "game": 200, "dlc": 100, "workshop": 50, "staged": 20, "shader": 30, "media": 20, "used": 580,
-            "apps": [{"id": 1, "name": "Zulu", "sort": "zulu", "size": 100, "played": 10},
-                     {"id": 2, "name": "Alpha", "sort": "alpha", "size": 10, "played": 20}] }])).unwrap();
-        let names = |sort| rows(&d, None, sort, false).0.into_iter().filter(|r| r.role == "listitem").map(|r| r.lab).collect::<Vec<_>>();
-        assert_eq!(names(0), ["Zulu", "Alpha"]);
-        assert_eq!(names(1), ["Alpha", "Zulu"]);
-        assert_eq!(names(2), ["Alpha", "Zulu"]);
-        let r = rows(&d, None, 0, false).0;
-        assert!(r.iter().any(|r| r.lab.starts_with("ИГРЫ")));
-        assert_eq!(r.iter().filter(|r| (18..=22).contains(&r.k) && r.h == 12.).count(), 5);
-    }
-
-    // Layout lint for the legend: eight entries fill three rows, and with three device cards the
-    // lowest row must still end above the app-list header. Sizes are binary GiB.
-    #[test] fn legend_has_other_and_free_and_stays_clear_of_the_app_header() {
-        let d = parse(&json!([
-            {"id":0,"mounted":true,"capacity":10737418240u64,"free":5368709120u64,"used":3221225472u64,
-             "game":1073741824,"dlc":268435456,"workshop":268435456,"staged":536870912,"shader":268435456,"media":268435456,
-             "apps":[{"id":1,"name":"Game","size":1073741824}]},
-            {"id":1,"drive":"/run/media/mmcblk0p1","mounted":true,"apps":[]},
-            {"id":2,"label":"Third","mounted":true,"apps":[]}
-        ])).unwrap();
-        let (r, _) = rows(&d, Some(0), 0, false);
-        let legend: Vec<_> = r.iter().filter(|r| r.k == 12 && r.lab.contains("  ")).collect();
-        assert_eq!(legend.len(), 8);
-        assert!(r.iter().any(|r| r.lab == "ДРУГОЕ  1.5 GB" && r.k == 12));
-        assert!(r.iter().any(|r| r.lab == "СВОБОДНО  5.0 GB" && r.k == 12));
-        assert!(r.iter().any(|r| r.k == 23 && r.w == 10. && r.h == 10.), "other swatch");
-        assert!(r.iter().any(|r| r.k == 17 && r.w == 10. && r.h == 10.), "free swatch");
-        let header = r.iter().find(|r| r.lab.starts_with("Приложений")).unwrap();
-        assert!(legend.iter().all(|l| l.y + l.h <= header.y), "legend overlaps the app header");
-        for (i, a) in r.iter().enumerate() {
-            for b in &r[i + 1..] {
-                assert!(a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y, "overlap: {:?} / {:?}", a.lab, b.lab);
-            }
-        }
-    }
-
-    /// Row lint for the legend (task 143): every swatch is a 10 px round dot (sub "dot") centred on its text row, the text
-    /// starts 16 px right of its dot, is bold (sub "legend") and uppercase, and rows never overlap.
-    #[test] fn legend_rows_are_round_dots_with_bold_uppercase_labels() {
-        let d = parse(&json!([
-            {"id":0,"mounted":true,"capacity":10737418240u64,"free":5368709120u64,"used":3221225472u64,
-             "game":1073741824,"dlc":268435456,"workshop":268435456,"staged":536870912,"shader":268435456,"media":268435456,
-             "apps":[{"id":1,"name":"Game","size":1073741824}]},
-            {"id":1,"drive":"/run/media/mmcblk0p1","mounted":true,"apps":[]}
-        ])).unwrap();
-        let (r, _) = rows(&d, Some(0), 0, false);
-        let dots: Vec<_> = r.iter().filter(|r| r.full == "dot").collect();
-        let texts: Vec<_> = r.iter().filter(|r| r.full == "legend").collect();
-        assert_eq!(dots.len(), 8, "one dot per legend entry");
-        assert_eq!(texts.len(), 8, "one bold label per legend entry");
-        for dot in &dots {
-            assert!(matches!(dot.k, 17 | 18..=23 | 25), "dot kind {}", dot.k);
-            assert_eq!((dot.w, dot.h), (10., 10.), "dot size");
-            // the dot's centre (y + 5) lines up with the text row's centre (y + 13 of a 26 px row)
-            let text = texts.iter().find(|t| (t.y + 13.) == (dot.y + 5.) && (t.x - (dot.x + 16.)).abs() < 0.5)
-                .unwrap_or_else(|| panic!("no label beside dot at {}, {}", dot.x, dot.y));
-            assert_eq!(text.lab, text.lab.to_uppercase(), "legend label must be uppercase: {}", text.lab);
-            assert!(text.lab.contains("  "), "label has a value: {}", text.lab);
-        }
-        for (i, a) in r.iter().enumerate() {
-            for b in &r[i + 1..] {
-                assert!(a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y, "overlap: {:?} / {:?}", a.lab, b.lab);
-            }
-        }
-    }
-
-    // Without the breakdown (no category data), the bar is used/free only and Other is not listed.
-    #[test] fn legend_omits_other_without_the_breakdown() {
-        let d = parse(&json!([{"id":0,"mounted":true,"capacity":2000,"free":500,"apps":[]}])).unwrap();
-        let (r, _) = rows(&d, None, 0, false);
-        assert!(!r.iter().any(|r| r.lab.starts_with("ДРУГОЕ")));
-        assert!(r.iter().any(|r| r.lab == "СВОБОДНО  0.0 GB" && r.k == 12));
-    }
-
-}
+#[path = "storage_tests.rs"]
+mod tests;

@@ -3,6 +3,7 @@
 //! when the source's mode supports that setting key). The layout itself arrives from Steam only as protobuf messages
 //! (RegisterForControllerConfigInfoMessages) into the internal `v3` store. The root reads active metadata from
 //! Steam and available local Deck VDF settings. The Buttons editor reads the native editing copy; Undo restores raw bindings.
+use steam_assets::i18n::{tr_args, tr_ref};
 use std::cell::RefCell;
 use std::cell::Cell;
 use std::collections::HashMap;
@@ -173,8 +174,8 @@ fn root_texts(s: &St) -> (String, String) {
     if let Some(active) = s.root_active.as_ref().filter(|v| !v.title.is_empty()) { return (active.author_name.clone(), layout_title(&active.title)); }
     match &s.layout {
         Some(l) => (l.author.clone(), l.name.clone()),
-        None if s.editor_busy => (String::new(), "Чтение раскладки Steam…".into()),
-        None => (String::new(), "Раскладка Steam недоступна".into()),
+        None if s.editor_busy => (String::new(), tr_ref("controller.reading_steam_layout").into()),
+        None => (String::new(), tr_ref("controller.steam_layout_unavailable").into()),
     }
 }
 fn root_geo(s: &St) -> Geo {
@@ -192,7 +193,7 @@ pub fn fmt_val(v: &Val) -> String {
     }
     match v.unit {
         Unit::Mult => format!("{:.1}x", v.v),
-        Unit::Pixels => format!("{}пикс.", v.v.round() as i64),
+        Unit::Pixels => tr_args("controller.pixels_px", &[("pixels", &(v.v.round() as i64).to_string())]),
     }
 }
 
@@ -205,24 +206,24 @@ pub fn rows(l: Option<&Layout>) -> Vec<Row> {
             r.push(Row::Grips(g));
         }
         if let Some(s) = &l.gyro {
-            r.push(Row::Mode { src: "gyro", label: t_or("#ControllerConfigurator_SourceMode_Group_Behavior", "Функции: Гироскоп"), value: s.mode.clone() });
+            r.push(Row::Mode { src: "gyro", label: t_or("#ControllerConfigurator_SourceMode_Group_Behavior", tr_ref("controller.behavior_gyro")).replace("%1$s", tr_ref("controller.gyro_3")), value: s.mode.clone() });
             for v in [&s.sens, &s.natural, &s.pixels].into_iter().flatten() {
                 r.push(Row::Slider(v.clone()));
             }
             if let Some(on) = s.invert {
-                r.push(Row::Toggle { key: "invert_y", src: "gyro", label: "Инвертировать ось Y гироскопа".into(), on });
+                r.push(Row::Toggle { key: "invert_y", src: "gyro", label: tr_ref("controller.invert_gyro_y_axis").into(), on });
             }
             if let Some(v) = &s.min_out {
                 r.push(Row::Slider(v.clone()));
             }
         }
         if let Some(s) = &l.rpad {
-            r.push(Row::Mode { src: "rpad", label: "Функции: Правый трекпад".into(), value: s.mode.clone() });
+            r.push(Row::Mode { src: "rpad", label: tr_ref("controller.behavior_right_trackpad").into(), value: s.mode.clone() });
             if let Some(v) = &s.sens {
                 r.push(Row::Slider(v.clone()));
             }
             if let Some(on) = s.invert {
-                r.push(Row::Toggle { key: "invert_y", src: "rpad", label: "Инвертировать ось Y правого трекпада".into(), on });
+                r.push(Row::Toggle { key: "invert_y", src: "rpad", label: tr_ref("controller.invert_right_trackpad_y_axis").into(), on });
             }
         }
         if let Some(s) = &l.rstick {
@@ -230,7 +231,7 @@ pub fn rows(l: Option<&Layout>) -> Vec<Row> {
                 r.push(Row::Slider(v.clone()));
             }
             if let Some(on) = s.invert {
-                r.push(Row::Toggle { key: "invert_y", src: "rstick", label: "Инвертировать ось Y правого джойстика".into(), on });
+                r.push(Row::Toggle { key: "invert_y", src: "rstick", label: tr_ref("controller.invert_right_joystick_y_axis").into(), on });
             }
         }
     }
@@ -239,10 +240,10 @@ pub fn rows(l: Option<&Layout>) -> Vec<Row> {
 
 fn label_of(v: &Val) -> String {
     match v.key {
-        "gyro_natural" => "Чувствительность гироскопа (в °)".into(),
-        "gyro_pixels" => "Точек на 360°".into(),
-        "gyro_sens" => "Чувствительность гироскопа".into(),
-        "min_out" => "Минимальный выход гироскопа в джойстик".into(),
+        "gyro_natural" => tr_ref("controller.gyro_sensitivity").into(),
+        "gyro_pixels" => tr_ref("controller.dots_per_360").into(),
+        "gyro_sens" => tr_ref("controller.gyro_sensitivity_2").into(),
+        "min_out" => tr_ref("controller.minimum_gyro_output_to_joystick").into(),
         k => k.into(),
     }
 }
@@ -327,9 +328,9 @@ pub fn parse_vdf(t: &str) -> V {
 fn mode_label(m: &str) -> String {
     match m {
         // Stock root (root/40m, quick-settings/09): a source without an active group shows «Не выбрано».
-        "" => "Не выбрано".into(),
-        "gyro_to_mouse" => t_or("#ControllerConfigurator_SourceMode_Gyro_To_Mouse_Title", "Гироскоп как мышь"),
-        "mouse_joystick" => t_or("#ControllerConfigurator_SourceMode_MouseJoystick_Title", "Как джойстик"),
+        "" => tr_ref("controller.none").into(),
+        "gyro_to_mouse" => t_or("#ControllerConfigurator_SourceMode_Gyro_To_Mouse_Title", tr_ref("controller.gyro_to_mouse")),
+        "mouse_joystick" => t_or("#ControllerConfigurator_SourceMode_MouseJoystick_Title", tr_ref("controller.as_joystick")),
         o => o.to_string(),
     }
 }
@@ -463,7 +464,79 @@ fn st() -> std::cell::RefMut<'static, St> {
     ST.with(|s| s.borrow_mut())
 }
 
+pub(crate) fn wire_text(ui: &AppWindow) {
+    let text = ui.global::<crate::ControllerText>();
+    text.set_a_b_back(tr_ref("controller.a_b_back").into());
+    text.set_activation_style(t_or("#ControllerBinding_SoftPress_SoftPressStyle", tr_ref("controller.activation_style")).into());
+    text.set_add_extra_command(t_or("#ControllerConfigurator_Activator_ContextMenuItem_AddActivator_Title", tr_ref("controller.add_extra_command")).into());
+    text.set_add_sub_command(t_or("#ControllerConfigurator_Activator_ContextMenuItem_AddExtraBinding_Title", tr_ref("controller.add_sub_command")).into());
+    text.set_author(tr_ref("controller.author").into());
+    text.set_b_back(tr_ref("controller.b_back").into());
+    text.set_cancel(t_or("#Button_Cancel", tr_ref("controller.cancel")).into());
+    text.set_choose_a_keyboard_command_face_buttons_a(tr_ref("controller.choose_a_keyboard_command_face_buttons_a").into());
+    text.set_close(t_or("#ControllerWelcome_Close", tr_ref("controller.close")).into());
+    text.set_commands(tr_ref("controller.commands").into());
+    text.set_community_layouts_2(t_or("#ControllerConfigurator_ChooseConfiguration_Community", tr_ref("controller.community_layouts_2")).into());
+    text.set_community_layouts_3(tr_ref("controller.community_layouts_3").into());
+    text.set_could_not_complete_the_action(tr_ref("controller.could_not_complete_the_action").into());
+    text.set_current_layout(t_or("#AppControllerConfiguration_CurrentConfiguration", tr_ref("controller.current_layout")).into());
+    text.set_cycle_commands(t_or("#ControllerBinding_Chord_CycleBindings", tr_ref("controller.cycle_commands")).into());
+    text.set_deadzones(t_or("#ControllerConfigurator_Setting_Section_Deadzone", tr_ref("controller.deadzones")).into());
+    text.set_demo_data_applying_disabled(tr_ref("controller.demo_data_applying_disabled").into());
+    text.set_description(tr_ref("controller.description").into());
+    text.set_done(t_or("#Button_Done", tr_ref("controller.done")).into());
+    text.set_edit_layout(t_or("#AppControllerConfiguration_Edit", tr_ref("controller.edit_layout")).into());
+    text.set_edit_multi_binding_timing(t_or("#ControllerConfigurator_Activator_ContextMenuItem_MultiBindingTiming_Title", tr_ref("controller.edit_multi_binding_timing")).into());
+    text.set_edit_value(tr_ref("controller.edit_value").into());
+    text.set_export_layout(t_or("#AppControllerConfiguration_Export", tr_ref("controller.export_layout")).into());
+    text.set_fire_end_delay(t_or("#ControllerBinding_Chord_EndDelay", tr_ref("controller.fire_end_delay")).into());
+    text.set_fire_start_delay(t_or("#ControllerBinding_Chord_StartDelay", tr_ref("controller.fire_start_delay")).into());
+    text.set_haptics_intensity(t_or("#ControllerBinding_Chord_HapticIntensity", tr_ref("controller.haptics_intensity")).into());
+    text.set_haptics_settings(tr_ref("controller.haptics_settings").into());
+    text.set_hold_to_repeat_turbo(t_or("#ControllerBinding_HoldRepeatsDpad", tr_ref("controller.hold_to_repeat_turbo")).into());
+    text.set_hours_played(tr_ref("controller.hours_played").into());
+    text.set_if_the_game_has_no_official_controller_support(tr_ref("controller.if_the_game_has_no_official_controller_support").into());
+    text.set_interruptable(t_or("#ControllerBinding_Chord_Interruptable", tr_ref("controller.interruptable")).into());
+    text.set_invert_activation(t_or("#ControllerBinding_Chord_Invert", tr_ref("controller.invert_activation")).into());
+    text.set_joystick_settings(tr_ref("controller.joystick_settings").into());
+    text.set_layout_details(tr_ref("controller.layout_details").into());
+    text.set_layout_id(tr_ref("controller.layout_id").into());
+    text.set_layout_list_is_currently_unavailable(tr_ref("controller.layout_list_is_currently_unavailable").into());
+    text.set_layout_loaded_changes_affect_the_editing_copy(tr_ref("controller.layout_loaded_changes_affect_the_editing_copy").into());
+    text.set_layout_options(t_or("#ControllerConfigurator_Main_ContextMenu_Title", tr_ref("controller.layout_options")).into());
+    text.set_layout_preview(tr_ref("controller.layout_preview").into());
+    text.set_load_new_layout(t_or("#ControllerConfigurator_ChooseConfiguration_Title", tr_ref("controller.load_new_layout")).into());
+    text.set_multi_binding_timing(t_or("#ControllerConfigurator_MultiBinding_Title", tr_ref("controller.multi_binding_timing")).into());
+    text.set_ring_command(t_or("#ControllerConfigurator_Setting_Section_EdgeBinding", tr_ref("controller.outer_ring_command")).into());
+    text.set_output(t_or("#ControllerConfigurator_Setting_Section_Output", tr_ref("controller.output")).into());
+    text.set_press_500_ms_release_start_end_values_are(tr_ref("controller.press_500_ms_release_start_end_values_are").into());
+    text.set_quick_settings(tr_ref("controller.quick_settings").into());
+    text.set_remove_this_command(t_or("#ControllerConfigurator_Activator_ContextMenuItem_RemoveCommand_Title", tr_ref("controller.remove_this_command")).into());
+    text.set_rename_command(t_or("#ControllerConfigurator_Activator_ContextMenuItem_Rename_Title", tr_ref("controller.rename_command")).into());
+    text.set_revert_changes(t_or("#AppControllerConfiguration_RevertChanges", tr_ref("controller.revert_changes")).into());
+    text.set_search_2(t_or("#ControllerConfigurator_ChooseConfiguration_Search", tr_ref("controller.search_2")).into());
+    text.set_sensitivity(t_or("#ControllerConfigurator_Setting_Section_Sensitivity", tr_ref("controller.sensitivity")).into());
+    text.set_settings(tr_ref("controller.settings").into());
+    text.set_settings_2(tr_ref("controller.settings_2").into());
+    text.set_settings_3(tr_ref("controller.settings_3").into());
+    text.set_settings_4(tr_ref("controller.settings_4").into());
+    text.set_share_layout_with_community(tr_ref("controller.share_layout_with_community").into());
+    text.set_soft_press_threshold(t_or("#ControllerBinding_SoftPress_Threshold", tr_ref("controller.soft_press_threshold")).into());
+    text.set_steam_input(t_or("#ControllerConfigurator_Interstitial_Intro_Title", tr_ref("controller.steam_input")).into());
+    text.set_switch_to_unique_configuration_for_this_device(tr_ref("controller.switch_to_unique_configuration_for_this_device").into());
+    text.set_this_control_only_produces_one_command_so_there(t_or("#ControllerConfigurator_MultiBinding_SingleBinding", tr_ref("controller.this_control_only_produces_one_command_so_there")).into());
+    text.set_title(tr_ref("controller.title").into());
+    text.set_toggle(t_or("#ControllerSettingValue_Toggle", tr_ref("controller.toggle")).into());
+    text.set_unread(tr_ref("controller.unread").into());
+    text.set_url(tr_ref("controller.url").into());
+    text.set_view_layout(t_or("#AppControllerConfiguration_ViewLayout", tr_ref("controller.view_layout")).into());
+    text.set_x_apply_layout(tr_ref("controller.x_apply_layout").into());
+    text.set_x_download_and_apply(tr_ref("controller.x_download_and_apply").into());
+    text.set_x_undo(tr_ref("controller.x_undo").into());
+}
+
 pub fn wire(ui: &AppWindow) {
+    wire_text(ui);
     ui.global::<ControllerState>().on_menu_selected(|i| super::defer(move |a| { st().menu_focus = i.max(0) as usize; if st().menu_page >= 4 { binding_menu_handle(a, Action::A) } else { menu_activate(a) } }));
     ui.global::<ControllerState>().on_clicked(|i| super::defer(move |a| {
         if st().quick_slider.is_some() { return handle_quick_slider(a, Action::A); }
@@ -622,17 +695,17 @@ fn selected_controller_index(bridge: &steam_bridge::Bridge, tab: u8) -> steam_br
         }))
     })"#)?;
     let devices: ControllerDevices = serde_json::from_value(value)
-        .map_err(|err| steam_bridge::Error::Protocol(format!("Steam: список контроллеров: {err}")))?;
+        .map_err(|err| steam_bridge::Error::Protocol(tr_args("controller.steam_controller_list_err", &[("err", &err.to_string())])))?;
     devices.for_tab(tab)
-        .ok_or_else(|| steam_bridge::Error::Protocol("Выбранный контроллер не найден".into()))
+        .ok_or_else(|| steam_bridge::Error::Protocol(tr_ref("controller.selected_controller_not_found").into()))
 }
 
 pub fn open(a: &mut App, id: u32) {
     if controller_gyro::active(Owner::Editor) || controller_gyro::active(Owner::Settings) { return; }
-    if st().editor_busy {a.toast("Дождитесь завершения операции с раскладкой");return;}
+    if st().editor_busy {a.toast(tr_ref("controller.wait_for_the_layout_operation_to_finish"));return;}
     if st().editing.is_some() {stop_editor(a);return;}
     let name = if id == 413080 {
-        crate::assets::t_or("#Settings_Controller_DesktopConfig", "Раскладка для режима рабочего стола")
+        crate::assets::t_or("#Settings_Controller_DesktopConfig", tr_ref("controller.desktop_layout"))
     } else {
         a.gidx.get(&id).map(|&gi| a.games()[gi].name.clone()).unwrap_or_default()
     };
@@ -714,7 +787,7 @@ pub fn refresh_connection(a: &mut App) {
 }
 
 pub fn close(a: &mut App) {
-    if st().editor_busy {a.toast("Дождитесь завершения операции с раскладкой");return;}
+    if st().editor_busy {a.toast(tr_ref("controller.wait_for_the_layout_operation_to_finish"));return;}
     controller_gyro::close(a, Owner::Editor);
     if st().editing.is_some() {stop_editor(a);}
     super::osk::detach(a, ACTION_SET_SINK);
@@ -743,7 +816,7 @@ pub fn hints() -> Vec<(&'static str, &'static str, i32, &'static str, Action)> {
     if browser_open {
         if st().browser_preview.is_some() {
             let mut hints = Vec::new();
-            if !fixture_catalog() { hints.push(("x", "Применить раскладку", 1, "X", Action::X)); }
+            if !fixture_catalog() { hints.push(("x", tr_ref("controller.apply_layout"), 1, "X", Action::X)); }
             hints.push(("b", "#ActionButtonLabelBack", 1, "Esc", Action::B));
             return hints;
         }
@@ -767,7 +840,7 @@ pub fn hints() -> Vec<(&'static str, &'static str, i32, &'static str, Action)> {
                 } else if entry.sections & 8 != 0 && steam_bridge::controller_list::check_personal_url(&entry.url).is_ok() {
                     hints.push(("menu", "#ControllerConfigurator_ChooseConfiguration_Delete", 2, "F9", Action::Menu));
                 } else if entry.url.starts_with("template://") {
-                    hints.push(("y", "Создать копию", 1, "F4", Action::Y));
+                    hints.push(("y", tr_ref("controller.create_copy"), 1, "F4", Action::Y));
                 }
             }
             if focused_browser_entry(&s).is_none_or(|entry| selectable(&s, entry) || fixture_catalog()) {
@@ -785,9 +858,9 @@ pub fn hints() -> Vec<(&'static str, &'static str, i32, &'static str, Action)> {
         let slider = pad_slider_focused(&p, &rows) && st().pad_number.is_none();
         let mut h = Vec::new();
         if slider && p.choice.is_none() {
-            h.push(("y", if p.fine { "Обычный сдвиг" } else { "Плавный сдвиг" }, 1, "F4", Action::Y));
-            h.push(("menu", "Изменить значение", 2, "F9", Action::Menu));
-            h.push(("a", if p.slider { "Готово" } else { "Изменить положение ползунка" }, 1, "Enter", Action::A));
+            h.push(("y", if p.fine { tr_ref("controller.regular_mode_shift") } else { tr_ref("controller.fine_adjustment") }, 1, "F4", Action::Y));
+            h.push(("menu", tr_ref("controller.edit_value"), 2, "F9", Action::Menu));
+            h.push(("a", if p.slider { tr_ref("controller.done") } else { tr_ref("controller.adjust_slider") }, 1, "Enter", Action::A));
         } else {
             h.push(("a", "#ActionButtonLabelSelect", 1, "Enter", Action::A));
         }
@@ -798,12 +871,12 @@ pub fn hints() -> Vec<(&'static str, &'static str, i32, &'static str, Action)> {
         // Stock editor: Y swaps left/right on pair pages, A selects, B goes back; «Отменить» only while there is something to undo.
         let (pair, undo, save, sets) = { let s = st(); let main = s.editor.as_ref().is_some_and(|f| !f.picker_open) && s.stick_settings.is_none(); (main && focused_swap_pair(&s).is_some(), !s.editor_undo.is_empty(), main && s.editor_dirty, main && s.editing.as_ref().and_then(|e| live::msg(&e.1, 8).ok()).is_some_and(|sets| sets.len() > 1)) };
         let mut h = Vec::new();
-        if save { h.push(("menu", "Сохранить", 2, "F9", Action::Menu)); }
-        if sets { h.push(("r1", "Следующий набор", 1, "R1", Action::RB)); }
-        if pair { h.push(("y", "Поменять левую кнопку на правую", 1, "F4", Action::Y)); }
-        if undo { h.push(("x", "Отменить", 1, "X", Action::X)); }
+        if save { h.push(("menu", tr_ref("controller.save"), 2, "F9", Action::Menu)); }
+        if sets { h.push(("r1", tr_ref("controller.next_set"), 1, "R1", Action::RB)); }
+        if pair { h.push(("y", tr_ref("controller.swap_left_with_right"), 1, "F4", Action::Y)); }
+        if undo { h.push(("x", tr_ref("controller.discard"), 1, "X", Action::X)); }
         if st().editor.as_ref().is_some_and(|f| !f.picker_open) && st().stick_settings.is_none() {
-            h.push(("view", "Предпросмотр", 2, "F10", Action::View));
+            h.push(("view", tr_ref("controller.preview"), 2, "F10", Action::View));
         }
         h.push(("a", "#ActionButtonLabelSelect", 1, "Enter", Action::A));
         h.push(("b", "#ActionButtonLabelBack", 1, "Esc", Action::B));
@@ -811,10 +884,10 @@ pub fn hints() -> Vec<(&'static str, &'static str, i32, &'static str, Action)> {
     }
     let select = {
         let s = st();
-        if s.quick_slider.is_some() { "Готово" }
-        else if focused_quick_slider(&s).is_some() { "Изменить положение ползунка" }
-        else if foc == F_CARD { "Загрузить раскладку" }
-        else if foc == F_HELP { "Помощь" }
+        if s.quick_slider.is_some() { tr_ref("controller.done") }
+        else if focused_quick_slider(&s).is_some() { tr_ref("controller.adjust_slider") }
+        else if foc == F_CARD { tr_ref("controller.load_new_layout") }
+        else if foc == F_HELP { tr_ref("controller.help") }
         else { "#ActionButtonLabelSelect" }
     };
     vec![("a", select, 1, "Enter", Action::A), ("b", "#ActionButtonLabelBack", 1, "Esc", Action::B)]
@@ -904,7 +977,7 @@ fn activate(a: &mut App) {
             let row = st().rows.get((f - F_ROW0) as usize).cloned();
             match row {
                 Some(Row::Live(r)) => return quick_activate(a, &r),
-                _ => a.toast(&t_or("#DeckShell_ControllerReadOnly", "Только просмотр: изменение раскладки пока недоступно")),
+                _ => a.toast(&t_or("#DeckShell_ControllerReadOnly", tr_ref("controller.view_only_editing_this_layout_is_unavailable"))),
             }
         }
     }
@@ -924,14 +997,14 @@ fn menu_activate(a: &mut App) {
         2 => s.menu_page = 2,
         5 => s.menu_page = 0,
         0 => { drop(s); return open_export(a); }
-        1 => { s.menu_page = 3; s.menu_error = "Публикация не поддерживается. Раскладка не отправлена в сообщество.".into(); },
+        1 => { s.menu_page = 3; s.menu_error = tr_ref("controller.publishing_is_unavailable_the_layout_was_not_shared").into(); },
         4 => {
             let id = s.app_id;
             let source = s.root_active.as_ref().zip(s.root_controller_index).map(|(active, index)| (active.url.clone(), index));
             drop(s);
-            let Some((url, index)) = source else { a.toast("Текущая раскладка не прочитана из Steam"); return; };
-            if steam_bridge::controller_list::check_personal_url(&url).is_ok() { a.toast("Текущая раскладка уже личная"); return; }
-            layout_write(a, id, Some(index), "Своя раскладка создана из текущей", LayoutWriteEffect::RefreshQuick, move |bridge, index| bridge.layout_create_from_current(id, index, Some(&url)));
+            let Some((url, index)) = source else { a.toast(tr_ref("controller.the_current_layout_has_not_been_read_from")); return; };
+            if steam_bridge::controller_list::check_personal_url(&url).is_ok() { a.toast(tr_ref("controller.the_current_layout_is_already_personal")); return; }
+            layout_write(a, id, Some(index), tr_ref("controller.created_a_personal_layout_from_the_current_layout"), LayoutWriteEffect::RefreshQuick, move |bridge, index| bridge.layout_create_from_current(id, index, Some(&url)));
             return;
         }
         _ => (),
@@ -947,15 +1020,15 @@ fn export_default_name(active: Option<&ActiveLayout>) -> String {
     active.filter(|a| a.url.starts_with("autosave://") && !a.title.starts_with('#') && a.title != "$$$autosave").map(|a| a.title.chars().take(steam_bridge::controller_list::EXPORT_TITLE_MAX).collect()).unwrap_or_default()
 }
 
-fn export_message(name: &str) -> String { format!("Сохранить как… (Личная, локально)\nНазвание: {name}_\nEnter — сохранить, B — отмена") }
+fn export_message(name: &str) -> String { tr_args("controller.save_as_personal_local_name_name_enter_save", &[("name", name)]) }
 
 const EXPORT_SINK: super::osk::ExtSink = super::osk::ExtSink {
     id: 14, mode: super::osk::InputMode::Normal, typed: type_export_name, enter: commit_export, cancel: cancel_export,
 };
 
 fn open_export(a: &mut App) {
-    if fixture_catalog() || crate::actions::dryrun() { a.toast("Пробный запуск: запись раскладки не выполняется"); return; }
-    let name = { let s = st(); if s.root_active.is_none() || s.root_controller_index.is_none() { drop(s); a.toast("Текущая раскладка не прочитана из Steam"); return; } export_default_name(s.root_active.as_ref()) };
+    if fixture_catalog() || crate::actions::dryrun() { a.toast(tr_ref("controller.dry_run_layout_writes_are_disabled")); return; }
+    let name = { let s = st(); if s.root_active.is_none() || s.root_controller_index.is_none() { drop(s); a.toast(tr_ref("controller.the_current_layout_has_not_been_read_from")); return; } export_default_name(s.root_active.as_ref()) };
     { let mut s = st(); s.menu_page = 3; s.menu_error = export_message(&name); s.export_prompt = Some(name); }
     super::osk::attach(a, EXPORT_SINK);
     sync(a);
@@ -982,11 +1055,11 @@ fn cancel_export(a: &mut App) {
 
 fn commit_export(a: &mut App) {
     let (name, id, index) = { let s = st(); (s.export_prompt.clone().unwrap_or_default(), s.app_id, s.root_controller_index) };
-    if steam_bridge::controller_list::check_export_text(&name, "").is_err() { a.toast("Введите название раскладки"); return; }
+    if steam_bridge::controller_list::check_export_text(&name, "").is_err() { a.toast(tr_ref("controller.enter_a_name_for_the_layout")); return; }
     { let mut s = st(); s.export_prompt = None; s.menu_page = 0; }
     super::osk::detach(a, EXPORT_SINK);
     let title = name.trim().to_owned();
-    layout_write(a, id, index, format!("Раскладка сохранена как «{title}»"), LayoutWriteEffect::RefreshList, move |bridge, idx| bridge.layout_export_local(id, idx, &title, ""));
+    layout_write(a, id, index, tr_args("controller.layout_saved_as_title", &[("title", &title.to_string())]), LayoutWriteEffect::RefreshList, move |bridge, idx| bridge.layout_export_local(id, idx, &title, ""));
 }
 
 fn layout_info_link(app: u32, info: &ActiveLayout) -> Option<String> {
@@ -1005,18 +1078,18 @@ fn request_menu_info(a: &mut App) {
         s.menu_generation = s.menu_generation.wrapping_add(1);
         (s.app_id, s.menu_generation, s.tab)
     };
-    let Some(bridge) = crate::actions::bridge() else { st().menu_description = "Steam недоступен".into(); return; };
+    let Some(bridge) = crate::actions::bridge() else { st().menu_description = tr_ref("controller.steam_unavailable").into(); return; };
     let spawn = std::thread::Builder::new().name("controller-layout-info".into()).spawn(move || {
         let result = selected_controller_index(&bridge, tab)
             .map_err(|e| e.to_string())
             .and_then(|idx| {
-                let active = bridge.layout_active_with_author(id, idx).map_err(|e| e.to_string())?.ok_or_else(|| "Активная раскладка не найдена".to_string())?;
+                let active = bridge.layout_active_with_author(id, idx).map_err(|e| e.to_string())?.ok_or_else(|| tr_ref("controller.active_layout_not_found").to_string())?;
                 let desc = bridge.layout_list(id, idx, false).map_err(|e| eprintln!("[controller] layout_list: {e}")).ok().and_then(|items| items.into_iter().find(|entry| entry.url == active.url)).map(|entry| entry.description).unwrap_or_default();
                 let details = active.published_file_id.filter(|id| *id > 1000)
                     .and_then(|id| bridge.layout_details(&[id]).map_err(|e| eprintln!("[controller] layout_details: {e}")).ok())
                     .and_then(|items| items.into_iter().find(|d| d.result == 1));
                 let author = if active.url.starts_with("template://") {
-                    t_or("#AppControllerConfiguration_TemplateConfig", "Шаблон")
+                    t_or("#AppControllerConfiguration_TemplateConfig", tr_ref("controller.template"))
                 } else {
                     active.author_name.clone()
                 };
@@ -1043,7 +1116,7 @@ fn request_menu_info(a: &mut App) {
             }
         });
     });
-    if spawn.is_err() { st().menu_description = "Не удалось запросить данные Steam".into(); }
+    if spawn.is_err() { st().menu_description = tr_ref("controller.could_not_request_steam_data").into(); }
     sync(a);
 }
 
@@ -1101,7 +1174,7 @@ fn request_browser_list(a: &mut App, first: bool) {
         return;
     }
     let Some(bridge) = crate::actions::bridge() else {
-        st().browser_entries = Some(Err("Steam недоступен".into()));
+        st().browser_entries = Some(Err(tr_ref("controller.steam_unavailable").into()));
         sync(a);
         return;
     };
@@ -1165,7 +1238,7 @@ fn request_browser_list(a: &mut App, first: bool) {
             });
         }
     });
-    if spawned.is_err() { st().browser_entries = Some(Err("Не удалось запустить загрузку".into())); }
+    if spawned.is_err() { st().browser_entries = Some(Err(tr_ref("controller.could_not_start_the_download").into())); }
     sync(a);
 }
 
@@ -1224,7 +1297,7 @@ fn update_browser_tabs(browser: &mut Browser, entries: &[LayoutEntry], app_id: u
 /// A / Y / Menu on a focused chooser card (task 505): the decision is `controller_layout_actions::decide`; writes go through the
 /// bridge on a worker thread and never run under DECKSHELL_DRYRUN. The list is reloaded afterwards, so the card marks follow Steam.
 fn layout_card_action(a: &mut App, button: LButton) {
-    if fixture_catalog() && !matches!(button, LButton::A) { a.toast("Демонстрационный каталог: изменения отключены"); return; }
+    if fixture_catalog() && !matches!(button, LButton::A) { a.toast(tr_ref("controller.demo_catalog_changes_are_disabled")); return; }
     if st().editor_busy { return; }
     if button == LButton::A && !fixture_catalog() {
         let pending = focused_browser_entry(&st()).filter(|entry| entry.published_file_id.is_some() && !entry.downloaded).cloned();
@@ -1256,11 +1329,11 @@ fn layout_card_action(a: &mut App, button: LButton) {
     match plan {
         Plan::Preview => unreachable!(),
         Plan::Nothing => {}
-        Plan::Info(m) => a.toast(m),
-        Plan::ConfirmDelete { .. } => a.toast("Удалить свою раскладку? Нажмите кнопку меню ещё раз"),
-        Plan::Apply { url, selection_type } => layout_write(a, id, Some(index), "Раскладка применена", LayoutWriteEffect::RefreshQuick, move |b, idx| b.layout_select(id, idx, &url, selection_type)),
-        Plan::CreateFromTemplate { url } => layout_write(a, id, Some(index), "Своя раскладка создана из шаблона", LayoutWriteEffect::RefreshQuick, move |b, idx| b.layout_create_from_template(id, idx, &url)),
-        Plan::Delete { url, selected_type } => layout_write(a, id, Some(index), "Раскладка удалена", LayoutWriteEffect::RefreshQuick, move |b, idx| b.layout_delete_personal(id, idx, &url, selected_type)),
+        Plan::Info(key) => a.toast(tr_ref(key)),
+        Plan::ConfirmDelete { .. } => a.toast(tr_ref("controller.delete_your_layout_press_the_menu_button_again")),
+        Plan::Apply { url, selection_type } => layout_write(a, id, Some(index), tr_ref("controller.layout_applied"), LayoutWriteEffect::RefreshQuick, move |b, idx| b.layout_select(id, idx, &url, selection_type)),
+        Plan::CreateFromTemplate { url } => layout_write(a, id, Some(index), tr_ref("controller.created_a_personal_layout_from_the_template"), LayoutWriteEffect::RefreshQuick, move |b, idx| b.layout_create_from_template(id, idx, &url)),
+        Plan::Delete { url, selected_type } => layout_write(a, id, Some(index), tr_ref("controller.layout_deleted"), LayoutWriteEffect::RefreshQuick, move |b, idx| b.layout_delete_personal(id, idx, &url, selected_type)),
     }
     sync(a);
 }
@@ -1307,7 +1380,7 @@ fn browser_vote(s: &St) -> Option<(u64, bool)> {
 
 fn vote_browser_layout(a: &mut App, published_id: u64, voted_up: bool) {
     let (app, index) = { let s = st(); (s.app_id, s.browser_controller_index) };
-    let done = if voted_up { "Голос убран" } else { "Голос учтён" };
+    let done = if voted_up { tr_ref("controller.vote_removed") } else { tr_ref("controller.voted") };
     layout_write(a, app, index, done, LayoutWriteEffect::RefreshList, move |bridge, _| bridge.layout_vote(published_id, !voted_up));
 }
 
@@ -1319,7 +1392,7 @@ fn download_focused_layout(a: &mut App, preview: bool) {
     let Some((app, index, entry)) = request else { return; };
     let published_id = entry.published_file_id.unwrap();
     let effect = if preview { LayoutWriteEffect::Preview(entry) } else { LayoutWriteEffect::RefreshList };
-    layout_write(a, app, index, "Раскладка загружена", effect, move |bridge, _| bridge.layout_download(published_id));
+    layout_write(a, app, index, tr_ref("controller.layout_downloaded"), effect, move |bridge, _| bridge.layout_download(published_id));
 }
 
 fn download_browser_layout(a: &mut App) {
@@ -1344,19 +1417,19 @@ enum LayoutWriteEffect {
 fn layout_write(a: &mut App, id: u32, index: Option<u32>, done: impl Into<String>, effect: LayoutWriteEffect, call: impl FnOnce(&steam_bridge::Bridge, u32) -> steam_bridge::Result<()> + Send + 'static) {
     let done: String = done.into();
     if st().editor_busy { return; }
-    if fixture_catalog() { a.toast("Демонстрационный каталог: изменения отключены"); return; }
-    if crate::actions::dryrun() { eprintln!("[deckshell] DRYRUN controller layout write app {id}: {done}"); a.toast("Пробный запуск: запись раскладки не выполняется"); return; }
-    let Some(bridge) = crate::actions::bridge() else { a.toast("Steam недоступен"); return };
+    if fixture_catalog() { a.toast(tr_ref("controller.demo_catalog_changes_are_disabled")); return; }
+    if crate::actions::dryrun() { eprintln!("[deckshell] DRYRUN controller layout write app {id}: {done}"); a.toast(tr_ref("controller.dry_run_layout_writes_are_disabled")); return; }
+    let Some(bridge) = crate::actions::bridge() else { a.toast(tr_ref("controller.steam_unavailable")); return };
     let tab = {
         let mut s = st();
         s.editor_busy = true;
         s.tab
     };
-    a.toast("Steam обрабатывает раскладку…");
+    a.toast(tr_ref("controller.steam_is_processing_the_layout"));
     let generation = st().browser_generation;
     let spawned = std::thread::Builder::new().name("controller-layout-write".into()).spawn(move || {
         let result = selected_controller_index(&bridge, tab).map_err(|e| e.to_string())
-            .and_then(|idx| if index.is_none_or(|expected| expected == idx) { call(&bridge, idx).map_err(|e| e.to_string()) } else { Err("Активный контроллер изменился".into()) });
+            .and_then(|idx| if index.is_none_or(|expected| expected == idx) { call(&bridge, idx).map_err(|e| e.to_string()) } else { Err(tr_ref("controller.the_active_controller_changed").into()) });
         super::defer(move |a| {
             if st().app_id != id { return; }
             st().editor_busy = false;
@@ -1380,7 +1453,7 @@ fn layout_write(a: &mut App, id: u32, index: Option<u32>, done: impl Into<String
                     }
                 }
             }
-            a.toast(&match result { Ok(()) => done, Err(e) => format!("Не удалось: {e}") });
+            a.toast(&match result { Ok(()) => done, Err(e) => tr_args("controller.failed_e", &[("e", &e.to_string())]) });
             if layout_changed {
                 let mut s = st();
                 s.quick = None;
@@ -1392,7 +1465,7 @@ fn layout_write(a: &mut App, id: u32, index: Option<u32>, done: impl Into<String
             if st().browser_open { request_browser_list(a, false); } else { sync(a); }
         });
     });
-    if spawned.is_err() { st().editor_busy = false; a.toast("Не удалось запустить запись"); }
+    if spawned.is_err() { st().editor_busy = false; a.toast(tr_ref("controller.could_not_start_the_write")); }
     sync(a);
 }
 
@@ -1423,7 +1496,7 @@ fn browser_icon(name: &str, focused: bool) -> slint::Image {
 }
 
 fn layout_title(title: &str) -> String {
-    if title == "$$$autosave" { t_or("#SettingsController_AutosaveName", "Личное автосохранение") } else { title.to_owned() }
+    if title == "$$$autosave" { t_or("#SettingsController_AutosaveName", tr_ref("controller.personal_autosave")) } else { title.to_owned() }
 }
 
 fn visible_layouts<'a>(s: &'a St, browser: &Browser) -> Vec<&'a LayoutEntry> {
@@ -1499,7 +1572,7 @@ pub fn page_model_raw(raw: &[u8], section: usize) -> (Vec<ControllerEditorRow>, 
     let bindings = live::rows(raw).unwrap_or_default();
     page_model(raw, &bindings, section)
 }
-pub fn section_title(section: usize) -> &'static str { pages::SECTION_TITLES[section.min(7)] }
+pub fn section_title(section: usize) -> &'static str { tr_ref(pages::SECTION_TITLES[section.min(7)]) }
 fn editor_model(s: &St, section: usize) -> (Vec<ControllerEditorRow>, Vec<(f32, f32)>, f32) {
     match &s.editing { Some(e) => model_items(page_items_of(s, section), &e.2), None => (Vec::new(), Vec::new(), 0.) }
 }
@@ -1512,7 +1585,7 @@ fn editor_activate(a: &mut App) {
     let item = focusable_of(&s, section).get(row).and_then(|&i| items.get(i)).cloned();
     if column == Column::Rail {
         if let (Some(it), Some(f)) = (item.as_ref(), s.editor.as_mut()) { f.column = if controls_of(it) == RowControls::GearOnly { Column::Gear } else { Column::Value }; }
-        else { drop(s); a.toast("В этом разделе пока нет доступных строк"); return; }
+        else { drop(s); a.toast(tr_ref("controller.this_section_has_no_available_settings")); return; }
         drop(s); sync(a); return;
     }
     let Some(it) = item else { return };
@@ -1542,7 +1615,7 @@ fn editor_activate(a: &mut App) {
     }
     if it.kind == pages::Kind::Function && column == Column::Value {
         if let Some(source) = it.source.filter(|&source| !quick::mode_choices(source).is_empty()) {
-            if s.editing.is_none() { drop(s); a.toast("Раскладка ещё читается"); return; }
+            if s.editing.is_none() { drop(s); a.toast(tr_ref("controller.the_layout_is_still_loading")); return; }
             let current = s.editing.as_ref().map_or(0, |e| quick::mode_in_set(&e.1, s.editor_set_index, source));
             let cursor = quick::list_modes(source, false, current).iter().position(|m| *m == current).unwrap_or(0);
             s.quick_dialog = Some((source, cursor));
@@ -1559,11 +1632,11 @@ fn editor_activate(a: &mut App) {
             None
         }
         (pages::Kind::Function, Some(index)) => {
-            if s.editing.is_none() { Some("Раскладка ещё читается") }
+            if s.editing.is_none() { Some(tr_ref("controller.the_layout_is_still_loading")) }
             else {
                 let mode = s.editing.as_ref().and_then(|e| sticks::sticks(&e.1).ok()).and_then(|v| v.get(index).map(|x| x.mode));
                 if mode == Some(6) { s.stick_index = index; let mut focus = editor::StickFocus::default(); focus.content = true; s.stick_settings = Some(focus); None }
-                else { s.editor_status = "Параметры этого режима стика пока недоступны".into(); None }
+                else { s.editor_status = tr_ref("controller.settings_for_this_stick_mode_are_unavailable").into(); None }
             }
         }
         (pages::Kind::Input, _) if column == Column::Value && it.binding.is_some() => { if let Some(f) = s.editor.as_mut() { f.picker_open = true; } s.picker_tab = 0; None }
@@ -1571,13 +1644,13 @@ fn editor_activate(a: &mut App) {
             // «Добавить команду»: the picker writes a new command (append) after the same readback/rollback as a replacement.
             match empty_target_of(&s, &it) {
                 Ok(_) => { if let Some(f) = s.editor.as_mut() { f.picker_open = true; } s.picker_tab = 0; None }
-                Err(_) => Some("Для этого входа нет режима источника в раскладке"),
+                Err(_) => Some(tr_ref("controller.this_input_has_no_source_mode_in_the")),
             }
         }
-        (pages::Kind::Function, _) => Some("Для этого источника список режимов не найден в раскладке"),
-        (pages::Kind::Param, _) => Some("Эта настройка пока недоступна: запись параметров активатора не подтверждена"),
-        (pages::Kind::Button, _) | (pages::Kind::SetRow, _) => Some("Это действие пока недоступно: вызов Steam не подтверждён"),
-        _ => Some("Настройка пока недоступна"),
+        (pages::Kind::Function, _) => Some(tr_ref("controller.no_modes_found_for_this_source_in_the")),
+        (pages::Kind::Param, _) => Some(tr_ref("controller.this_setting_is_unavailable_activator_parameter_writes_are")),
+        (pages::Kind::Button, _) | (pages::Kind::SetRow, _) => Some(tr_ref("controller.this_action_is_unavailable_the_steam_call_is")),
+        _ => Some(tr_ref("controller.setting_unavailable")),
     };
     drop(s);
     if let Some(m) = message { a.toast(m); }
@@ -1629,7 +1702,7 @@ fn binding_menu_handle(a: &mut App, act: Action) {
         _ => (),
     }
     drop(s);
-    if toast { a.toast("Только просмотр: запись настроек привязки не подтверждена"); }
+    if toast { a.toast(tr_ref("controller.view_only_binding_settings_writes_are_unverified")); }
     if let Some((target, value)) = write { write_activation(a, target, value, false); }
     sync(a);
 }
@@ -1858,7 +1931,7 @@ fn stick_parameters(s:&St,section:usize)->Vec<sticks::Setting> {
 }
 fn stick_rows(s:&St,section:usize)->Vec<ControllerSettingRow> {
     let mut y=0.;stick_parameters(s,section).into_iter().map(|p|{
-        let kind=if p.toggle {1}else if p.choices.is_empty(){0}else{2};let h=if kind==0{138.}else{96.};
+        let kind=if p.toggle {1}else if p.choice_keys.is_empty(){0}else{2};let h=if kind==0{138.}else{96.};
         let fraction=if p.toggle{p.value as f32}else if p.max>p.min{(p.value-p.min) as f32/(p.max-p.min) as f32}else{0.};
         let row=ControllerSettingRow{kind,label:p.label.into(),value:p.text().into(),fraction,y,h,..Default::default()};y+=h+9.;row
     }).collect()
@@ -1875,27 +1948,27 @@ fn sync(a: &mut App) {
     g.set_menu_focus(s.menu_focus as i32);
     g.set_menu_error(s.menu_error.clone().into());
     g.set_menu_choices(ModelRc::new(VecModel::from(s.bind_activations.iter().map(|v| slint::SharedString::from(bind::activation_label(*v)))
-        .chain(std::iter::once(t_or("#ActionButtonLabelCancel", "Отмена").into())).collect::<Vec<_>>())));
+        .chain(std::iter::once(t_or("#ActionButtonLabelCancel", tr_ref("controller.cancel")).into())).collect::<Vec<_>>())));
     g.set_menu_activation(s.bind_target.as_ref().and_then(|t| s.editing.as_ref().and_then(|e| live::activation_at(&e.1, t))).map(bind::activation_label).unwrap_or_default().into());
-    g.set_menu_info_name(if s.menu_page >= 4 { s.bind_name.clone().into() } else { s.menu_info.as_ref().map(|v| v.title.as_str()).filter(|v| !v.is_empty()).unwrap_or("Данные недоступны").into() });
-    g.set_menu_info_author(if s.menu_author.is_empty() { "Данные недоступны".into() } else { s.menu_author.clone().into() });
-    g.set_menu_info_url(s.menu_info.as_ref().map(|v| v.url.as_str()).filter(|v| !v.is_empty()).unwrap_or("Данные недоступны").into());
+    g.set_menu_info_name(if s.menu_page >= 4 { s.bind_name.clone().into() } else { s.menu_info.as_ref().map(|v| v.title.as_str()).filter(|v| !v.is_empty()).unwrap_or(tr_ref("controller.data_unavailable")).into() });
+    g.set_menu_info_author(if s.menu_author.is_empty() { tr_ref("controller.data_unavailable").into() } else { s.menu_author.clone().into() });
+    g.set_menu_info_url(s.menu_info.as_ref().map(|v| v.url.as_str()).filter(|v| !v.is_empty()).unwrap_or(tr_ref("controller.data_unavailable")).into());
     let link = s.menu_info.as_ref().and_then(|info| layout_info_link(s.app_id, info));
     g.set_menu_info_id(link.as_ref().and_then(|_| s.menu_info.as_ref()?.published_file_id)
         .map(|id| id.to_string()).unwrap_or_default().into());
     let link_status = if s.menu_info.is_none() { String::new() }
-        else if s.menu_link_copied { t_or("#AppControllerConfiguration_Configuration_LinkInfo", "Ссылка на раскладку скопирована в буфер обмена") }
-        else if link.is_none() { t_or("#AppControllerConfiguration_Configuration_NoLinkInfo", "Раскладка недоступна в облаке") }
+        else if s.menu_link_copied { t_or("#AppControllerConfiguration_Configuration_LinkInfo", tr_ref("controller.link_to_layout_copied_to_clipboard")) }
+        else if link.is_none() { t_or("#AppControllerConfiguration_Configuration_NoLinkInfo", tr_ref("controller.layout_unavailable_in_cloud")) }
         else { String::new() };
     g.set_menu_info_link_status(link_status.into());
     g.set_menu_info_link(link.unwrap_or_default().into());
-    g.set_menu_info_description(if s.menu_description.is_empty() { "Данные недоступны" } else { &s.menu_description }.into());
+    g.set_menu_info_description(if s.menu_description.is_empty() { tr_ref("controller.data_unavailable") } else { &s.menu_description }.into());
     g.set_command_dialog_open(s.command_dialog.is_some());
     sync_pad(&g, &s);
     if let Some(d)=&s.command_dialog {
         g.set_command_dialog_title(editor::command_label(&live::command(7,9,d.action)).into());
         g.set_command_dialog_focus(d.cursor as i32);
-        g.set_command_dialog_rows(ModelRc::new(VecModel::from(d.parameters.iter().map(|p|format!("{}:  ‹ {} ›",p.label,p.text()).into()).chain(std::iter::once("Применить команду".into())).collect::<Vec<slint::SharedString>>())));
+        g.set_command_dialog_rows(ModelRc::new(VecModel::from(d.parameters.iter().map(|p|format!("{}:  ‹ {} ›",p.label,p.text()).into()).chain(std::iter::once(tr_ref("controller.apply_command").into())).collect::<Vec<slint::SharedString>>())));
     }
     g.set_editor_fixture_open(s.editor.is_some());
     g.set_picker_fixture_open(s.editor.as_ref().is_some_and(|f| f.picker_open));
@@ -1909,29 +1982,29 @@ fn sync(a: &mut App) {
         g.set_editor_active_section(f.section as i32); g.set_editor_focus_row(if f.column == Column::Rail { -1 } else { focusable_of(&s, f.section).get(f.row).map_or(-1, |&i| i as i32) });
         g.set_editor_focus_gear(f.column == Column::Gear);
         // Names correspond to the controller source/input pairs in Steam's configurator.
-        let sections = [("Кнопки", "shared_button_a"), ("Крестовина", "shared_dpad"), ("Триггеры", "sd_l2"), ("Джойстики", "shared_lstick"), ("Трекпады", "sd_ltrackpad_swipe"), ("Гироскопы", "shared_gyro"), ("Виртуальное меню", ""), ("Наборы действий", "")];
+        let sections = [(tr_ref("controller.buttons"), "shared_button_a"), (tr_ref("controller.dpad"), "shared_dpad"), (tr_ref("controller.triggers"), "sd_l2"), (tr_ref("controller.joysticks"), "shared_lstick"), (tr_ref("controller.trackpads"), "sd_ltrackpad_swipe"), (tr_ref("controller.gyro"), "shared_gyro"), (tr_ref("controller.virtual_menus"), ""), (tr_ref("controller.action_sets"), "")];
         let glyph = |name: &str| crate::assets::controller_glyph(name, "knockout.md").unwrap_or_default();
         g.set_editor_sections(ModelRc::new(VecModel::from(sections.into_iter().map(|(label, name)| ControllerEditorSection { label: label.into(), glyph: glyph(name) }).collect::<Vec<_>>())));
         let (model_rows, spans, content) = editor_model(&s, f.section);
         let focus_item = focusable_of(&s, f.section).get(f.row).copied();
         g.set_editor_rows(ModelRc::new(VecModel::from(model_rows)));
         g.set_editor_content_height(content);
-        let rows_y = if s.editor_status == "Раскладка прочитана · изменения в редактируемой копии" { if f.section == 7 { 96. } else { 93. } } else { 132. };
+        let rows_y = if s.editor_status == tr_ref("controller.layout_loaded_changes_affect_the_editing_copy") { if f.section == 7 { 96. } else { 93. } } else { 132. };
         g.set_editor_rows_y(rows_y);
         g.set_editor_status(s.editor_status.clone().into());
         g.set_editor_can_undo(!s.editor_undo.is_empty() && !s.editor_busy);
         g.set_editor_scroll(match (f.column == Column::Rail, focus_item.and_then(|i| spans.get(i))) { (false, Some(&(y, h))) => (y + h - (600. - rows_y)).max(0.), _ => 0. });
         let tab=s.picker_tab; let tabs=picker_tabs(&s);
-        g.set_picker_tabs(ModelRc::new(VecModel::from(tabs.iter().map(|t|["ГЕЙМПАД","МЫШЬ","КЛАВИАТУРА","ЦИФРОВАЯ КЛАВИАТУРА","НАБОРЫ ДЕЙСТВИЙ","СИСТЕМА","КАМЕРА","ДЕЙСТВИЯ ИГРЫ"][*t].into()).collect::<Vec<slint::SharedString>>())));
+        g.set_picker_tabs(ModelRc::new(VecModel::from(tabs.iter().map(|t|[tr_ref("controller.gamepad"),tr_ref("controller.mouse"),tr_ref("controller.keyboard"),tr_ref("controller.numpad"),tr_ref("controller.action_sets_2"),tr_ref("controller.system"),tr_ref("controller.camera"),tr_ref("controller.game_actions")][*t].into()).collect::<Vec<slint::SharedString>>())));
         g.set_picker_fixture_tab(tabs.iter().position(|t|*t==tab).unwrap_or(0) as i32); g.set_picker_focus(s.picker_cursors[tab] as i32);
-        let names=["геймпада", "мыши", "клавиатуры", "клавиатуры", "набора действий", "системы", "камеры", "игры"];
+        let names=[tr_ref("controller.gamepad_2"), tr_ref("controller.mouse_2"), tr_ref("controller.keyboard_2"), tr_ref("controller.keyboard_2"), tr_ref("controller.action_set"), tr_ref("controller.system_2"), tr_ref("controller.camera_2"), tr_ref("controller.game")];
         let button=editor_binding(&s).map(|r|r.label.as_str()).unwrap_or("");
-        g.set_picker_fixture_title(format!("Выберите команду {}: {} → {}",names[tab],section_title(f.section),button).into());
+        g.set_picker_fixture_title(tr_args("controller.choose_a_device_command_section_button", &[("device", names[tab]), ("section", section_title(f.section)), ("button", button)]).into());
         g.set_picker_keys(ModelRc::new(VecModel::from(picker_keys(&s).into_iter().enumerate().map(|(i,k)| { let binding=picker_binding(&s,i).unwrap_or_default(); ControllerPickerKey { label: k.label.into(), x: k.x, y: k.y, w: k.w, h: k.h, center: k.center, bottom: k.bottom, glyph: editor::command_glyph(&binding,false), focused_glyph: editor::command_glyph(&binding,true), glyph_only: tab==0 && i>=6, ..Default::default() } }).collect::<Vec<_>>())));
     }
     g.set_settings_fixture_open(s.stick_settings.is_some());
     if let Some(f) = &s.stick_settings {
-        let names = ["Чувствительность", "Вывод", "Мёртвые зоны", "Внешнее кольцо", "Тактильная отдача"];
+        let names = [tr_ref("controller.sensitivity"), tr_ref("controller.output"), tr_ref("controller.deadzones"), tr_ref("controller.outer_ring_command"), tr_ref("controller.haptics_settings")];
         g.set_setting_section(f.section as i32); g.set_setting_title(names[f.section].into());
         g.set_setting_focus(if f.content { f.row as i32 } else { -1 });
         let rows = stick_rows(&s,f.section);
@@ -1966,15 +2039,15 @@ fn sync_browser(g: &ControllerState, s: &St, fixture: bool) {
         // Stock replaces the whole chooser with a spinner while the list loads, so no tab is shown yet.
         let tabs = if s.browser_entries.is_none() { Vec::new() } else { browser.availability.tabs() };
         let tab_geometry = |tab| match (tab, tabs.len() == 5) {
-            (Tab::Recommended, _) => ("РЕКОМЕНДАЦИИ", 282.0),
-            (Tab::User, true) => ("МОИ", 145.0),
-            (Tab::User, false) => ("МОИ РАСКЛАДКИ", 250.0),
-            (Tab::Templates, true) => ("ШАБЛОНЫ", 206.0),
-            (Tab::Templates, false) => ("ШАБЛОНЫ", 215.109375),
-            (Tab::Community, true) => ("СООБЩЕСТВО", 275.0),
-            (Tab::Community, false) => ("РАСКЛАДКИ СООБЩЕСТВА", 392.421875),
-            (Tab::Search, true) => ("ПОИСК", 160.0),
-            (Tab::Search, false) => ("ПОИСК", 173.109375),
+            (Tab::Recommended, _) => (tr_ref("controller.recommended"), 282.0),
+            (Tab::User, true) => (tr_ref("controller.yours"), 145.0),
+            (Tab::User, false) => (tr_ref("controller.your_layouts"), 250.0),
+            (Tab::Templates, true) => (tr_ref("controller.templates"), 206.0),
+            (Tab::Templates, false) => (tr_ref("controller.templates"), 215.109375),
+            (Tab::Community, true) => (tr_ref("controller.community"), 275.0),
+            (Tab::Community, false) => (tr_ref("controller.community_layouts"), 392.421875),
+            (Tab::Search, true) => (tr_ref("controller.search"), 160.0),
+            (Tab::Search, false) => (tr_ref("controller.search"), 173.109375),
         };
         let width = tabs.iter().map(|&tab| tab_geometry(tab).1).sum::<f32>() + tabs.len().saturating_sub(1) as f32 * 3.0;
         let mut x = (1280.0 - width) / 2.0;
@@ -1997,8 +2070,8 @@ fn sync_browser(g: &ControllerState, s: &St, fixture: bool) {
             let description_height = lines as f32 * 24.0;
             let workshop = matches!(browser.active, Tab::Community | Tab::Search);
             let revision = match entry.revision_mismatch {
-                2 => t_or("#AppControllerConfiguration_OutdatedConfig", "Устаревшая раскладка"),
-                3 => t_or("#AppControllerConfiguration_RequiresSteamInputConfig", "Требуется раскладка Steam Input"),
+                2 => t_or("#AppControllerConfiguration_OutdatedConfig", tr_ref("controller.outdated_layout")),
+                3 => t_or("#AppControllerConfiguration_RequiresSteamInputConfig", tr_ref("controller.steam_input_layout_required")),
                 _ => String::new(),
             };
             let playtime = workshop && revision.is_empty() && entry.has_playtime;
@@ -2013,22 +2086,22 @@ fn sync_browser(g: &ControllerState, s: &St, fixture: bool) {
             };
             let (status, status_icon) = if entry.published_file_id.is_some() {
                 let (key, label, icon) = if entry.downloading {
-                    ("#AppControllerConfiguration_Downloading", "Загружается", "Download")
+                    ("#AppControllerConfiguration_Downloading", tr_ref("controller.downloading"), "Download")
                 } else if entry.downloaded {
-                    ("#AppControllerConfiguration_Downloaded", "Загружено", "Checkmark")
+                    ("#AppControllerConfiguration_Downloaded", tr_ref("controller.downloaded"), "Checkmark")
                 } else {
-                    ("#AppControllerConfiguration_NotDownloaded", "Не загружено", "Download")
+                    ("#AppControllerConfiguration_NotDownloaded", tr_ref("controller.not_downloaded"), "Download")
                 };
                 (t_or(key, label).to_uppercase(), icon)
             } else { (String::new(), "") };
             let updated = if browser.active == Tab::User && !entry.updated_label.is_empty() {
-                t_or("#AppControllerConfiguration_ConfigUpdated", "Обновлено %1$s").replace("%1$s", &entry.updated_label).to_uppercase()
+                t_or("#AppControllerConfiguration_ConfigUpdated", tr_ref("controller.updated_1_s")).replace("%1$s", &entry.updated_label).to_uppercase()
             } else { String::new() };
             let selected = steam_bridge::controller_list::is_active(entry, s.browser_active.as_ref());
-            let prefix = if browser.active == Tab::Search { format!("{}: ", if entry.game_name.is_empty() { if entry.app_id == 0 { "Шаблон".to_string() } else { entry.app_id.to_string() } } else { entry.game_name.clone() }) } else { String::new() };
+            let prefix = if browser.active == Tab::Search { format!("{}: ", if entry.game_name.is_empty() { if entry.app_id == 0 { tr_ref("controller.template").to_string() } else { entry.app_id.to_string() } } else { entry.game_name.clone() }) } else { String::new() };
             let title = layout_title(&entry.title);
             let card = ControllerConfigCard { y, title: title.clone().into(), title_prefix_font: chooser_font(&prefix), title_prefix: prefix.into(), title_prefix_width: if browser.active == Tab::Search { entry.title_prefix_width } else { 0.0 }, description: entry.description.clone().into(),
-                author: (if browser.active == Tab::Templates || (browser.active == Tab::Recommended && entry.sections & 32 != 0) { if entry.recommended { t_or("#AppControllerConfiguration_RecommendedTemplateConfig", "Рекомендуемый шаблон") } else { t_or("#AppControllerConfiguration_TemplateConfig", "Шаблон") } } else { entry.author_name.clone() }).into(),
+                author: (if browser.active == Tab::Templates || (browser.active == Tab::Recommended && entry.sections & 32 != 0) { if entry.recommended { t_or("#AppControllerConfiguration_RecommendedTemplateConfig", tr_ref("controller.recommended_template")) } else { t_or("#AppControllerConfiguration_TemplateConfig", tr_ref("controller.template")) } } else { entry.author_name.clone() }).into(),
                 recommended: entry.recommended, glyph: crate::assets::controller_icon(controller_icon_name(entry.controller_type)).unwrap_or_default(), focused_glyph: browser_icon(controller_icon_name(entry.controller_type), true),
                 vote_glyph: vote_icon(false), vote_glyph_focused: vote_icon(true),
                 time_glyph: if playtime { browser_icon("Clock", false) } else { Default::default() }, time_glyph_focused: browser_icon("Clock", true),
@@ -2038,8 +2111,8 @@ fn sync_browser(g: &ControllerState, s: &St, fixture: bool) {
                 updated: updated.into(), updated_glyph: browser_icon("Edit", false), updated_glyph_focused: browser_icon("Edit", true),
                 votes: votes.map(|v| v.up.to_string()).unwrap_or_default().into(),
                 playtime_number: if playtime { entry.playtime_seconds.to_string() } else { String::new() }.into(), playtime_number_width: if playtime { entry.playtime_number_width } else { 0.0 },
-                playtime: if playtime { format!("{} Ч. СЫГРАНО", entry.playtime_seconds) } else { String::new() }.into(),
-                title_font: chooser_font(&title), author_font: chooser_font(if browser.active == Tab::Templates { "Шаблон" } else { &entry.author_name }), description_font: chooser_font(&entry.description),
+                playtime: if playtime { tr_args("controller.hours_hours_played", &[("hours", &entry.playtime_seconds.to_string())]) } else { String::new() }.into(),
+                title_font: chooser_font(&title), author_font: chooser_font(if browser.active == Tab::Templates { tr_ref("controller.template") } else { &entry.author_name }), description_font: chooser_font(&entry.description),
                 description_height, ..Default::default() };
             y += 12.0 + if !card.status.is_empty() || !card.votes.is_empty() || !card.playtime.is_empty() || !card.revision.is_empty() || !card.updated.is_empty() { 30.0 } else if !card.author.is_empty() { 24.0 } else { 0.0 } + 34.5 + description_height + 15.0 + 9.0;
             card
@@ -2058,22 +2131,22 @@ fn sync_browser(g: &ControllerState, s: &St, fixture: bool) {
         g.set_browser_focused_card(if let Focus::Card(i) = browser.focus { i as i32 } else { -1 });
         // Section titles and descriptions are the sp.js keys of each chooser section (empty fallback = not shown).
         let (title_key, title_fallback, description_key) = match browser.active {
-            Tab::Recommended if browser.availability.official > 0 => ("#ControllerConfigurator_ChooseConfiguration_Official", "Официальные раскладки", "#ControllerConfigurator_ChooseConfiguration_Official_Description"),
-            Tab::Recommended => ("#ControllerConfigurator_ChooseConfiguration_Recommended", "Рекомендуемые раскладки", "#ControllerConfigurator_ChooseConfiguration_Recommended_Description"),
-            Tab::User => ("#ControllerConfigurator_ChooseConfiguration_User", "Мои раскладки", ""),
-            Tab::Templates => ("#ControllerConfigurator_ChooseConfiguration_Template", "Шаблоны", "#ControllerConfigurator_ChooseConfiguration_Template_Description"),
-            Tab::Community => ("#ControllerConfigurator_ChooseConfiguration_Community", "Раскладки сообщества", ""),
-            Tab::Search => ("#ControllerConfigurator_ChooseConfiguration_SearchResults", "Поиск", ""),
+            Tab::Recommended if browser.availability.official > 0 => ("#ControllerConfigurator_ChooseConfiguration_Official", tr_ref("controller.official_layouts"), "#ControllerConfigurator_ChooseConfiguration_Official_Description"),
+            Tab::Recommended => ("#ControllerConfigurator_ChooseConfiguration_Recommended", tr_ref("controller.recommended_layouts"), "#ControllerConfigurator_ChooseConfiguration_Recommended_Description"),
+            Tab::User => ("#ControllerConfigurator_ChooseConfiguration_User", tr_ref("controller.your_layouts_2"), ""),
+            Tab::Templates => ("#ControllerConfigurator_ChooseConfiguration_Template", tr_ref("controller.templates_2"), "#ControllerConfigurator_ChooseConfiguration_Template_Description"),
+            Tab::Community => ("#ControllerConfigurator_ChooseConfiguration_Community", tr_ref("controller.community_layouts_2"), ""),
+            Tab::Search => ("#ControllerConfigurator_ChooseConfiguration_SearchResults", tr_ref("controller.search_2"), ""),
         };
         let title = t_or(title_key, title_fallback);
-        g.set_browser_page_title(if fixture { format!("{title} · Демоданные") } else { title }.into());
+        g.set_browser_page_title(if fixture { tr_args("controller.title_demo_data", &[("title", &title.to_string())]) } else { title }.into());
         // Stock prints the description only over a non-empty list; an empty list prints its own text instead.
-        let subtitle = if has_cards && !description_key.is_empty() { t_or(description_key, if browser.active == Tab::Templates { "Раскладки от Valve" } else if browser.availability.official > 0 { "Рекомендовано разработчиками игры" } else { "" }) } else { String::new() };
+        let subtitle = if has_cards && !description_key.is_empty() { t_or(description_key, if browser.active == Tab::Templates { tr_ref("controller.layouts_created_by_valve") } else if browser.availability.official > 0 { tr_ref("controller.layouts_selected_by_the_game_s_developer") } else { "" }) } else { String::new() };
         g.set_browser_page_subtitle(subtitle.into());
         let (load, message) = match &s.browser_entries {
-            None => (0, "Загрузка раскладок…".to_string()),
-            Some(Err(_)) => (2, "Список раскладок недоступен. Для просмотра примеров запустите с DECKSHELL_CONTROLLER_FIXTURES=1.".to_string()),
-            Some(Ok(_)) => (1, t_or("#ControllerConfigurator_ChooseConfiguration_EmptyDescription", "Раскладки не найдены.")),
+            None => (0, tr_ref("controller.loading_layouts").to_string()),
+            Some(Err(_)) => (2, tr_ref("controller.layout_list_unavailable_to_see_examples_launch_with").to_string()),
+            Some(Ok(_)) => (1, t_or("#ControllerConfigurator_ChooseConfiguration_EmptyDescription", tr_ref("controller.no_layouts_found"))),
         };
         g.set_browser_load_state(load);
         g.set_browser_message(message.into());
@@ -2099,19 +2172,19 @@ fn help_text(page: u8, tab: u8) -> String {
     let paragraphs = match page {
         1 => [
             if tab == 0 {
-                localized("#ControllerConfigurator_Interstitial_Intro_DescA1", "Steam Input преобразует ввод с Deck в команды игры.")
+                localized("#ControllerConfigurator_Interstitial_Intro_DescA1", tr_ref("controller.steam_input_converts_deck_input_into_game_commands"))
             } else {
-                localized("#ControllerConfigurator_Interstitial_Intro_DescA1_NonDeck", "Steam Input преобразует ввод с геймпада в команды игры.")
+                localized("#ControllerConfigurator_Interstitial_Intro_DescA1_NonDeck", tr_ref("controller.steam_input_converts_gamepad_input_into_game_commands"))
             },
-            localized("#ControllerConfigurator_Interstitial_Intro_DescA2", "Командой может быть кнопка геймпада, клавиша или действие мыши."),
+            localized("#ControllerConfigurator_Interstitial_Intro_DescA2", tr_ref("controller.a_command_can_be_a_gamepad_button_a")),
         ],
         2 => [
-            localized("#ControllerConfigurator_Interstitial_Intro_DescB1", "Раскладка связывает элементы управления с командами."),
-            localized("#ControllerConfigurator_Interstitial_Intro_DescB2", "Выберите элемент ввода и назначьте команду в редакторе раскладки."),
+            localized("#ControllerConfigurator_Interstitial_Intro_DescB1", tr_ref("controller.a_layout_maps_controls_to_commands")),
+            localized("#ControllerConfigurator_Interstitial_Intro_DescB2", tr_ref("controller.select_an_input_and_assign_a_command_in")),
         ],
         _ => [
-            localized("#ControllerConfigurator_Interstitial_Intro_DescC1", "Совместимые игры уже имеют готовую раскладку."),
-            localized("#ControllerConfigurator_Interstitial_Intro_DescC2", "В быстрых настройках можно назначить кнопки хвата и гироскоп."),
+            localized("#ControllerConfigurator_Interstitial_Intro_DescC1", tr_ref("controller.compatible_games_already_have_a_layout")),
+            localized("#ControllerConfigurator_Interstitial_Intro_DescC2", tr_ref("controller.use_quick_settings_to_assign_the_grip_buttons")),
         ],
     };
     paragraphs.join("\n\n")
@@ -2120,7 +2193,7 @@ fn help_text(page: u8, tab: u8) -> String {
 fn sync_root(g: &ControllerState, s: &St) {
     g.set_help_page(i32::from(s.help_page));
     if s.help_page > 0 {
-        g.set_help_title(t_or("#ControllerConfigurator_Interstitial_Intro_Title", "Система ввода Steam").into());
+        g.set_help_title(t_or("#ControllerConfigurator_Interstitial_Intro_Title", tr_ref("controller.steam_input")).into());
         g.set_help_text(help_text(s.help_page, s.tab).into());
         if s.help_page == 1 {
             let file = if s.tab == 0 { "config1.png" } else { "interstitial_controller_config.png" };
@@ -2134,13 +2207,13 @@ fn sync_root(g: &ControllerState, s: &St) {
         let rows = live_summary(s);
         let notice = if !rows.is_empty() { "" }
             else if s.editor.is_some() { &s.editor_status }
-            else if s.quick.is_some() { "Steam не вернул набор действий для просмотра" }
-            else { s.quick_error.as_deref().unwrap_or("Чтение раскладки Steam…") };
+            else if s.quick.is_some() { tr_ref("controller.steam_returned_no_action_set_to_display") }
+            else { s.quick_error.as_deref().unwrap_or(tr_ref("controller.reading_steam_layout")) };
         g.set_summary_notice(notice.into());
         g.set_summary_rows(ModelRc::new(VecModel::from(rows)));
         g.set_summary_device(summary_device_art());
     }
-    g.set_title(format!("{} {}", t_or("#ControllerConfigurator_Title", "Настройки контроллера для"), s.name).into());
+    g.set_title(format!("{} {}", t_or("#ControllerConfigurator_Title", tr_ref("controller.controller_settings_for")), s.name).into());
     let (author, lname) = root_texts(s);
     let geo = root_geo(s);
     g.set_geo_title_y(geo.title_y.into());
@@ -2177,7 +2250,7 @@ fn sync_root(g: &ControllerState, s: &St) {
                         (2, q.label.clone(), row.slider_text_at(display.value), false, display.fraction())
                     }
                 },
-                Row::Grips(on) => (0, "Включить кнопки хвата на обратной стороне".to_string(), String::new(), *on, 0.0),
+                Row::Grips(on) => (0, tr_ref("controller.enable_back_grip_buttons").to_string(), String::new(), *on, 0.0),
                 Row::Mode { label, value, .. } => (1, label.clone(), value.clone(), false, 0.0),
                 Row::Slider(v) => (2, label_of(v), fmt_val(v), false, if v.known && v.max > v.min { ((v.v - v.min) / (v.max - v.min)).clamp(0.0, 1.0) } else { -1.0 }),
                 Row::Toggle { label, on, .. } => (0, label.clone(), String::new(), *on, 0.0),
@@ -2239,39 +2312,39 @@ fn build_deck_summary_rows() -> Vec<SummaryRow> {
     const RIGHT_PLATE: (f32, f32) = (925., 347.);
     let mut rows = Vec::new();
     // Left column: labels end at x 301, glyphs sit to the right of them.
-    rows.push(sum_row("Левый бампер", "sd_l1", 1., 300., true, (314., 22.), 153.5, Some(LEFT_PLATE)));
+    rows.push(sum_row(tr_ref("controller.left_bumper"), "sd_l1", 1., 300., true, (314., 22.), 153.5, Some(LEFT_PLATE)));
     rows.push(sum_row("", "sd_l2", 1., 300., true, (314., 22.), 191., Some(LEFT_PLATE)));
     rows.push(sum_row("", "sd_l4", 1., 300., true, (314., 22.), 237.5, Some(LEFT_PLATE)));
     rows.push(sum_row("", "sd_l5", 1., 300., true, (314., 22.), 276.5, Some(LEFT_PLATE)));
-    rows.push(sum_row("Выбрать", "sd_button_view", 1., 300., true, (313., 25.), 314.5, Some(LEFT_PLATE)));
-    rows.push(sum_head("ЛЕВЫЙ ТРЕКПАД", 8., 300., true, 354.));
-    for (label, glyph, cy) in [("Крестовина вверх", "sd_ltrackpad_up", 382.), ("Крестовина вниз", "sd_ltrackpad_down", 408.5), ("Крестовина влево", "sd_ltrackpad_left", 435.), ("Крестовина вправо", "sd_ltrackpad_right", 461.)] {
+    rows.push(sum_row(tr_ref("controller.select"), "sd_button_view", 1., 300., true, (313., 25.), 314.5, Some(LEFT_PLATE)));
+    rows.push(sum_head(tr_ref("controller.left_trackpad"), 8., 300., true, 354.));
+    for (label, glyph, cy) in [(tr_ref("controller.dpad_up"), "sd_ltrackpad_up", 382.), (tr_ref("controller.dpad_down"), "sd_ltrackpad_down", 408.5), (tr_ref("controller.dpad_left"), "sd_ltrackpad_left", 435.), (tr_ref("controller.dpad_right"), "sd_ltrackpad_right", 461.)] {
         rows.push(sum_row(label, glyph, 1., 300., true, (316., 22.), cy, Some(LEFT_PLATE)));
     }
     // Right column: labels start at x 979 (x 932 for the trackpad group), glyphs at x 944.
-    rows.push(sum_row("Правый бампер", "sd_r1", 979., 220., false, (944., 22.), 180.5, Some(RIGHT_PLATE)));
+    rows.push(sum_row(tr_ref("controller.right_bumper"), "sd_r1", 979., 220., false, (944., 22.), 180.5, Some(RIGHT_PLATE)));
     rows.push(sum_row("", "sd_r2", 979., 220., false, (944., 22.), 218., Some(RIGHT_PLATE)));
     rows.push(sum_row("", "sd_r4", 979., 220., false, (944., 22.), 265., Some(RIGHT_PLATE)));
     rows.push(sum_row("", "sd_r5", 979., 220., false, (944., 22.), 302., Some(RIGHT_PLATE)));
-    rows.push(sum_row("Начать", "sd_button_menu", 979., 220., false, (943., 24.), 341., Some(RIGHT_PLATE)));
-    rows.push(sum_head("ПРАВЫЙ ТРЕКПАД", 932., 220., false, 381.));
-    rows.push(sum_row("Джойстик", "", 932., 220., false, (0., 0.), 409., Some(RIGHT_PLATE)));
-    rows.push(sum_row("Нажатие на правый стик", "sd_rtrackpad_click", 979., 220., false, (944., 22.), 435., Some(RIGHT_PLATE)));
+    rows.push(sum_row(tr_ref("controller.start"), "sd_button_menu", 979., 220., false, (943., 24.), 341., Some(RIGHT_PLATE)));
+    rows.push(sum_head(tr_ref("controller.right_trackpad"), 932., 220., false, 381.));
+    rows.push(sum_row(tr_ref("controller.output_joystick"), "", 932., 220., false, (0., 0.), 409., Some(RIGHT_PLATE)));
+    rows.push(sum_row(tr_ref("controller.right_stick_click"), "sd_rtrackpad_click", 979., 220., false, (944., 22.), 435., Some(RIGHT_PLATE)));
     // Bottom blocks: heading at cy 593, rows from cy 624 with a 29 px step (glyph at column x).
     let bottom_plate = |x: f32| (x - 6., 230.);
-    rows.push(sum_head("КРЕСТОВИНА", 60., 220., false, 593.));
-    for (i, (label, glyph)) in [("Крестовина вверх", "shared_dpad_up"), ("Крестовина вниз", "shared_dpad_down"), ("Крестовина влево", "shared_dpad_left"), ("Крестовина вправо", "shared_dpad_right")].into_iter().enumerate() {
+    rows.push(sum_head(tr_ref("controller.d_pad"), 60., 220., false, 593.));
+    for (i, (label, glyph)) in [(tr_ref("controller.dpad_up"), "shared_dpad_up"), (tr_ref("controller.dpad_down"), "shared_dpad_down"), (tr_ref("controller.dpad_left"), "shared_dpad_left"), (tr_ref("controller.dpad_right"), "shared_dpad_right")].into_iter().enumerate() {
         rows.push(sum_row(label, glyph, 90., 200., false, (59., 24.), 624. + i as f32 * 29., Some(bottom_plate(59.))));
     }
-    rows.push(sum_head("ЛЕВЫЙ ДЖОЙСТИК", 306., 220., false, 593.));
-    rows.push(sum_row("Джойстик", "", 306., 220., false, (0., 0.), 620., Some(bottom_plate(306.))));
-    rows.push(sum_row("Нажатие на левый стик", "shared_l3", 336., 240., false, (305., 23.), 646., Some(bottom_plate(305.))));
-    rows.push(sum_head("ГИРОСКОП", 589., 140., false, 593.));
-    rows.push(sum_head("ПРАВЫЙ ДЖОЙСТИК", 751., 220., false, 593.));
-    rows.push(sum_row("Джойстик", "", 751., 220., false, (0., 0.), 620., Some(bottom_plate(751.))));
-    rows.push(sum_row("Нажатие на правый стик", "shared_r3", 781., 240., false, (750., 23.), 646., Some(bottom_plate(750.))));
-    rows.push(sum_head("ЛИЦЕВЫЕ КНОПКИ", 1043., 200., false, 593.));
-    for (i, (label, glyph)) in [("Кнопка A", "shared_button_a"), ("Кнопка B", "shared_button_b"), ("Кнопка X", "shared_button_x"), ("Кнопка Y", "shared_button_y")].into_iter().enumerate() {
+    rows.push(sum_head(tr_ref("controller.left_joystick"), 306., 220., false, 593.));
+    rows.push(sum_row(tr_ref("controller.output_joystick"), "", 306., 220., false, (0., 0.), 620., Some(bottom_plate(306.))));
+    rows.push(sum_row(tr_ref("controller.left_stick_click"), "shared_l3", 336., 240., false, (305., 23.), 646., Some(bottom_plate(305.))));
+    rows.push(sum_head(tr_ref("controller.gyro_2"), 589., 140., false, 593.));
+    rows.push(sum_head(tr_ref("controller.right_joystick"), 751., 220., false, 593.));
+    rows.push(sum_row(tr_ref("controller.output_joystick"), "", 751., 220., false, (0., 0.), 620., Some(bottom_plate(751.))));
+    rows.push(sum_row(tr_ref("controller.right_stick_click"), "shared_r3", 781., 240., false, (750., 23.), 646., Some(bottom_plate(750.))));
+    rows.push(sum_head(tr_ref("controller.face_buttons"), 1043., 200., false, 593.));
+    for (i, (label, glyph)) in [(tr_ref("controller.a_button"), "shared_button_a"), (tr_ref("controller.b_button"), "shared_button_b"), (tr_ref("controller.x_button"), "shared_button_x"), (tr_ref("controller.y_button"), "shared_button_y")].into_iter().enumerate() {
         rows.push(sum_row(label, glyph, 1074., 180., false, (1043., 22.), 624. + i as f32 * 29., Some(bottom_plate(1043.))));
     }
     rows
@@ -2516,7 +2589,7 @@ mod tests {
         official.source = steam_bridge::controller_list::LayoutSource::Official;
         official.sections = 1;
         official.url = "workshop://1".into();
-        official.title = "Ведьмак 3: Дикая Охота — Официальная раскладка".into();
+        official.title = tr_ref("controller.the_witcher_3_wild_hunt_official_layout").into();
         official.description = "Official Configuration for The Witcher 3: Wild Hunt.".into();
         official.description_lines = 1;
         official.author_name = "CD PROJEKT RED".into();
@@ -2550,7 +2623,7 @@ mod tests {
             assert!(!entries.is_empty() && entries.iter().all(|entry| entry.sections & bit != 0));
             sync_browser(&global, &state, true);
             assert_eq!(global.get_browser_cards().row_count(), entries.len());
-            assert!(global.get_browser_page_title().ends_with("Демоданные"));
+            assert!(global.get_browser_page_title().ends_with(tr_ref("controller.demo_data")));
             let tabs = global.get_browser_tabs();
             let first_tab = tabs.row_data(0).unwrap();
             let last_tab = tabs.row_data(tabs.row_count() - 1).unwrap();
@@ -2600,16 +2673,16 @@ mod tests {
         snapshot("preview-install.png");
         global.set_browser_open(false);
         global.set_browser_preview_open(false);
-        global.set_title("Настройки контроллера для Balatro".into());
+        global.set_title(tr_ref("controller.controller_settings_for_balatro").into());
         global.set_editor_fixture_open(true);
-        global.set_editor_title("Наборы действий · Инвентарь".into());
-        global.set_editor_status("Набор изменён в редакторе · Menu — сохранить".into());
+        global.set_editor_title(tr_ref("controller.action_sets_inventory").into());
+        global.set_editor_status(tr_ref("controller.set_changed_in_the_editor_menu_save").into());
         global.set_editor_active_section(7);
         global.set_editor_sections(ModelRc::new(VecModel::from(pages::SECTION_TITLES.iter().map(|title| ControllerEditorSection {
-            label: (*title).into(), ..Default::default()
+            label: tr_ref(title).into(), ..Default::default()
         }).collect::<Vec<_>>())));
         let mut layout = steam_bridge::controller_edit::Writer::new();
-        for (key, title) in [("Default", "По умолчанию"), ("Inventory", "Инвентарь")] {
+        for (key, title) in [("Default", tr_ref("controller.default")), ("Inventory", tr_ref("controller.inventory"))] {
             let mut set = steam_bridge::controller_edit::Writer::new();
             set.string(1, key);
             set.string(2, title);
@@ -2704,7 +2777,7 @@ mod tests {
         sync(&mut app);
         let g = ui.global::<ControllerState>();
         let labels = || g.get_choice_items().iter().map(|item| item.label.to_string()).collect::<Vec<_>>();
-        assert_eq!(labels(), ["Не выбрано", "Как мышь", "Как джойстик", "Создать сменный режим", "Отмена"]);
+        assert_eq!(labels(), [tr_ref("controller.none"), tr_ref("controller.as_mouse"), tr_ref("controller.as_joystick"), tr_ref("controller.create_a_mode_shift"), tr_ref("controller.cancel")]);
         handle(&mut app, Action::Down);
         handle(&mut app, Action::Down);
         assert_eq!(g.get_choice_focus(), 4);
@@ -2879,12 +2952,12 @@ mod tests {
         // The help button is an element only: activating it changes nothing and no overlay state exists.
         let s = St { open: true, foc: F_HELP, ..Default::default() };
         assert_eq!(s.foc, F_HELP);
-        assert_eq!(hints_for(F_HELP).0, "Помощь");
+        assert_eq!(hints_for(F_HELP).0, tr_ref("controller.help"));
         assert_eq!(hints_for(F_VIEW).0, "#ActionButtonLabelSelect");
     }
     fn hints_for(foc: i32) -> (&'static str, i32) {
         // same rule as `hints()` for the root page
-        let select = if foc == F_CARD { "Загрузить раскладку" } else if foc == F_HELP { "Помощь" } else { "#ActionButtonLabelSelect" };
+        let select = if foc == F_CARD { tr_ref("controller.load_new_layout") } else if foc == F_HELP { tr_ref("controller.help") } else { "#ActionButtonLabelSelect" };
         (select, foc)
     }
     #[test]
@@ -2923,7 +2996,7 @@ mod tests {
         };
         let active = |url: &str, title: &str| ActiveLayout { url: url.into(), title: title.into(), author_name: String::new(), published_file_id: None, selection_type: 3, enabled: true };
         let raw = quick::tests::layout(false, None, Some((12, Some(0))), Some(0));
-        let mut s = St { open: true, app_id: 2, name: "The Legend of Zelda: Twilight Princess".into(), foc: F_HELP, quick: Some((0, raw.clone())), root_active: Some(active("template://controller_neptune_gamepad_camera.vdf", "Геймпад с управлением камерой")), ..Default::default() };
+        let mut s = St { open: true, app_id: 2, name: "The Legend of Zelda: Twilight Princess".into(), foc: F_HELP, quick: Some((0, raw.clone())), root_active: Some(active("template://controller_neptune_gamepad_camera.vdf", tr_ref("controller.gamepad_with_camera_controls"))), ..Default::default() };
         rebuild_rows(&mut s);
         sync_root(&g, &s);
         snapshot("root-template.png");
@@ -2937,7 +3010,7 @@ mod tests {
         sync_root(&g, &s);
         snapshot("root-template-scrolled.png");
         g.set_vy(0.0);
-        let mut s = St { open: true, app_id: 3, name: "КЛЕТЬ".into(), foc: F_VIEW, quick: Some((0, raw)), root_active: Some(ActiveLayout { author_name: "death_nick_".into(), ..active("workshop://1", "Официальная раскладка КЛЕТЬ - Геймпад с управлением камерой") }), ..Default::default() };
+        let mut s = St { open: true, app_id: 3, name: tr_ref("controller.sample_game").into(), foc: F_VIEW, quick: Some((0, raw)), root_active: Some(ActiveLayout { author_name: "Sample Author".into(), ..active("workshop://1", tr_ref("controller.official_layout_for_sample_game_gamepad_with_camera")) }), ..Default::default() };
         rebuild_rows(&mut s);
         sync_root(&g, &s);
         assert!(!g.get_geo_banner());
@@ -3052,18 +3125,26 @@ mod tests {
     }
     #[test]
     fn choice_list_geometry_matches_the_stock_popups() {
-        let rows = |source: i64| {
-            // Кадры 03/04 сняты со списками из 3–4 режимов; новые списки сверяются отдельным тестом ниже.
-            let modes: &[i64] = if source == quick::RPAD { &[0, 4, 12] } else { quick::mode_choices(source) };
-            let mut r: Vec<(String, i32)> = modes.iter().map(|&m| (quick::mode_name(source, m), quick::mode_icon(source, m))).collect();
-            r.push(("Создать сменный режим".into(), 0));
-            r
+        let ru = steam_assets::i18n::by_code("ru").unwrap();
+        let rows = |options: &[(i64, &str)], source| {
+            let mut rows: Vec<_> = options.iter().map(|&(mode, key)| (ru.tr(key), quick::mode_icon(source, mode))).collect();
+            rows.push((ru.tr("controller.create_a_mode_shift"), 0));
+            rows
         };
-        // кадр 03 (гироскоп): окно 359…922 × 136…626 → 563 × 490; кадр 04 (трекпад): 431…851 × 181…580 → 420 × 399
-        let (items, w, h) = choice_model(rows(quick::GYRO), "Отмена".into());
+        // Russian Steam captures 03 and 04. Width depends on the longest translated label.
+        let gyro = rows(&[
+            (0, "controller.none"),
+            (22, "controller.gyro_to_mouse"),
+            (23, "controller.gyro_to_joystick_camera"),
+            (24, "controller.gyro_to_joystick_deflection"),
+        ], quick::GYRO);
+        let (items, w, h) = choice_model(gyro, ru.tr("controller.cancel"));
         assert_eq!((h, items.len()), (489.0, 6));
         assert!((w - 563.0).abs() < 3.0, "{w}");
-        let (_, w, h) = choice_model(rows(quick::RPAD), "Отмена".into());
+        let pad = rows(&[
+            (0, "controller.none"), (4, "controller.as_mouse"), (12, "controller.as_joystick"),
+        ], quick::RPAD);
+        let (_, w, h) = choice_model(pad, ru.tr("controller.cancel"));
         assert_eq!((w, h), (420.0, 399.0));
     }
     #[test]
@@ -3100,19 +3181,17 @@ mod tests {
     #[test]
     fn formats() {
         assert_eq!(fmt_val(&val("gyro_natural", 0.6, Unit::Mult)), "0.6x");
-        assert_eq!(fmt_val(&val("gyro_pixels", 6545.0, Unit::Pixels)), "6545пикс.");
+        assert_eq!(fmt_val(&val("gyro_pixels", 6545.0, Unit::Pixels)), tr_ref("controller.6545_px"));
     }
     #[test]
     fn vdf_fixture() {
-        let t = r##""controller_mappings" { "title" "#Title" "creator" "7656" "localization" { "english" { "title" "Eng" } "russian" { "title" "Рус" } }
- "group" { "id" "18" "mode" "gyro_to_mouse" "settings" { "gyro_natural_sensitivity" "20" } }
- "group" { "id" "12" "mode" "mouse_joystick" }
- "preset" { "id" "0" "group_source_bindings" { "18" "gyro active" "12" "right_trackpad active" } } }"##;
+        let t = include_str!("../../tests/controller-layout-localization.vdf");
+
         let l = layout_from_vdf(t, "russian");
-        assert_eq!(l.name, "Рус");
+        assert_eq!(l.name, steam_assets::i18n::by_code("ru").unwrap().tr("controller.rus"));
         assert_eq!(fmt_val(&val_of(&l)), "0.2x");
-        assert_eq!(mode_label("mouse_joystick"), "Как джойстик");
-        assert_eq!(mode_label("gyro_to_mouse"), "Гироскоп как мышь");
+        assert_eq!(mode_label("mouse_joystick"), tr_ref("controller.as_joystick"));
+        assert_eq!(mode_label("gyro_to_mouse"), tr_ref("controller.gyro_to_mouse"));
         assert!(l.author.is_empty());
         let r = rows(Some(&l));
         // gyro mode, natural (known), pixels (dash), invert, rpad mode; no calibration row in quick settings
@@ -3130,8 +3209,8 @@ mod tests {
  "preset" { "id" "0" "group_source_bindings" { "18" "gyro active" "12" "right_trackpad active" } } }"##;
         let l = layout_from_vdf(t, "russian");
         assert_eq!(fmt_val(&val_of(&l)), "0.6x");
-        assert_eq!(l.gyro.as_ref().unwrap().mode, "Гироскоп как мышь");
-        assert_eq!(l.rpad.as_ref().unwrap().mode, "Как джойстик");
+        assert_eq!(l.gyro.as_ref().unwrap().mode, tr_ref("controller.gyro_to_mouse"));
+        assert_eq!(l.rpad.as_ref().unwrap().mode, tr_ref("controller.as_joystick"));
         // points per 360 is not stored in this file: shown as a dash, never a default
         assert_eq!(fmt_val(l.gyro.as_ref().unwrap().pixels.as_ref().unwrap()), "—");
         assert_eq!(l.gyro.as_ref().unwrap().invert, Some(false));
@@ -3145,18 +3224,18 @@ mod tests {
         // Stock root (quick-settings/09): gyro and right-trackpad rows stay, with «Не выбрано» when unset.
         let t = r##""controller_mappings" { "title" "x" "group" { "id" "12" "mode" "mouse_joystick" } "preset" { "id" "0" "group_source_bindings" { } } }"##;
         let l = layout_from_vdf(t, "russian");
-        assert_eq!(mode_label(""), "Не выбрано");
+        assert_eq!(mode_label(""), tr_ref("controller.none"));
         let r = rows(Some(&l));
         assert_eq!(r.len(), 2);
-        assert!(matches!(&r[0], Row::Mode { src: "gyro", value, .. } if value == "Не выбрано"));
-        assert!(matches!(&r[1], Row::Mode { src: "rpad", value, .. } if value == "Не выбрано"));
+        assert!(matches!(&r[0], Row::Mode { src: "gyro", value, .. } if value == tr_ref("controller.none")));
+        assert!(matches!(&r[1], Row::Mode { src: "rpad", value, .. } if value == tr_ref("controller.none")));
     }
     #[test]
     fn rows_follow_supported_keys() {
         let l = Layout {
             grips: Some(false),
-            gyro: Some(Src { mode: "Гироскоп как мышь".into(), natural: Some(val("gyro_natural", 0.6, Unit::Mult)), invert: Some(false), ..Default::default() }),
-            rpad: Some(Src { mode: "Как джойстик".into(), invert: Some(false), ..Default::default() }),
+            gyro: Some(Src { mode: tr_ref("controller.gyro_to_mouse").into(), natural: Some(val("gyro_natural", 0.6, Unit::Mult)), invert: Some(false), ..Default::default() }),
+            rpad: Some(Src { mode: tr_ref("controller.as_joystick").into(), invert: Some(false), ..Default::default() }),
             ..Default::default()
         };
         let r = rows(Some(&l));
@@ -3174,10 +3253,10 @@ mod x360_connection_tests {
     #[test]
     fn export_suggests_names_like_stock() {
         let own = |url: &str, title: &str| ActiveLayout { url: url.into(), title: title.into(), author_name: String::new(), published_file_id: None, selection_type: 1, enabled: true };
-        assert_eq!(export_default_name(Some(&own("autosave://u/1/a.vdf", "Мой вариант"))), "Мой вариант");
+        assert_eq!(export_default_name(Some(&own("autosave://u/1/a.vdf", tr_ref("controller.my_layout")))), tr_ref("controller.my_layout"));
         assert_eq!(export_default_name(Some(&own("autosave://u/1/a.vdf", "$$$autosave"))), "");
         assert_eq!(export_default_name(Some(&own("autosave://u/1/a.vdf", "#Title_Token"))), "");
-        assert_eq!(export_default_name(Some(&own("template://a.vdf", "Шаблон"))), "");
+        assert_eq!(export_default_name(Some(&own("template://a.vdf", tr_ref("controller.template")))), "");
         assert_eq!(export_default_name(None), "");
     }
 
@@ -3228,7 +3307,7 @@ fn request_quick_after_stop(old_index: Option<u32>) {
         (s.app_id, s.tab)
     };
     let Some(bridge) = crate::actions::bridge() else {
-        st().quick_error = Some("Steam недоступен".into());
+        st().quick_error = Some(tr_ref("controller.steam_unavailable").into());
         return;
     };
     st().editor_busy = true;
@@ -3252,7 +3331,7 @@ fn request_quick_after_stop(old_index: Option<u32>) {
             s.root_controller_index = result.as_ref().ok().map(|(index, _)| *index);
             match result {
                 Ok(q) => { s.quick = Some(q); s.quick_error = None; rebuild_rows(&mut s); }
-                Err(error) => s.quick_error = Some(format!("Не удалось прочитать раскладку: {error}")),
+                Err(error) => s.quick_error = Some(tr_args("controller.could_not_read_the_layout_error", &[("error", &error.to_string())])),
             }
             drop(s);
             request_root_active(id);
@@ -3313,7 +3392,7 @@ fn quick_activate(a: &mut App, row: &quick::QRow) {
         _ => {}
     }
     let raw = st().quick.as_ref().map(|q| q.1.clone());
-    let Some(raw) = raw else { a.toast("Раскладка Steam ещё не прочитана"); return };
+    let Some(raw) = raw else { a.toast(tr_ref("controller.steam_layout_has_not_loaded_yet")); return };
     match quick::activate(&raw, row) {
         quick::Plan::Adjust => {
             if let quick::Kind::Slider(setting) = &row.kind {
@@ -3373,7 +3452,7 @@ fn quick_dialog_handle(a: &mut App, act: Action) {
                 return if editor { write_editor_mode(a, set_index, source, mode, false) } else { quick_write(a, QuickWrite::Mode { source, mode, shift: false }) };
             }
             if cursor < mode_count + create_count {
-                a.toast("Создание этого режима пока недоступно: вызов Steam не подтверждён на Деке");
+                a.toast(tr_ref("controller.this_mode_cannot_be_created_yet_the_steam"));
                 return;
             }
             if can_create && cursor == mode_count + create_count {
@@ -3390,17 +3469,17 @@ fn quick_dialog_handle(a: &mut App, act: Action) {
 /// The reply must be a different layout that lists the new menu; otherwise the editor is marked uncertain.
 fn create_virtual_menu(a: &mut App, set_index: usize, mode: i64, name: String) {
     if fixture_catalog() || !live::writes_allowed(crate::actions::dryrun(), std::env::var("DECKSHELL_TEST_CONTROLLER_WRITE").as_deref() == Ok("1")) {
-        st().editor_status = "Режим теста: создание виртуального меню отключено".into();
+        st().editor_status = tr_ref("controller.test_mode_virtual_menu_creation_is_disabled").into();
         sync(a);
         return;
     }
-    let Some(bridge) = crate::actions::bridge() else { st().editor_status = "Steam недоступен".into(); sync(a); return };
+    let Some(bridge) = crate::actions::bridge() else { st().editor_status = tr_ref("controller.steam_unavailable").into(); sync(a); return };
     let (idx, raw) = {
         let mut s = st();
         if s.editor_busy { return; }
         let Some((idx, raw, _)) = s.editing.clone() else { return };
         s.editor_busy = true;
-        s.editor_status = "Создание виртуального меню…".into();
+        s.editor_status = tr_ref("controller.creating_virtual_menu").into();
         (idx, raw)
     };
     sync(a);
@@ -3408,7 +3487,7 @@ fn create_virtual_menu(a: &mut App, set_index: usize, mode: i64, name: String) {
         let result = (|| {
             let target = quick::mode_target_at(&raw, set_index, steam_bridge::controller_edit::VIRTUAL_MENU_SOURCE)?;
             let (reply, _) = bridge.editor_create_virtual_menu(idx, &target.action_set_key, target.action_set_layer_key.as_deref(), mode, &name)?;
-            if reply == raw { return Err(steam_bridge::Error::Protocol("Steam не изменил раскладку".into())); }
+            if reply == raw { return Err(steam_bridge::Error::Protocol(tr_ref("controller.steam_did_not_change_the_layout").into())); }
             let rows = live::rows(&reply)?;
             Ok::<_, steam_bridge::Error>((reply, rows))
         })();
@@ -3420,9 +3499,9 @@ fn create_virtual_menu(a: &mut App, set_index: usize, mode: i64, name: String) {
                     s.editing = Some((idx, reply, rows));
                     s.editor_dirty = true;
                     s.editor_undo.clear();
-                    s.editor_status = "Виртуальное меню создано · Menu — сохранить".into();
+                    s.editor_status = tr_ref("controller.virtual_menu_created_menu_save").into();
                 }
-                Err(err) => { s.editor_uncertain = true; s.editor_status = format!("Ошибка создания виртуального меню: {err}"); }
+                Err(err) => { s.editor_uncertain = true; s.editor_status = tr_args("controller.could_not_create_virtual_menu_err", &[("err", &err.to_string())]); }
             }
             drop(s);
             sync(a);
@@ -3434,18 +3513,18 @@ fn create_virtual_menu(a: &mut App, set_index: usize, mode: i64, name: String) {
 /// mode when Steam returned something else. The layout is saved later by the editor's own Menu → Save.
 fn write_editor_mode(a: &mut App, set_index: usize, source: i64, mode: i64, undo: bool) {
     if fixture_catalog() || !live::writes_allowed(crate::actions::dryrun(), std::env::var("DECKSHELL_TEST_CONTROLLER_WRITE").as_deref() == Ok("1")) {
-        st().editor_status = "Режим теста: запись режима источника отключена".into();
+        st().editor_status = tr_ref("controller.test_mode_source_mode_writes_are_disabled").into();
         sync(a);
         return;
     }
-    let Some(bridge) = crate::actions::bridge() else { st().editor_status = "Steam недоступен".into(); sync(a); return };
+    let Some(bridge) = crate::actions::bridge() else { st().editor_status = tr_ref("controller.steam_unavailable").into(); sync(a); return };
     let (idx, raw) = {
         let mut s = st();
         if s.editor_busy { return; }
         let Some((idx, raw, _)) = s.editing.clone() else { return };
         if !undo { s.editor_undo.push(sticks::Undo::SourceMode(set_index, source, quick::mode_in_set(&raw, set_index, source))); }
         s.editor_busy = true;
-        s.editor_status = "Запись режима источника…".into();
+        s.editor_status = tr_ref("controller.writing_source_mode").into();
         (idx, raw)
     };
     sync(a);
@@ -3463,20 +3542,20 @@ fn write_editor_mode(a: &mut App, set_index: usize, source: i64, mode: i64, undo
                     s.editing = Some((idx, raw, rows));
                     s.editor_dirty = true;
                     if undo { s.editor_undo.pop(); }
-                    s.editor_status = if undo { "Режим источника восстановлен и прочитан из Steam".into() } else { "Режим источника записан и прочитан из Steam · X — отменить".into() };
+                    s.editor_status = if undo { tr_ref("controller.source_mode_restored_and_read_back_from_steam").into() } else { tr_ref("controller.source_mode_written_and_read_back_from_steam").into() };
                 }
                 Ok(ModeWrite::RolledBack(why, raw, rows)) => {
                     s.editing = Some((idx, raw, rows));
                     if !undo { s.editor_undo.pop(); }
-                    s.editor_status = format!("Режим источника не изменён: {why}; прежний режим восстановлен и подтверждён");
+                    s.editor_status = tr_args("controller.source_mode_unchanged_why_previous_mode_restored_and", &[("why", &why)]);
                 }
                 Ok(ModeWrite::Unsure(why)) => {
                     s.editor_uncertain = true;
-                    s.editor_status = format!("Ошибка режима источника: {why}; прежний режим восстановить не удалось · откройте раскладку заново");
+                    s.editor_status = tr_args("controller.source_mode_error_why_could_not_restore_previous", &[("why", &why)]);
                 }
                 Err(e) => {
                     s.editor_uncertain = true;
-                    s.editor_status = format!("Ошибка режима источника: {e} · откройте раскладку заново");
+                    s.editor_status = tr_args("controller.source_mode_error_e_reopen_the_layout", &[("e", &e.to_string())]);
                 }
             }
             drop(s);
@@ -3520,7 +3599,7 @@ fn pad_open(a: &mut App, source: i64, editor_set: Option<usize>, shift: bool) {
     let rows = pad_data(&s, &p).map(|(_, raw, target)| pad::rows(raw, &target)).unwrap_or_default();
     let Some(first) = rows.iter().position(pad::PRow::focusable) else {
         drop(s);
-        a.toast("Steam не вернул параметры для этого режима");
+        a.toast(tr_ref("controller.steam_returned_no_settings_for_this_mode"));
         return;
     };
     p.focus = first;
@@ -3546,7 +3625,7 @@ fn pad_close(a: &mut App) {
     let app = s.app_id;
     let url = s.root_active.as_ref().map(|v| v.url.clone()).unwrap_or_default();
     drop(s);
-    let Some(bridge) = crate::actions::bridge() else { a.toast("Steam недоступен"); return };
+    let Some(bridge) = crate::actions::bridge() else { a.toast(tr_ref("controller.steam_unavailable")); return };
     st().editor_busy = true;
     sync(a);
     std::thread::spawn(move || {
@@ -3558,7 +3637,7 @@ fn pad_close(a: &mut App) {
             drop(s);
             match result {
                 Ok(()) => request_root_active(app),
-                Err(e) => a.toast(&format!("Не удалось сохранить раскладку: {e}")),
+                Err(e) => a.toast(&tr_args("controller.could_not_save_layout_e", &[("e", &e.to_string())])),
             }
             sync(a);
         });
@@ -3568,7 +3647,7 @@ fn pad_close(a: &mut App) {
 fn pad_write(a: &mut App, row: &pad::PRow, value: i64) {
     if value == row.value { return; }
     if fixture_catalog() || !live::writes_allowed(crate::actions::dryrun(), std::env::var("DECKSHELL_TEST_CONTROLLER_WRITE").as_deref() == Ok("1")) {
-        a.toast("Пробный запуск: запись настроек отключена");
+        a.toast(tr_ref("controller.dry_run_settings_writes_are_disabled"));
         return;
     }
     let request = {
@@ -3579,10 +3658,10 @@ fn pad_write(a: &mut App, row: &pad::PRow, value: i64) {
     };
     let Some((idx, raw, target, editor, url)) = request else { return };
     if !editor && steam_bridge::controller_list::check_personal_url(&url).is_err() {
-        a.toast("Для сохранения настроек выберите личную раскладку");
+        a.toast(tr_ref("controller.select_a_personal_layout_to_save_settings"));
         return;
     }
-    let Some(bridge) = crate::actions::bridge() else { a.toast("Steam недоступен"); return };
+    let Some(bridge) = crate::actions::bridge() else { a.toast(tr_ref("controller.steam_unavailable")); return };
     let (key, mask, old_value) = (row.key, row.uses_mask(), row.value);
     st().editor_busy = true;
     sync(a);
@@ -3599,7 +3678,7 @@ fn pad_write(a: &mut App, row: &pad::PRow, value: i64) {
                 };
                 confirmed.sort_unstable();
                 if confirmed != buttons {
-                    return Err(steam_bridge::Error::Protocol("Steam не подтвердил кнопки сменного режима".into()));
+                    return Err(steam_bridge::Error::Protocol(tr_ref("controller.steam_did_not_confirm_the_mode_shift_buttons").into()));
                 }
                 reply
             } else {
@@ -3616,7 +3695,7 @@ fn pad_write(a: &mut App, row: &pad::PRow, value: i64) {
                     if editor {
                         s.editing = Some((idx, reply, bindings));
                         s.editor_dirty = true;
-                        s.editor_status = "Настройка изменена · Menu — сохранить · X — отменить".into();
+                        s.editor_status = tr_ref("controller.setting_changed_menu_save_x_undo").into();
                         s.editor_undo.push(sticks::Undo::SourceSetting(target, key, old_value, mask));
                     } else {
                         s.quick = Some((idx, reply));
@@ -3635,7 +3714,7 @@ fn pad_write(a: &mut App, row: &pad::PRow, value: i64) {
                     if editor { s.editor_uncertain = true; }
                     if let Some(p) = s.pad.as_mut() { p.uncertain = true; }
                     drop(s);
-                    a.toast(&format!("Steam не подтвердил настройку: {e}. Выйдите со страницы и откройте её снова."));
+                    a.toast(&tr_args("controller.steam_did_not_confirm_the_setting_e_leave", &[("e", &e.to_string())]));
                     sync(a);
                     return;
                 }
@@ -3679,7 +3758,7 @@ fn pad_number_enter(a: &mut App) {
         })
     };
     let Some((row, value)) = request else {
-        a.toast("Введите число в пределах ползунка");
+        a.toast(tr_ref("controller.enter_a_number_within_the_slider_range"));
         super::osk::attach(a, PAD_NUMBER_SINK);
         return;
     };
@@ -3801,7 +3880,7 @@ fn choice_model(rows: Vec<(String, i32)>, cancel: String) -> (Vec<ChoiceItem>, f
 fn sync_choice(g: &ControllerState, list: Option<(Vec<(String, i32)>, usize)>) {
     g.set_choice_open(list.is_some());
     if let Some((rows, focus)) = list {
-        let (items, w, h) = choice_model(rows, "Отмена".into());
+        let (items, w, h) = choice_model(rows, tr_ref("controller.cancel").into());
         g.set_choice_items(ModelRc::new(VecModel::from(items)));
         g.set_choice_focus(focus as i32);
         g.set_choice_width(w.into());
@@ -3815,7 +3894,7 @@ fn sync_pad(g: &ControllerState, s: &St) {
     if let Some((source, cursor)) = s.quick_dialog {
         let mut rows = quick::list_rows(source, !s.mode_list_editor, mode_dialog_current(s, source));
         if root_shift_available(s, source) {
-            rows.push((t_or("#ControllerBinding_ModeShift_Create", "Создать сменный режим"), 0));
+            rows.push((t_or("#ControllerBinding_ModeShift_Create", tr_ref("controller.create_a_mode_shift")), 0));
         }
         choice = Some((rows, cursor));
     }
@@ -3837,7 +3916,7 @@ fn sync_pad(g: &ControllerState, s: &St) {
         g.set_pad_content_height(content.into());
         let mode = pad_data(s, p).map_or(0, |(_, _, target)| target.source_mode);
         g.set_pad_source(pages::source_title(p.source).to_uppercase().into());
-        g.set_pad_subtitle(t_or("#ControllerConfigurator_SourceMode_Group_Settings", "Настройки %1$s").replace("%1$s", &quick::mode_name(p.source, mode)).into());
+        g.set_pad_subtitle(t_or("#ControllerConfigurator_SourceMode_Group_Settings", tr_ref("controller.1_s_settings")).replace("%1$s", &quick::mode_name(p.source, mode)).into());
         g.set_pad_rows(ModelRc::new(VecModel::from(rows.iter().map(|r| PadRow {
             kind: if r.heading { 3 } else { match r.kind { pad::Kind::Slider => 0, pad::Kind::Toggle => 1, pad::Kind::Choice => 2 } },
             label_lines: ModelRc::new(VecModel::from(if r.heading { vec![r.label.clone().into()] } else { r.label_text.iter().map(|l| l.clone().into()).collect::<Vec<slint::SharedString>>() })),
@@ -3856,7 +3935,7 @@ fn sync_pad(g: &ControllerState, s: &St) {
 /// Only personal layouts are written: a template or workshop layout is never saved over.
 fn quick_write(a: &mut App, write: QuickWrite) {
     if fixture_catalog() || !live::writes_allowed(crate::actions::dryrun(), std::env::var("DECKSHELL_TEST_CONTROLLER_WRITE").as_deref() == Ok("1")) {
-        a.toast("Пробный запуск: запись быстрых настроек отключена");
+        a.toast(tr_ref("controller.dry_run_quick_settings_writes_are_disabled"));
         return;
     }
     let (app, idx, raw, url) = {
@@ -3866,10 +3945,10 @@ fn quick_write(a: &mut App, write: QuickWrite) {
         (s.app_id, idx, raw, s.root_active.as_ref().map(|v| v.url.clone()).unwrap_or_default())
     };
     if steam_bridge::controller_list::check_personal_url(&url).is_err() {
-        a.toast("Раскладка не личная. Откройте ⚙ → «Переключиться на уникальную конфигурацию…» или выберите свою, затем меняйте быстрые настройки");
+        a.toast(tr_ref("controller.this_layout_is_not_personal_open_switch_to"));
         return;
     }
-    let Some(bridge) = crate::actions::bridge() else { a.toast("Steam недоступен"); return };
+    let Some(bridge) = crate::actions::bridge() else { a.toast(tr_ref("controller.steam_unavailable")); return };
     st().editor_busy = true;
     sync(a);
     std::thread::spawn(move || {
@@ -3892,7 +3971,7 @@ fn quick_write(a: &mut App, write: QuickWrite) {
                     (r, ok)
                 }
             };
-            if !ok { return Err(steam_bridge::Error::Protocol("Steam вернул другое значение".into())); }
+            if !ok { return Err(steam_bridge::Error::Protocol(tr_ref("controller.steam_returned_a_different_value").into())); }
             // Ползунки страницы настроек сохраняются при выходе со страницы, а не на каждый шаг.
             bridge.editor_save_personal(app, idx, &url)?;
             Ok(new_raw)
@@ -3906,7 +3985,7 @@ fn quick_write(a: &mut App, write: QuickWrite) {
             };
             drop(s);
             if let Some(e) = failed {
-                a.toast(&format!("Не удалось изменить быстрые настройки: {e}"));
+                a.toast(&tr_args("controller.could_not_change_quick_settings_e", &[("e", &e.to_string())]));
                 request_quick_after_stop(None);
             } else {
                 request_root_active(app);
@@ -3922,7 +4001,7 @@ fn start_editor(_a: &mut App) {
         if s.editor_busy { return; }
         s.editor = Some(EditorFocus::new(8));
         s.editor_busy = true;
-        s.editor_status = "Чтение раскладки Steam…".into();
+        s.editor_status = tr_ref("controller.reading_steam_layout").into();
         s.editing = None;
         s.editor_gyro_target = None;
         s.editor_undo.clear();
@@ -3933,7 +4012,7 @@ fn start_editor(_a: &mut App) {
     };
     let Some(b) = crate::actions::bridge() else {
         st().editor_busy = false;
-        st().editor_status = "Steam недоступен".into();
+        st().editor_status = tr_ref("controller.steam_unavailable").into();
         return;
     };
     std::thread::spawn(move || {
@@ -3953,11 +4032,11 @@ fn start_editor(_a: &mut App) {
             s.editor_busy = false;
             match result {
                 Ok((idx, raw, rows, target)) => {
-                    s.editor_status = "Раскладка прочитана · изменения в редактируемой копии".into();
+                    s.editor_status = tr_ref("controller.layout_loaded_changes_affect_the_editing_copy").into();
                     s.editor_gyro_target = target;
                     s.editing = Some((idx, raw, rows));
                 }
-                Err(e) => s.editor_status = format!("Ошибка чтения: {e}"),
+                Err(e) => s.editor_status = tr_args("controller.read_error_e", &[("e", &e.to_string())]),
             };
             drop(s);
             sync(a);
@@ -3967,25 +4046,25 @@ fn start_editor(_a: &mut App) {
 
 fn start_gyro_calibration(a: &mut App) {
     if fixture_catalog() || crate::actions::dryrun() {
-        a.toast("Пробный запуск · калибровка отключена");
+        a.toast(tr_ref("controller.dry_run_calibration_is_disabled"));
         return;
     }
     let target = st().editor_gyro_target.clone();
     let Some(target) = target else {
-        a.toast("Гироскоп выбранного контроллера недоступен. Откройте редактор заново.");
+        a.toast(tr_ref("controller.the_selected_controller_s_gyro_is_unavailable_reopen"));
         return;
     };
     controller_gyro::open(a, Owner::Editor, target);
 }
 
 fn save_personal_editor(a: &mut App) {
-    if fixture_catalog() || crate::actions::dryrun() { a.toast("Пробный запуск: сохранение отключено"); return; }
+    if fixture_catalog() || crate::actions::dryrun() { a.toast(tr_ref("controller.dry_run_saving_is_disabled")); return; }
     let request = {
         let s = st();
         if s.editor_busy { return; }
         if s.editor_uncertain {
             drop(s);
-            a.toast("Steam не подтвердил состояние редактора. Откройте раскладку заново.");
+            a.toast(tr_ref("controller.steam_did_not_confirm_the_editor_state_reopen"));
             return;
         }
         if !s.editor_dirty { return; }
@@ -3993,12 +4072,12 @@ fn save_personal_editor(a: &mut App) {
     };
     let Some((app, index, url)) = request else { return; };
     if steam_bridge::controller_list::check_personal_url(&url).is_err() {
-        a.toast("Сохранять можно только свою раскладку. Сначала создайте личную копию.");
+        a.toast(tr_ref("controller.you_can_only_save_your_own_layouts_create"));
         return;
     }
-    let Some(bridge) = crate::actions::bridge() else { a.toast("Steam недоступен"); return; };
+    let Some(bridge) = crate::actions::bridge() else { a.toast(tr_ref("controller.steam_unavailable")); return; };
     st().editor_busy = true;
-    st().editor_status = "Сохранение личной раскладки…".into();
+    st().editor_status = tr_ref("controller.saving_personal_layout").into();
     sync(a);
     std::thread::spawn(move || {
         let result = bridge.editor_save_personal(app, index, &url);
@@ -4006,8 +4085,8 @@ fn save_personal_editor(a: &mut App) {
             let mut s = st();
             s.editor_busy = false;
             s.editor_status = match result {
-                Ok(()) => { s.editor_dirty = false; s.editor_undo.clear(); "Steam принял сохранение личной раскладки".into() }
-                Err(err) => { s.editor_uncertain = true; format!("Сохранение не подтверждено: {err}") },
+                Ok(()) => { s.editor_dirty = false; s.editor_undo.clear(); tr_ref("controller.steam_accepted_the_personal_layout_save").into() }
+                Err(err) => { s.editor_uncertain = true; tr_args("controller.save_unconfirmed_err", &[("err", &err.to_string())]) },
             };
             drop(s);
             request_root_active(app);
@@ -4022,7 +4101,7 @@ const ACTION_SET_SINK: super::osk::ExtSink = super::osk::ExtSink {
 };
 
 fn open_action_set_name(a: &mut App, rename: Option<usize>) {
-    if fixture_catalog() || crate::actions::dryrun() { a.toast("Пробный запуск: запись наборов отключена"); return; }
+    if fixture_catalog() || crate::actions::dryrun() { a.toast(tr_ref("controller.dry_run_action_set_writes_are_disabled")); return; }
     let prompt = {
         let s = st();
         s.editing.as_ref().and_then(|(_, raw, _)| {
@@ -4033,7 +4112,7 @@ fn open_action_set_name(a: &mut App, rename: Option<usize>) {
             if rename.is_some() { Some((key, None, String::new())) } else { Some((String::new(), Some(key), String::new())) }
         })
     };
-    if prompt.is_none() { a.toast("Набор действий недоступен"); return; }
+    if prompt.is_none() { a.toast(tr_ref("controller.action_set_unavailable")); return; }
     st().editor_set_prompt = prompt;
     super::osk::attach(a, ACTION_SET_SINK);
     type_action_set_name(a, None);
@@ -4043,8 +4122,8 @@ fn open_action_set_name(a: &mut App, rename: Option<usize>) {
 const VIRTUAL_MENU_PROMPT: &str = "\u{1}virtual-menu";
 
 fn open_virtual_menu_name(a: &mut App) {
-    if fixture_catalog() || crate::actions::dryrun() { a.toast("Пробный запуск: создание виртуального меню отключено"); return; }
-    if st().editing.is_none() { a.toast("Раскладка ещё читается"); return; }
+    if fixture_catalog() || crate::actions::dryrun() { a.toast(tr_ref("controller.dry_run_virtual_menu_creation_is_disabled")); return; }
+    if st().editing.is_none() { a.toast(tr_ref("controller.the_layout_is_still_loading")); return; }
     st().editor_set_prompt = Some((VIRTUAL_MENU_PROMPT.into(), None, String::new()));
     super::osk::attach(a, ACTION_SET_SINK);
     type_action_set_name(a, None);
@@ -4059,14 +4138,14 @@ fn type_action_set_name(a: &mut App, character: Option<char>) {
         Some(_) => (),
         None => { name.pop(); }
     }
-    s.editor_status = if virtual_menu { format!("{}: {name}", t_or("#ControllerConfigurator_CreateVirtualMenuDialog_Title_1", "Имя нового виртуального меню")) } else { format!("{}: {name}", if source.is_some() { "Имя нового набора (копия текущего)" } else { "Новое имя набора" }) };
+    s.editor_status = if virtual_menu { format!("{}: {name}", t_or("#ControllerConfigurator_CreateVirtualMenuDialog_Title_1", tr_ref("controller.new_virtual_menu_name"))) } else { format!("{}: {name}", if source.is_some() { tr_ref("controller.new_set_name_copy_of_current_set") } else { tr_ref("controller.new_set_name") }) };
     drop(s);
     sync(a);
 }
 
 fn cancel_action_set_name(a: &mut App) {
     st().editor_set_prompt = None;
-    st().editor_status = "Имя набора не изменено".into();
+    st().editor_status = tr_ref("controller.set_name_unchanged").into();
     super::osk::detach(a, ACTION_SET_SINK);
     sync(a);
 }
@@ -4091,9 +4170,9 @@ fn commit_action_set_name(a: &mut App) {
         sync(a);
         return;
     }
-    let Some(bridge) = crate::actions::bridge() else { a.toast("Steam недоступен"); return; };
+    let Some(bridge) = crate::actions::bridge() else { a.toast(tr_ref("controller.steam_unavailable")); return; };
     st().editor_busy = true;
-    st().editor_status = "Изменение набора действий…".into();
+    st().editor_status = tr_ref("controller.changing_action_set").into();
     sync(a);
     std::thread::spawn(move || {
         let result = (|| {
@@ -4101,7 +4180,7 @@ fn commit_action_set_name(a: &mut App) {
             let (raw, layout) = bridge.editor_set_action_set(index, &key, &name, source.as_deref())?;
             let selected = layout.action_sets.iter().position(|set| set.display_name == name && if source.is_some() {
                 !set.key.is_empty() && !previous.action_sets.iter().any(|old| old.key == set.key)
-            } else { set.key == key }).ok_or_else(|| steam_bridge::Error::Protocol("Steam не подтвердил изменение набора".into()))?;
+            } else { set.key == key }).ok_or_else(|| steam_bridge::Error::Protocol(tr_ref("controller.steam_did_not_confirm_the_action_set_change").into()))?;
             let rows = live::rows(&raw)?;
             Ok::<_, steam_bridge::Error>((raw, rows, selected))
         })();
@@ -4114,9 +4193,9 @@ fn commit_action_set_name(a: &mut App) {
                     s.editor_set_index = selected;
                     s.editor_dirty = true;
                     s.editor_undo.clear();
-                    s.editor_status = "Набор изменён в редакторе · Menu — сохранить".into();
+                    s.editor_status = tr_ref("controller.set_changed_in_the_editor_menu_save").into();
                 }
-                Err(err) => { s.editor_uncertain = true; s.editor_status = format!("Ошибка изменения набора: {err}"); }
+                Err(err) => { s.editor_uncertain = true; s.editor_status = tr_args("controller.action_set_error_err", &[("err", &err.to_string())]); }
             }
             drop(s);
             sync(a);
@@ -4132,8 +4211,8 @@ fn editor_binding(s: &St) -> Option<&live::BindingRow> {
 }
 /// Target of a command on a row without one (append to the next free activator).
 fn empty_target_of(s:&St,it:&pages::Item)->steam_bridge::Result<steam_bridge::controller_edit::BindingTarget> {
-    let (_,raw,_)=s.editing.as_ref().ok_or_else(||steam_bridge::Error::Protocol("Раскладка ещё читается".into()))?;
-    let input=it.input.ok_or_else(||steam_bridge::Error::Protocol("У строки нет входа".into()))?;
+    let (_,raw,_)=s.editing.as_ref().ok_or_else(||steam_bridge::Error::Protocol(tr_ref("controller.the_layout_is_still_loading").into()))?;
+    let input=it.input.ok_or_else(||steam_bridge::Error::Protocol(tr_ref("controller.this_row_has_no_input").into()))?;
     quick::empty_input_target(raw,s.editor_set_index,input,it.input_source)
 }
 /// Target of the focused row: the existing command's, or the append target of an empty row.
@@ -4175,11 +4254,11 @@ fn focused_swap_pair(s: &St) -> Option<(i64, i64)> {
 
 fn swap_sources(a: &mut App, set: usize, left: i64, right: i64, undo: bool) {
     if fixture_catalog() || crate::actions::dryrun() {
-        st().editor_status = "Пробный запуск: обмен источников отключён".into();
+        st().editor_status = tr_ref("controller.dry_run_swapping_sources_is_disabled").into();
         sync(a);
         return;
     }
-    let Some(bridge) = crate::actions::bridge() else { a.toast("Steam недоступен"); return; };
+    let Some(bridge) = crate::actions::bridge() else { a.toast(tr_ref("controller.steam_unavailable")); return; };
     let (index, raw, action_set) = {
         let mut s = st();
         if s.editor_busy || s.editor_uncertain { return; }
@@ -4187,7 +4266,7 @@ fn swap_sources(a: &mut App, set: usize, left: i64, right: i64, undo: bool) {
         let Some(action_set) = live::msg(raw, 8).ok().and_then(|sets| live::string(sets.get(set)?, 1).ok()) else { return; };
         let payload = (*index, raw.clone(), action_set);
         s.editor_busy = true;
-        s.editor_status = "Обмен источников…".into();
+        s.editor_status = tr_ref("controller.swapping_sources").into();
         payload
     };
     sync(a);
@@ -4196,7 +4275,7 @@ fn swap_sources(a: &mut App, set: usize, left: i64, right: i64, undo: bool) {
             let expected_left = quick::group_in_set(&raw, set, right);
             let expected_right = quick::group_in_set(&raw, set, left);
             if quick::group_in_set(&reply, set, left) != expected_left || quick::group_in_set(&reply, set, right) != expected_right {
-                return Err(steam_bridge::Error::Protocol("Steam не подтвердил обмен обеих групп".into()));
+                return Err(steam_bridge::Error::Protocol(tr_ref("controller.steam_did_not_confirm_the_swap_for_both").into()));
             }
             let rows = live::rows(&reply)?;
             Ok((reply, rows))
@@ -4210,11 +4289,11 @@ fn swap_sources(a: &mut App, set: usize, left: i64, right: i64, undo: bool) {
                     s.editor_dirty = true;
                     if undo { s.editor_undo.pop(); }
                     else { s.editor_undo.push(sticks::Undo::SwapSources { set, left, right }); }
-                    s.editor_status = if undo { "Обмен отменён" } else { "Источники поменялись местами · X — отменить" }.into();
+                    s.editor_status = if undo { tr_ref("controller.swap_undone") } else { tr_ref("controller.sources_swapped_x_undo") }.into();
                 }
                 Err(error) => {
                     s.editor_uncertain = true;
-                    s.editor_status = format!("Обмен не подтверждён: {error} · откройте раскладку заново");
+                    s.editor_status = tr_args("controller.source_swap_unconfirmed_error_reopen_the_layout", &[("error", &error.to_string())]);
                 }
             }
             drop(s);
@@ -4232,14 +4311,14 @@ fn write_source_value(bridge: &steam_bridge::Bridge, index: u32, raw: &[u8], tar
     let (reply, _) = if mask { bridge.editor_set_source_mask(index, raw, target, key, value)? }
         else { bridge.editor_set_source_setting(index, raw, target, key, value)? };
     if pad::read_value(&reply, target, key, mask) != Some(value) {
-        return Err(steam_bridge::Error::Protocol("Steam вернул другое значение".into()));
+        return Err(steam_bridge::Error::Protocol(tr_ref("controller.steam_returned_a_different_value").into()));
     }
     Ok(reply)
 }
 
 fn undo_source_setting(a: &mut App, target: steam_bridge::controller_edit::BindingTarget, key: i64, value: i64, mask: bool) {
-    if fixture_catalog() || crate::actions::dryrun() { a.toast("Пробный запуск: запись настроек отключена"); return; }
-    let Some(bridge) = crate::actions::bridge() else { a.toast("Steam недоступен"); return };
+    if fixture_catalog() || crate::actions::dryrun() { a.toast(tr_ref("controller.dry_run_settings_writes_are_disabled")); return; }
+    let Some(bridge) = crate::actions::bridge() else { a.toast(tr_ref("controller.steam_unavailable")); return };
     let Some((index, raw, _)) = st().editing.clone() else { return };
     st().editor_busy = true;
     sync(a);
@@ -4256,7 +4335,7 @@ fn undo_source_setting(a: &mut App, target: steam_bridge::controller_edit::Bindi
                 Ok((raw, rows)) => {
                     s.editing = Some((index, raw, rows));
                     s.editor_undo.pop();
-                    s.editor_status = "Настройка восстановлена".into();
+                    s.editor_status = tr_ref("controller.setting_restored").into();
                 }
                 Err(e) => {
                     s.editor_uncertain = true;
@@ -4269,64 +4348,64 @@ fn undo_source_setting(a: &mut App, target: steam_bridge::controller_edit::Bindi
     });
 }
 fn write_editor(a:&mut App,target:steam_bridge::controller_edit::BindingTarget,binding:Vec<u8>,undo:bool) {
-    if fixture_catalog() || !live::writes_allowed(crate::actions::dryrun(), std::env::var("DECKSHELL_TEST_CONTROLLER_WRITE").as_deref()==Ok("1")) {st().editor_status="Режим теста: запись привязок отключена".into();sync(a);return;}
-    let Some(b)=crate::actions::bridge() else{a.toast("Steam недоступен");return};
+    if fixture_catalog() || !live::writes_allowed(crate::actions::dryrun(), std::env::var("DECKSHELL_TEST_CONTROLLER_WRITE").as_deref()==Ok("1")) {st().editor_status=tr_ref("controller.test_mode_binding_writes_are_disabled").into();sync(a);return;}
+    let Some(b)=crate::actions::bridge() else{a.toast(tr_ref("controller.steam_unavailable"));return};
     let append=target.binding_index<0;
     let (idx,raw)={let mut s=st();if s.editor_busy{return}let Some((idx,raw,_))=&s.editing else{return};let v=(*idx,raw.clone());
         if !undo {
             if append {let mut first=target.clone();first.binding_index=0;s.editor_undo.push(sticks::Undo::Remove(first));}
             else {match live::binding_at(&v.1,&target) {Ok(old)=>s.editor_undo.push(sticks::Undo::Binding(target.clone(),old)),Err(e)=>{s.editor_status=e.to_string();return}}}
         }
-        s.editor_busy=true;s.editor_status=if undo{"Отмена…"}else{"Применение…"}.into();v};
+        s.editor_busy=true;s.editor_status=if undo{tr_ref("controller.undoing")}else{tr_ref("controller.applying")}.into();v};
     sync(a);
     std::thread::spawn(move || {
         let outcome=bind::write_binding(&bind::Live(&b,idx),&raw,&target,&binding);
         let rows=match &outcome {bind::Outcome::Done(r)|bind::Outcome::RolledBack(_,r)=>live::rows(r).ok(),_=>None};
         super::defer(move|a| {let mut s=st();s.editor_busy=false;match (outcome,rows) {
-            (bind::Outcome::Done(raw),Some(rows))=>{s.editing=Some((idx,raw,rows));s.editor_dirty=true;if undo{s.editor_undo.pop();}s.editor_status=if undo{"Изменение отменено · исходная команда прочитана из Steam"}else{"Команда изменена в редакторе · Menu — сохранить · X — отменить"}.into();if let Some(f)=s.editor.as_mut(){f.picker_open=false;}}
-            (bind::Outcome::RolledBack(why,raw),Some(rows))=>{s.editing=Some((idx,raw,rows));if !undo{s.editor_undo.pop();}s.editor_status=format!("Команда не изменена: {why}; прежнее состояние восстановлено и подтверждено");if let Some(f)=s.editor.as_mut(){f.picker_open=false;}}
-            (bind::Outcome::Unsure(why),_)=>{s.editor_uncertain=true;s.editor_status=format!("Ошибка применения: {why}; прежнее состояние восстановить не удалось · откройте раскладку заново");}
-            _=>{s.editor_uncertain=true;s.editor_status="Ошибка применения: ответ Steam не удалось прочитать · откройте раскладку заново".into();}
+            (bind::Outcome::Done(raw),Some(rows))=>{s.editing=Some((idx,raw,rows));s.editor_dirty=true;if undo{s.editor_undo.pop();}s.editor_status=if undo{tr_ref("controller.change_undone_original_command_read_back_from_steam")}else{tr_ref("controller.command_changed_in_the_editor_menu_save_x")}.into();if let Some(f)=s.editor.as_mut(){f.picker_open=false;}}
+            (bind::Outcome::RolledBack(why,raw),Some(rows))=>{s.editing=Some((idx,raw,rows));if !undo{s.editor_undo.pop();}s.editor_status=tr_args("controller.command_unchanged_why_original_state_restored_and_confirmed", &[("why", &why)]);if let Some(f)=s.editor.as_mut(){f.picker_open=false;}}
+            (bind::Outcome::Unsure(why),_)=>{s.editor_uncertain=true;s.editor_status=tr_args("controller.could_not_apply_command_why_could_not_restore", &[("why", &why)]);}
+            _=>{s.editor_uncertain=true;s.editor_status=tr_ref("controller.could_not_apply_command_steam_reply_unreadable_reopen").into();}
         };drop(s);sync(a)});
     });
 }
 /// Undo of a command added in this session: remove it and the activator it created, confirmed by readback.
 fn remove_editor_binding(a:&mut App,target:steam_bridge::controller_edit::BindingTarget) {
-    if fixture_catalog() || !live::writes_allowed(crate::actions::dryrun(), std::env::var("DECKSHELL_TEST_CONTROLLER_WRITE").as_deref()==Ok("1")) {st().editor_status="Режим теста: запись привязок отключена".into();sync(a);return;}
-    let Some(b)=crate::actions::bridge() else{a.toast("Steam недоступен");return};
-    let (idx,raw)={let mut s=st();if s.editor_busy{return}let Some((idx,raw,_))=&s.editing else{return};let v=(*idx,raw.clone());s.editor_busy=true;s.editor_status="Отмена…".into();v};
+    if fixture_catalog() || !live::writes_allowed(crate::actions::dryrun(), std::env::var("DECKSHELL_TEST_CONTROLLER_WRITE").as_deref()==Ok("1")) {st().editor_status=tr_ref("controller.test_mode_binding_writes_are_disabled").into();sync(a);return;}
+    let Some(b)=crate::actions::bridge() else{a.toast(tr_ref("controller.steam_unavailable"));return};
+    let (idx,raw)={let mut s=st();if s.editor_busy{return}let Some((idx,raw,_))=&s.editing else{return};let v=(*idx,raw.clone());s.editor_busy=true;s.editor_status=tr_ref("controller.undoing").into();v};
     sync(a);
     std::thread::spawn(move || {
         let result=bind::remove_new_binding(&bind::Live(&b,idx),&raw,&target).map_err(|e|e.to_string()).and_then(|raw|live::rows(&raw).map(|rows|(raw,rows)).map_err(|e|e.to_string()));
         super::defer(move|a|{let mut s=st();s.editor_busy=false;match result {
-            Ok((raw,rows))=>{s.editing=Some((idx,raw,rows));s.editor_dirty=true;s.editor_undo.pop();s.editor_status="Добавленная команда удалена · пустой вход прочитан из Steam".into();}
-            Err(e)=>{s.editor_uncertain=true;s.editor_status=format!("Ошибка отмены: {e} · откройте раскладку заново");}
+            Ok((raw,rows))=>{s.editing=Some((idx,raw,rows));s.editor_dirty=true;s.editor_undo.pop();s.editor_status=tr_ref("controller.added_command_removed_empty_input_read_back_from").into();}
+            Err(e)=>{s.editor_uncertain=true;s.editor_status=tr_args("controller.undo_failed_e_reopen_the_layout", &[("e", &e.to_string())]);}
         };drop(s);sync(a)});
     });
 }
 /// «Способ включения» of the open command's activator; same request path as everything else: write, readback, rollback.
 fn write_activation(a:&mut App,target:steam_bridge::controller_edit::BindingTarget,activation:i64,undo:bool) {
-    if fixture_catalog() || !live::writes_allowed(crate::actions::dryrun(), std::env::var("DECKSHELL_TEST_CONTROLLER_WRITE").as_deref()==Ok("1")) {st().editor_status="Режим теста: запись способа включения отключена".into();sync(a);return;}
-    let Some(b)=crate::actions::bridge() else{a.toast("Steam недоступен");return};
+    if fixture_catalog() || !live::writes_allowed(crate::actions::dryrun(), std::env::var("DECKSHELL_TEST_CONTROLLER_WRITE").as_deref()==Ok("1")) {st().editor_status=tr_ref("controller.test_mode_activation_type_writes_are_disabled").into();sync(a);return;}
+    let Some(b)=crate::actions::bridge() else{a.toast(tr_ref("controller.steam_unavailable"));return};
     let (idx,raw)={let mut s=st();if s.editor_busy{return}let Some((idx,raw,_))=&s.editing else{return};let v=(*idx,raw.clone());
-        if !undo {let Some(old)=live::activation_at(&v.1,&target) else{s.editor_status="Активатор не найден в копии раскладки".into();drop(s);sync(a);return};if old==activation{return}s.editor_undo.push(sticks::Undo::Activation(target.clone(),old));}
-        s.editor_busy=true;s.editor_status="Запись способа включения…".into();v};
+        if !undo {let Some(old)=live::activation_at(&v.1,&target) else{s.editor_status=tr_ref("controller.activator_not_found_in_the_editing_copy").into();drop(s);sync(a);return};if old==activation{return}s.editor_undo.push(sticks::Undo::Activation(target.clone(),old));}
+        s.editor_busy=true;s.editor_status=tr_ref("controller.writing_activation_type").into();v};
     sync(a);
     std::thread::spawn(move || {
         let outcome=bind::write_activation(&bind::Live(&b,idx),&raw,&target,activation);
         let rows=match &outcome {bind::Outcome::Done(r)|bind::Outcome::RolledBack(_,r)=>live::rows(r).ok(),_=>None};
         super::defer(move|a|{let mut s=st();s.editor_busy=false;match (outcome,rows) {
-            (bind::Outcome::Done(raw),Some(rows))=>{s.editing=Some((idx,raw,rows));s.editor_dirty=true;if undo{s.editor_undo.pop();}s.editor_status=if undo{"Способ включения восстановлен и прочитан из Steam"}else{"Способ включения записан и прочитан из Steam · X — отменить"}.into();}
-            (bind::Outcome::RolledBack(why,raw),Some(rows))=>{s.editing=Some((idx,raw,rows));if !undo{s.editor_undo.pop();}s.editor_status=format!("Способ включения не изменён: {why}; прежний восстановлен и подтверждён");}
-            (bind::Outcome::Unsure(why),_)=>{s.editor_uncertain=true;s.editor_status=format!("Ошибка способа включения: {why}; прежний восстановить не удалось · откройте раскладку заново");}
-            _=>{s.editor_uncertain=true;s.editor_status="Ошибка способа включения: ответ Steam не удалось прочитать · откройте раскладку заново".into();}
+            (bind::Outcome::Done(raw),Some(rows))=>{s.editing=Some((idx,raw,rows));s.editor_dirty=true;if undo{s.editor_undo.pop();}s.editor_status=if undo{tr_ref("controller.activation_type_restored_and_read_back_from_steam")}else{tr_ref("controller.activation_type_written_and_read_back_from_steam")}.into();}
+            (bind::Outcome::RolledBack(why,raw),Some(rows))=>{s.editing=Some((idx,raw,rows));if !undo{s.editor_undo.pop();}s.editor_status=tr_args("controller.activation_type_unchanged_why_previous_type_restored_and", &[("why", &why)]);}
+            (bind::Outcome::Unsure(why),_)=>{s.editor_uncertain=true;s.editor_status=tr_args("controller.activation_type_error_why_could_not_restore_previous", &[("why", &why)]);}
+            _=>{s.editor_uncertain=true;s.editor_status=tr_ref("controller.activation_type_error_steam_reply_unreadable_reopen_the").into();}
         };drop(s);sync(a);});
     });
 }
 fn stop_editor(a:&mut App) {
     let (idx, dirty)={let mut s=st();if s.editor_busy{return}s.editor=None;s.command_dialog=None;s.editor_set_prompt=None;s.vmenu_name=None;s.editor_undo.clear();let idx=s.editing.take().map(|e|e.0);s.editor_busy=idx.is_some();(idx,s.editor_dirty && !s.editor_uncertain)};
     super::osk::detach(a, ACTION_SET_SINK);
-    if dirty { a.toast("Изменения не сохранены"); }
+    if dirty { a.toast(tr_ref("controller.changes_were_not_saved")); }
     if let (Some(idx),Some(b))=(idx,crate::actions::bridge()) {std::thread::spawn(move||{if let Err(e)=b.eval_json_once(&format!("SteamClient.Input.StopEditingControllerConfiguration({idx})")){eprintln!("[controller-editor] Stop: {e}");}super::defer(|a|{st().editor_busy=false;request_quick_after_stop(None);sync(a)});});}else{st().editor_busy=false;}
     sync(a);
 }
@@ -4360,19 +4439,19 @@ fn step_stick(a:&mut App,dir:i64) {
     }
 }
 fn write_stick(a:&mut App,target:steam_bridge::controller_edit::BindingTarget,key:i64,value:i64,undo:bool) {
-    if fixture_catalog() || !live::writes_allowed(crate::actions::dryrun(),std::env::var("DECKSHELL_TEST_CONTROLLER_WRITE").as_deref()==Ok("1")) {st().editor_status="Режим теста: запись параметров отключена".into();sync(a);return;}
-    let Some(b)=crate::actions::bridge() else {st().editor_status="Steam недоступен".into();sync(a);return;};
+    if fixture_catalog() || !live::writes_allowed(crate::actions::dryrun(),std::env::var("DECKSHELL_TEST_CONTROLLER_WRITE").as_deref()==Ok("1")) {st().editor_status=tr_ref("controller.test_mode_parameter_writes_are_disabled").into();sync(a);return;}
+    let Some(b)=crate::actions::bridge() else {st().editor_status=tr_ref("controller.steam_unavailable").into();sync(a);return;};
     let (idx,raw)={let mut s=st();if s.editor_busy{return;}let Some((idx,raw,_))=&s.editing else{return;};let v=(*idx,raw.clone());
         if !undo {match sticks::value(&v.1,&target,key){Ok(old)=>s.editor_undo.push(sticks::Undo::Setting(target.clone(),key,old)),Err(e)=>{s.editor_status=e.to_string();drop(s);sync(a);return;}}}
-        s.editor_busy=true;s.editor_status="Запись параметра…".into();v};sync(a);
+        s.editor_busy=true;s.editor_status=tr_ref("controller.writing_parameter").into();v};sync(a);
     std::thread::spawn(move||{
         let result=(||{let (raw,_)=b.editor_set_source_setting(idx,&raw,&target,key,value)?;
-            if sticks::value(&raw,&target,key)?!=value {return Err(steam_bridge::Error::Protocol("Steam вернул другое значение параметра".into()));}
+            if sticks::value(&raw,&target,key)?!=value {return Err(steam_bridge::Error::Protocol(tr_ref("controller.steam_returned_a_different_parameter_value").into()));}
             let rows=live::rows(&raw)?;Ok((raw,rows))})();
         super::defer(move|a|{let mut s=st();s.editor_busy=false;match result {
-            Ok((raw,rows))=>{s.editing=Some((idx,raw,rows));s.editor_dirty=true;if undo{s.editor_undo.pop();}s.editor_status=if undo{"Параметр восстановлен и прочитан из Steam"}else{"Параметр записан и прочитан из Steam · X — отменить"}.into();
+            Ok((raw,rows))=>{s.editing=Some((idx,raw,rows));s.editor_dirty=true;if undo{s.editor_undo.pop();}s.editor_status=if undo{tr_ref("controller.parameter_restored_and_read_back_from_steam")}else{tr_ref("controller.parameter_written_and_read_back_from_steam_x")}.into();
                 if let Some((section,row))=s.stick_settings.as_ref().map(|f|(f.section,f.row)) {let count=stick_parameters(&s,section).len();s.stick_settings.as_mut().unwrap().row=row.min(count.saturating_sub(1));}},
-            Err(e)=>{s.editor_uncertain=true;s.editor_status=format!("Ошибка параметра: {e} · X — восстановить исходное значение");},
+            Err(e)=>{s.editor_uncertain=true;s.editor_status=tr_args("controller.parameter_error_e_x_restore_the_original_value", &[("e", &e.to_string())]);},
         };drop(s);sync(a);});
     });
 }

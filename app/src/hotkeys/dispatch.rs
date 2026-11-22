@@ -1,4 +1,5 @@
 //! Hotkey outputs -> existing app actions (UI thread).
+use steam_assets::i18n::tr_ref;
 use super::{Chord, Out};
 use crate::actions::Act;
 use crate::app::App;
@@ -30,7 +31,7 @@ impl App {
         // step from the value being written (a repeat during a hold must count on top of it), else the shown scale
         let inflight = crate::actions::level_in_flight(true);
         let Some(cur) = inflight.or(self.qm.st.brightness) else {
-            self.toast("Яркость недоступна: состояние не подтверждено");
+            self.toast(tr_ref("hotkeys.brightness_unavailable_current_level_is_unconfirmed"));
             return;
         };
         let step = crate::level::hold_step(elapsed_ms as f32);
@@ -85,15 +86,15 @@ enum Pk {
 // sp.js:404906–404978: IN_GAMESCOPE excludes Minimize/ExitGamepadUI/ExitSteam.
 // Logout remains unavailable. Account opens the in-shell saved-account surface.
 const POWER: [(Pk, &str, &str, bool); 9] = [
-    (Pk::Hint, "#PowerChordMenu_ChordScreen", "Показать сочетания кнопок контроллера", false),
-    (Pk::Sleep, "#Quit_Sleep", "Спящий режим", true),
-    (Pk::Shutdown, "#Quit_Shutdown", "Завершение работы", false),
-    (Pk::Restart, "#Quit_Restart", "Перезагрузка", false),
-    (Pk::Account, "#ChangeUser", "Сменить аккаунт", true),
-    (Pk::Logout, "#SignOut_Title", "Выйти", false),
-    (Pk::Desktop, "#SwitchToDesktop", "На рабочий стол", true),
-    (Pk::StockSteam, "#DeckShell_StockSteam", "Вернуться к стандартному Steam", false),
-    (Pk::Cancel, "#Button_Cancel", "Отмена", true),
+    (Pk::Hint, "#PowerChordMenu_ChordScreen", "hotkeys.show_controller_shortcuts", false),
+    (Pk::Sleep, "#Quit_Sleep", "hotkeys.suspend_system", true),
+    (Pk::Shutdown, "#Quit_Shutdown", "hotkeys.shutdown", false),
+    (Pk::Restart, "#Quit_Restart", "hotkeys.restart_system", false),
+    (Pk::Account, "#ChangeUser", "hotkeys.change_account", true),
+    (Pk::Logout, "#SignOut_Title", "hotkeys.sign_out", false),
+    (Pk::Desktop, "#SwitchToDesktop", "hotkeys.switch_to_desktop", true),
+    (Pk::StockSteam, "#DeckShell_StockSteam", "hotkeys.return_to_stock_steam", false),
+    (Pk::Cancel, "#Button_Cancel", "hotkeys.cancel", true),
 ];
 const POWER_ROW: f32 = 72.0; // contextMenuItem 48 CSS px at actual Gaming DPR1.5
 const POWER_TOP: f32 = 0.0; // reference 05: first row meets the panel edge
@@ -150,7 +151,7 @@ fn hint_models() -> (Vec<HintRow>, Vec<HintRow>) {
             last = row.section;
             v.push(HintRow { header: true, text: row.section.into(), glyph: 0, activator: "".into() });
         }
-        v.push(HintRow { header: false, text: row.label.into(), glyph: i as i32, activator: row.activator.to_uppercase().into() });
+        v.push(HintRow { header: false, text: row.label().into(), glyph: i as i32, activator: row.activator().to_uppercase().into() });
     }
     (l, r)
 }
@@ -166,7 +167,7 @@ impl App {
     fn hk_fill(&self, upper_title: bool) {
         let ui = self.ui();
         let st = ui.global::<HotkeysState>();
-        let title = t_or("#ControllerChord_GuideButtonShortcuts", "Комбинации кнопок");
+        let title = t_or("#ControllerChord_GuideButtonShortcuts", tr_ref("hotkeys.steam_button_shortcuts"));
         st.set_title(if upper_title { title.to_uppercase() } else { title }.into());
         let (l, r) = hint_models();
         st.set_left(ModelRc::new(VecModel::from(l)));
@@ -204,11 +205,11 @@ impl App {
         if self.game_overlay.is_none() { crate::gamescope::request_reclaim(); }
         let ui = self.ui();
         let st = ui.global::<HotkeysState>();
-        st.set_power_title(t_or("#Power", "Выключение").into());
-        st.set_power_menu_label(t_or("#ActionButtonLabelMenu", "Меню").to_uppercase().into());
-        st.set_power_select_label(t_or("#ActionButtonLabelSelect", "Выбрать").to_uppercase().into());
-        st.set_power_back_label(t_or("#ActionButtonLabelBack", "Назад").to_uppercase().into());
-        let rows: Vec<PowerRow> = POWER.iter().skip(offset).enumerate().map(|(i, (k, token, fallback, sep))| PowerRow { label: t_or(token, fallback).into(), sep: *sep && i != 0, enabled: power_enabled(*k, self.live.running.is_empty()), y: power_y(i + offset) - (power_y(offset) - POWER_TOP) }).collect();
+        st.set_power_title(t_or("#Power", tr_ref("hotkeys.power_off_system")).into());
+        st.set_power_menu_label(t_or("#ActionButtonLabelMenu", tr_ref("hotkeys.menu")).to_uppercase().into());
+        st.set_power_select_label(t_or("#ActionButtonLabelSelect", tr_ref("hotkeys.select")).to_uppercase().into());
+        st.set_power_back_label(t_or("#ActionButtonLabelBack", tr_ref("hotkeys.previous")).to_uppercase().into());
+        let rows: Vec<PowerRow> = POWER.iter().skip(offset).enumerate().map(|(i, (k, token, fallback, sep))| PowerRow { label: t_or(token, tr_ref(fallback)).into(), sep: *sep && i != 0, enabled: power_enabled(*k, self.live.running.is_empty()), y: power_y(i + offset) - (power_y(offset) - POWER_TOP) }).collect();
         st.set_power_content_height(power_content_height() - (power_y(offset) - POWER_TOP));
         st.set_power_scroll(0.0);
         st.set_power_items(ModelRc::new(VecModel::from(rows)));

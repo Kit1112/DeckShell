@@ -1,5 +1,5 @@
 {
-  "_comment": "Синтетическая фикстура в форме js::DOWNLOADS после правки: нативная установка, progress[] по стадиям 0..6; bytes/total берутся только из стадии 2. Не снимок реальной сессии.",
+  "_comment": "Synthetic native installation fixture with progress stages 0 through 6. Only stage 2 supplies transferred bytes and total size.",
   "downloads": {
     "overview": {"state": "Downloading", "appid": 77, "net": 3000000, "peak": 5000000, "disc": 2000000, "upload": false, "paused": false, "throttling_suspended": false, "lan_peer_hostname": "", "percent": 25, "eta": 120, "dl_bytes": 2000, "dl_total": 8000},
     "items": [

@@ -226,7 +226,7 @@ pub fn apply(plugin: &str, it: &Item, data: &Value, ch: Change) -> String {
         }
         ("DeckMTP", Change::Toggle(_)) => Some(("DeckMTP", "toggle_mtp", vec![], json!({}))),
         ("SteamGridDB", Change::Toggle(b)) => {
-            let key = if it.label.contains("Однообраз") || it.label.to_lowercase().contains("uniform") { "uniform_featured" } else { "squares" };
+            let key = it.setting.as_deref().unwrap_or("squares");
             Some(("SteamGridDB", "set_setting", vec![json!(key), json!(b)], json!({"key": key, "value": b})))
         }
         ("Animation Changer", Change::Toggle(b)) if it.label == "Shuffle on Boot" => Some(("Animation Changer", "randomize", vec![json!(b)], json!({"shuffle": b}))),

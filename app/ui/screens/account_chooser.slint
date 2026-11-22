@@ -9,6 +9,10 @@ import { Toggle } from "../widgets/toggle.slint";
 export struct AccountTile { persona: string, avatar: image, has-avatar: bool }
 
 export global ChooserState {
+    in property <string> label-add-account;
+    in property <string> label-ask-which-account-to-use-each-time;
+    in property <string> label-change-account;
+    in property <string> label-select-a-user-or-sign-in-with;
     in property <[AccountTile]> tiles;
     in-out property <int> focus;
     in property <bool> ask-on-start;
@@ -62,7 +66,7 @@ component Tile inherits Rectangle {
         x: root.name-align == 1 ? 0px : root.name-align == 2 ? root.side - self.width : (root.side - self.width) / 2;
         y: 122px; height: 24px;
         horizontal-alignment: root.name-align == 1 ? left : root.name-align == 2 ? right : center;
-        text: root.plus ? "Добавить аккаунт" : root.data.persona;
+        text: root.plus ? ChooserState.label-add-account : root.data.persona;
         color: white; font-size: 18px; font-weight: 500; font-family: GStyle.loc-font;
         opacity: root.focused ? 1 : 0;
         animate opacity { duration: 240ms; easing: ease-in-out; }
@@ -86,8 +90,8 @@ export component AccountChooser inherits Rectangle {
     panel := Rectangle {
         x: 147px; y: 171px; width: 988px; height: 455px;
         background: #0d141c; border-width: 2px; border-color: #23262e;
-        Text { y: 41px; height: 50px; width: parent.width; text: "Сменить аккаунт"; color: white; font-size: 40px; font-weight: 700; font-family: GStyle.loc-font; horizontal-alignment: center; vertical-alignment: center; }
-        Text { y: 103px; height: 30px; width: parent.width; text: "Выберите пользователя или войдите в новый аккаунт"; color: #b8bcbf; font-size: 24px; font-family: GStyle.loc-font; horizontal-alignment: center; vertical-alignment: center; }
+        Text { y: 41px; height: 50px; width: parent.width; text: ChooserState.label-change-account; color: white; font-size: 40px; font-weight: 700; font-family: GStyle.loc-font; horizontal-alignment: center; vertical-alignment: center; }
+        Text { y: 103px; height: 30px; width: parent.width; text: ChooserState.label-select-a-user-or-sign-in-with; color: #b8bcbf; font-size: 24px; font-family: GStyle.loc-font; horizontal-alignment: center; vertical-alignment: center; }
         for tile[i] in ChooserState.tiles: Tile {
             x: (parent.width - root.row-width) / 2 + i * (root.side + root.gap);
             y: 171px;
@@ -104,7 +108,7 @@ export component AccountChooser inherits Rectangle {
         toggle := Rectangle {
             property <bool> focused: ChooserState.focus == root.count + 1;
             x: 30px; y: 342px; width: parent.width - 60px; height: 72px;
-            Text { x: 8px; width: parent.width - 150px; text: "При каждом запуске Steam спрашивать, какой аккаунт использовать"; color: #dcdedf; font-size: 24px; font-family: GStyle.loc-font; wrap: word-wrap; vertical-alignment: center; }
+            Text { x: 8px; width: parent.width - 150px; text: ChooserState.label-ask-which-account-to-use-each-time; color: #dcdedf; font-size: 24px; font-family: GStyle.loc-font; wrap: word-wrap; vertical-alignment: center; }
             Toggle { x: parent.width - 6px - self.width; y: 2px; on: ChooserState.ask-on-start ? 1 : 0; focused: toggle.focused; }
             TouchArea { enabled: !ChooserState.busy; clicked => { ChooserState.focus = root.count + 1; ChooserState.activate(root.count + 1); } }
         }

@@ -4,6 +4,7 @@
 //! The phone check (`MobileDevice.HasMobileDevice`) is a query. A live send exports a clip (stock
 //! `fnExportClip`) or picks a screenshot file (stock `u`), then uploads it through the stock upload
 //! builder with the phone bucket. [`LIVE_SEND_ENABLED`] is the owner's switch for that path.
+use steam_assets::i18n::{tr_args, tr_ref};
 use crate::{Bridge, Error, Result};
 use serde_json::Value;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -69,13 +70,13 @@ impl Block {
     pub fn message(&self, kind: MediaKind) -> Option<(&'static str, &'static str)> {
         match (self, kind) {
             (Block::ClipTooLong { .. }, _) => Some(("#SendToChat_ClipTooLong",
-                "Некоторые опции недоступны для роликов длиннее 60 сек.")),
+                tr_ref("media_phone.too_long"))),
             (Block::UploadForbidden, MediaKind::Screenshot) => Some(("#ShareSheet_ScreenUploadNotAllowed",
-                "Загрузка скриншотов для этого приложения запрещена.")),
+                tr_ref("media_phone.screenshots_blocked"))),
             (Block::UploadForbidden, MediaKind::Clip) => Some(("#ShareSheet_ClipUploadNotAllowed",
-                "Загрузка роликов для этой игры запрещена.")),
+                tr_ref("media_phone.clips_blocked"))),
             (Block::LimitedAccount, MediaKind::Screenshot) => Some(("#ShareSheet_LimitedScreenshotNotAllowed",
-                "Ограниченная учётная запись не может отправлять скриншоты.")),
+                tr_ref("media_phone.limited_account"))),
             (Block::LimitedAccount, MediaKind::Clip) => None,
             (Block::Hidden, _) => None,
         }
@@ -129,11 +130,11 @@ pub fn phone_reply(query_ok: bool, found_device: bool, up_to_date: bool) -> Phon
 /// User-facing text for a phone reply. Keys are from the reference note.
 pub fn phone_message(reply: PhoneReply, kind: MediaKind) -> Option<&'static str> {
     match reply {
-        PhoneReply::QueryError => Some("Не удалось отправить запрос на ваше мобильное устройство. Повторите попытку позже."),
-        PhoneReply::NoPhone => Some("Мобильное приложение Steam не установлено на устройстве, поддерживающем push-уведомления."),
+        PhoneReply::QueryError => Some(tr_ref("media_phone.query_error")),
+        PhoneReply::NoPhone => Some(tr_ref("media_phone.no_phone")),
         PhoneReply::OutdatedApp => Some(match kind {
-            MediaKind::Clip => "Обновите мобильное приложение Steam, чтобы отправлять ролики. Нужна версия не ниже 3.9.0.",
-            MediaKind::Screenshot => "Обновите мобильное приложение Steam, чтобы отправлять скриншоты. Нужна версия не ниже 3.9.1.",
+            MediaKind::Clip => tr_ref("media_phone.update_clips"),
+            MediaKind::Screenshot => tr_ref("media_phone.update_screenshots"),
         }),
         PhoneReply::Ready => None,
     }
@@ -230,9 +231,9 @@ pub enum SendPhase {
 impl SendPhase {
     pub fn label(&self) -> Option<&'static str> {
         match self {
-            SendPhase::Exporting => Some("Экспорт..."),
-            SendPhase::Uploading => Some("Загрузка…"),
-            SendPhase::Sent => Some("Отправлено"),
+            SendPhase::Exporting => Some(tr_ref("media_phone.exporting")),
+            SendPhase::Uploading => Some(tr_ref("phone.uploading")),
+            SendPhase::Sent => Some(tr_ref("media_phone.sent")),
             _ => None,
         }
     }
@@ -524,10 +525,10 @@ pub fn refusal_message(why: &str, kind: MediaKind) -> String {
         "query" => phone_message(PhoneReply::QueryError, kind).unwrap_or_default().to_owned(),
         "no_phone" => phone_message(PhoneReply::NoPhone, kind).unwrap_or_default().to_owned(),
         "outdated" => phone_message(PhoneReply::OutdatedApp, kind).unwrap_or_default().to_owned(),
-        "no_preset" => "Ролик не получается уместить в 100 МБ для отправки; ничего не отправлено.".to_owned(),
-        "no_path" => "Файл скриншота не найден; ничего не отправлено.".to_owned(),
-        "too_big" => "Файл больше 100 МБ или пустой; ничего не отправлено.".to_owned(),
-        other => format!("Отправка остановлена ({other}); ничего не отправлено."),
+        "no_preset" => tr_ref("media_phone.clip_size").to_owned(),
+        "no_path" => tr_ref("media_phone.missing_path").to_owned(),
+        "too_big" => tr_ref("media_phone.size_limit").to_owned(),
+        other => tr_args("media_phone.refused", &[("reason", other)]),
     }
 }
 
@@ -652,11 +653,11 @@ mod tests {
         let mut p = SendPhase::Idle;
         p = p.advance(SendStep::Check).unwrap();
         p = p.advance(SendStep::Export).unwrap();
-        assert_eq!(p.label(), Some("Экспорт..."));
+        assert_eq!(p.label(), Some(crate::expected_text("Экспорт...", "Exporting…")));
         p = p.advance(SendStep::Upload).unwrap();
-        assert_eq!(p.label(), Some("Загрузка…"));
+        assert_eq!(p.label(), Some(crate::expected_text("Загрузка…", "Uploading…")));
         p = p.advance(SendStep::Commit).unwrap();
-        assert_eq!(p.label(), Some("Отправлено"));
+        assert_eq!(p.label(), Some(crate::expected_text("Отправлено", "Sent")));
         assert!(p.advance(SendStep::Check).is_err());
         assert!(SendPhase::Idle.advance(SendStep::Upload).is_err());
     }
@@ -794,11 +795,11 @@ mod tests {
 
     #[test]
     fn refusal_texts_use_stock_phone_messages() {
-        assert!(refusal_message("no_phone", MediaKind::Clip).contains("не установлено"));
+        assert!(refusal_message("no_phone", MediaKind::Clip).contains(crate::expected_text("не установлено", "not installed")));
         assert!(refusal_message("outdated", MediaKind::Clip).contains("3.9.0"));
         assert!(refusal_message("outdated", MediaKind::Screenshot).contains("3.9.1"));
         assert!(refusal_message("unknown_code", MediaKind::Clip).contains("unknown_code"));
-        assert!(refusal_message("too_big", MediaKind::Screenshot).contains("100 МБ"));
+        assert!(refusal_message("too_big", MediaKind::Screenshot).contains(crate::expected_text("100 МБ", "100 MB")));
     }
 
     #[test]

@@ -1,16 +1,17 @@
 //! Stock joystick_move (mode 6) settings: chunk~2dcc5aaf7.js mode table.
 //! Addresses come from action-set source groups; values/ranges come from Steam.
+use steam_assets::i18n::{tr_args, tr_ref};
 use super::controller_live::{msg, number, string};
 use steam_bridge::{controller_edit::BindingTarget, Error, Result};
 #[derive(Clone, Debug)]
 pub struct Stick { pub label: String, pub target: BindingTarget, pub mode: i64 }
 #[derive(Clone, Debug)]
-pub struct Setting { pub key: i64, pub label: &'static str, pub value: i64, pub min: i64, pub max: i64, pub choices: &'static [&'static str], pub toggle: bool }
+pub struct Setting { pub key: i64, pub label: &'static str, pub value: i64, pub min: i64, pub max: i64, pub choice_keys: &'static [&'static str], pub toggle: bool }
 impl Setting {
-    pub fn text(&self) -> String { self.choices.get(self.value as usize).map(|s|s.to_string()).unwrap_or_else(||match self.key {31|32=>format!("{}%",self.value),45=>format!("{}°",self.value),_=>self.value.to_string()}) }
+    pub fn text(&self) -> String { self.choice_keys.get(self.value as usize).map(|key| tr_ref(key).to_owned()).unwrap_or_else(||match self.key {31|32=>format!("{}%",self.value),45=>format!("{}°",self.value),_=>self.value.to_string()}) }
     pub fn next(&self, dir: i64) -> i64 {
         if self.toggle {return 1-self.value;}
-        if !self.choices.is_empty() {return (self.value+dir).rem_euclid(self.choices.len() as i64);}
+        if !self.choice_keys.is_empty() {return (self.value+dir).rem_euclid(self.choice_keys.len() as i64);}
         (self.value+dir*if [7,12,13,18,19].contains(&self.key){100}else{1}).clamp(self.min,self.max)
     }
 }
@@ -25,7 +26,7 @@ pub fn sticks(raw:&[u8])->Result<Vec<Stick>> {
             for group in msg(source,2)? {
                 let mode=number(group,1)?;
                 let target=BindingTarget {action_set_key:string(set,1)?,action_set_layer_key:layer_key.clone(),source_binding_key:key,mode_shift:false,input_key:0,activator_index:0,binding_index:0,source_mode:mode,modeid:number(group,5)?}.resolve_source_binding(raw)?;
-                let mut label=if key==3 {"Левый джойстик"}else{"Правый джойстик"}.to_string();
+                let mut label=if key==3 {tr_ref("controller.left_joystick_2")}else{tr_ref("controller.right_joystick_2")}.to_string();
                 if msg(raw,8)?.len()>1 {label=format!("{} · {}",string(set,2)?,label);}
                 if let Some(layer)=&layer_key {label=format!("{label} · {layer}");}
                 out.push(Stick{label,target,mode});
@@ -49,21 +50,21 @@ pub(super) fn group<'a>(raw:&'a [u8],t:&BindingTarget)->Result<&'a [u8]> {
             }
         }}
     }
-    Err(Error::Protocol("Источник стика отсутствует в ответе Steam".into()))
+    Err(Error::Protocol(tr_ref("controller.stick_source_missing_from_the_steam_reply").into()))
 }
 pub fn value(raw:&[u8],t:&BindingTarget,key:i64)->Result<i64>{
     for s in msg(group(raw,t)?,4)? {if number(s,1)?==key{return signed(s,2);}}
-    Err(Error::Protocol(format!("Параметр стика {key} отсутствует в ответе Steam")))
+    Err(Error::Protocol(tr_args("controller.stick_setting_key_missing_from_the_steam_reply", &[("key", &key.to_string())])))
 }
 pub fn settings(raw:&[u8],t:&BindingTarget,section:usize)->Result<Vec<Setting>> {
     // Other modes have different contracts. Never invent joystick settings for them.
     if t.source_mode!=6 {return Ok(vec![]);}
     let defs:Vec<(i64,&str,&[&str],bool)>=match section {
-        0=>vec![(32,"Горизонтальная чувствительность",&[],false),(31,"Вертикальная чувствительность",&[],false),(41,"Инверсия горизонтальной оси",&[],true),(42,"Инверсия вертикальной оси",&[],true),(9,"Кривая чувствительности стика",&["Линейная","Кривая 1","Кривая 2","Кривая 3","Кривая 4","Своя"],false),(10,"Своя кривая",&[],false)],
-        1=>vec![(8,"Джойстик",&["Левый джойстик","Правый джойстик","Относительная мышь"],false),(21,"Ось вывода",&["Вертикально","Горизонтально","Обе оси"],false),(45,"Поворачивать вывод",&[],false)],
-        2=>vec![(124,"Источник мёртвой зоны",&["Без мёртвой зоны","Калибровка","Своя"],false),(12,"Внутренняя мёртвая зона",&[],false),(13,"Внешняя мёртвая зона",&[],false),(14,"Форма мёртвой зоны",&["Крест","Круг","Квадрат"],false),(127,"Дополнительные параметры",&[],true),(18,"Антимёртвая зона",&[],false),(19,"Буфер антимёртвой зоны",&[],false)],
-        3=>vec![(7,"Команда радиуса",&[],false),(20,"Команда инверсии",&[],true)],
-        _=>vec![(3,"Уровень тактильной отдачи",&["Выкл.","Низкий","Средний","Высокий"],false),(158,"Тактильная отдача активации гироскопа",&["Выкл.","При включении","При выключении","При включении/выключении"],false)]
+        0=>vec![(32,tr_ref("controller.horizontal_scale"),&[],false),(31,tr_ref("controller.vertical_scale"),&[],false),(41,tr_ref("controller.invert_horizontal_axis"),&[],true),(42,tr_ref("controller.invert_vertical_axis"),&[],true),(9,tr_ref("controller.stick_response_curve"),&["controller.linear","controller.curve_1","controller.curve_2","controller.curve_3","controller.curve_4","controller.custom"],false),(10,tr_ref("controller.custom_curve_2"),&[],false)],
+        1=>vec![(8,tr_ref("controller.output_joystick"),&["controller.left_joystick_2","controller.right_joystick_2","controller.relative_mouse"],false),(21,tr_ref("controller.output_axis"),&["controller.vertical","controller.horizontal","controller.both_axes"],false),(45,tr_ref("controller.rotate_output"),&[],false)],
+        2=>vec![(124,tr_ref("controller.deadzone_source"),&["controller.no_deadzone","controller.calibration","controller.custom"],false),(12,tr_ref("controller.analog_range_end"),&[],false),(13,tr_ref("controller.analog_range_start"),&[],false),(14,tr_ref("controller.deadzone_shape"),&["controller.cross","controller.circle","controller.square"],false),(127,tr_ref("controller.advanced_settings_2"),&[],true),(18,tr_ref("controller.anti_deadzone"),&[],false),(19,tr_ref("controller.anti_deadzone_buffer"),&[],false)],
+        3=>vec![(7,tr_ref("controller.command_radius"),&[],false),(20,tr_ref("controller.command_invert"),&[],true)],
+        _=>vec![(3,tr_ref("controller.haptics_intensity"),&["controller.off","controller.low_2","controller.medium_2","controller.high_2"],false),(158,tr_ref("controller.gyro_activation_haptics"),&["controller.off","controller.on_enable","controller.on_disable","controller.on_enable_and_disable"],false)]
     };
     let g=group(raw,t)?;let mut out=Vec::new();
     for (key,label,choices,toggle) in defs {
@@ -73,7 +74,7 @@ pub fn settings(raw:&[u8],t:&BindingTarget,section:usize)->Result<Vec<Setting>> 
         for s in msg(g,4)? {if number(s,1)?==key {
             let value=signed(s,2)?;
             let (min,max)=if toggle {(0,1)}else if !choices.is_empty(){(0,choices.len() as i64-1)}else{(signed(s,3)?,signed(s,4)?)};
-            out.push(Setting{key,label,value,min,max,choices,toggle});
+            out.push(Setting{key,label,value,min,max,choice_keys:choices,toggle});
         }}
     }
     Ok(out)

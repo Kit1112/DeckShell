@@ -1,5 +1,6 @@
 //! Explicit screenshot API and native Steam recording UI. Physical capture chords
 //! remain owned by Steam Input; no custom recorder or duplicate native toggle.
+use steam_assets::i18n;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
@@ -93,8 +94,8 @@ impl App {
     pub fn take_screenshot(&mut self) {
         let appid = self.live.running.first().copied().unwrap_or(DESKTOP_APPID);
         let root = shot_root(&self.base.steam_root, self.base.active_user, appid);
-        let ok_text = t_or("#MediaPage_TakeScreenshot", "Скриншот сделан");
-        let fail_text = t_or("#DeckShell_ScreenshotFailed", "Не удалось сделать скриншот");
+        let ok_text = t_or("#MediaPage_TakeScreenshot", i18n::tr_ref("capture.screenshot_taken"));
+        let fail_text = t_or("#DeckShell_ScreenshotFailed", i18n::tr_ref("capture.couldn_t_take_a_screenshot"));
         let _ = std::thread::Builder::new().name("screenshot".into()).spawn(move || {
             let ts = chrono::Local::now().format("%Y%m%d%H%M%S").to_string();
             let (jpg, thumb, _) = shot_names(&root, &ts, |p| p.exists());
@@ -118,8 +119,12 @@ impl App {
                 }
             };
             super::defer(move |a| { if succeeded {
-                let mut event = crate::notifications::Event::capture(&msg);
-                event.image = jpg.to_string_lossy().into_owned();
+                let event = crate::notifications::Event {
+                    title: msg,
+                    kind: "screenshot".into(),
+                    image: jpg.to_string_lossy().into_owned(),
+                    ..Default::default()
+                };
                 crate::notifications::enqueue(&a.ui(), event, !a.live.running.is_empty());
             } else { a.toast(&msg); } });
         });
@@ -203,8 +208,8 @@ pub fn start_wait(now: Instant, session_ended_at: Option<Instant>, save_open: bo
 
 pub fn wait_message(wait: StartWait) -> String {
     match wait {
-        StartWait::SaveOpen => "Steam ещё сохраняет предыдущий клип; запись начнётся после сохранения".into(),
-        StartWait::Cooldown(left) => format!("Новая запись через {} с: Steam завершает предыдущую", left.as_millis().div_ceil(1000)),
+        StartWait::SaveOpen => i18n::tr_ref("capture.steam_still_saves_the_previous_clip_recording").into(),
+        StartWait::Cooldown(left) => i18n::tr_args("capture.new_recording_in_sec_steam_is_finishing", &[("seconds", &left.as_millis().div_ceil(1000).to_string())]),
     }
 }
 
@@ -339,8 +344,20 @@ impl App {
                     return;
                 };
                 EVENT_RESET.with(|r| r.set(false));
-                for event in events {
-                    let mut event = crate::notifications::Event::from_value(event);
+                for event_data in events {
+                    let mut event = crate::notifications::Event::from_value(event_data);
+                    match event.kind.as_str() {
+                        "screenshot" => event.title = i18n::tr("capture.screenshot_taken"),
+                        "achievement" if event.title.is_empty() => {
+                            event.title = i18n::tr("capture.achievement_unlocked");
+                        }
+                        "friend" => {
+                            if let Some(game) = event_data.get("game").and_then(|game| game.as_str()) {
+                                event.body = i18n::tr_args("capture.friend_playing", &[("game", game)]);
+                            }
+                        }
+                        _ => {}
+                    }
                     event.resolve_screenshot(&a.base.steam_root, a.base.active_user);
                     crate::notifications::enqueue(&a.ui(), event, !a.live.running.is_empty());
                 }
@@ -399,7 +416,7 @@ impl App {
                 match outcome {
                     PressOutcome::Expired => {
                         crate::diag::log("record_chord", serde_json::json!({"action": "expired", "reason": "previous command unconfirmed"}));
-                        self.toast("Steam ещё не подтвердил предыдущую команду записи");
+                        self.toast(i18n::tr_ref("capture.steam_has_not_yet_confirmed_the_previous"));
                     }
                     PressOutcome::Stop | PressOutcome::Start => {
                         let start = outcome == PressOutcome::Start;
@@ -416,7 +433,7 @@ impl App {
                     }
                     PressOutcome::Unavailable => {
                         crate::diag::log("record_chord", serde_json::json!({"action": "none", "reason": "no manual mode or game"}));
-                        self.toast("Запись недоступна: нужен ручной режим Steam и запущенная игра");
+                        self.toast(i18n::tr_ref("capture.recording_not_available_you_need_manual_steam"));
                     }
                     PressOutcome::Queued => {}
                 }
@@ -465,8 +482,8 @@ impl App {
     }
 
     /// Present a short event over a game using the existing non-input external overlay.
-    pub fn capture_notification(&mut self, message: &str) {
-        crate::notifications::enqueue(&self.ui(), crate::notifications::Event::capture(message), !self.live.running.is_empty());
+    pub fn capture_notification(&mut self, active: bool) {
+        crate::notifications::enqueue(&self.ui(), crate::notifications::Event::recording(active), !self.live.running.is_empty());
     }
 
     pub fn push_native_recording(&self) {
@@ -476,7 +493,7 @@ impl App {
     pub fn refresh_native_recording(&mut self) {
         if NATIVE.with(|n| { let mut n=n.borrow_mut(); if n.reading || n.sending { true } else { n.reading=true; n.read_started_at=Some(Instant::now()); false } }) { return; }
         let Some(bridge) = crate::actions::bridge() else {
-            NATIVE.with(|n| { let mut n=n.borrow_mut(); n.reading=false; n.view=None; n.notification_baseline=None; n.note="Транспорт Steam недоступен".into(); });
+            NATIVE.with(|n| { let mut n=n.borrow_mut(); n.reading=false; n.view=None; n.notification_baseline=None; n.note=i18n::tr_ref("capture.steam_transport_is_not_available").into(); });
             self.push_native_recording(); self.schedule_native_recording_poll(); return;
         };
         let spawned = std::thread::Builder::new().name("native-recording-read".into()).spawn(move || {
@@ -497,8 +514,8 @@ impl App {
                             if let Some(p) = &n.pending {
                                 use steam_bridge::recording::Confirmation;
                                 match p.observe(&view) {
-                                    Confirmation::SessionObserved => { n.pending=None; n.note="Сессия Steam наблюдается после команды запуска".into(); },
-                                    Confirmation::SessionEndObserved { additional_cached_clips } => { n.pending=None; n.note=format!("Наблюдается конец сессии; дополнительных постоянных клипов в кэше: {additional_cached_clips}. Связь клипов с командой сохранения не подтверждена."); },
+                                    Confirmation::SessionObserved => { n.pending=None; n.note=i18n::tr_ref("capture.steam_session_observed_after_launch_command").into(); },
+                                    Confirmation::SessionEndObserved { additional_cached_clips } => { n.pending=None; n.note=i18n::tr_args("capture.the_recording_session_has_ended_there_are", &[("additional_cached_clips", &(additional_cached_clips).to_string())]); },
                                     Confirmation::Waiting => {},
                                 }
                             }
@@ -508,7 +525,7 @@ impl App {
                             if matches!(&view.cache, steam_bridge::recording::Snapshot::Cached(_)) {
                                 let previous = n.notification_baseline.replace(now_active);
                                 if previous.is_some_and(|previous| previous != now_active) {
-                                    super::defer(move |a| a.capture_notification(if now_active { "Запись началась" } else { "Запись завершена" }));
+                                    super::defer(move |a| a.capture_notification(now_active));
                                 }
                             } else {
                                 n.notification_baseline = None;
@@ -535,7 +552,7 @@ impl App {
                     },
                     Err(_) => {
                         crate::diag::log("native_recording.observation_error", serde_json::json!({"source":"bridge"}));
-                        NATIVE.with(|n| { let mut n=n.borrow_mut(); n.view=None; n.notification_baseline=None; n.record_chord_at=None; n.note="Ошибка чтения Steam; список может быть неполным. Команда не повторяется.".into(); });
+                        NATIVE.with(|n| { let mut n=n.borrow_mut(); n.view=None; n.notification_baseline=None; n.record_chord_at=None; n.note=i18n::tr_ref("capture.steam_reading_error_the_list_may_not").into(); });
                     },
                 }
                 a.check_clip_watch();
@@ -547,7 +564,7 @@ impl App {
             });
         });
         if spawned.is_err() {
-            NATIVE.with(|n| { let mut n=n.borrow_mut(); n.reading=false; n.view=None; n.notification_baseline=None; n.record_chord_at=None; n.note="Не удалось запустить чтение состояния".into(); });
+            NATIVE.with(|n| { let mut n=n.borrow_mut(); n.reading=false; n.view=None; n.notification_baseline=None; n.record_chord_at=None; n.note=i18n::tr_ref("capture.failed_to_start_reading_the_condition").into(); });
             self.push_native_recording();
         }
     }
@@ -575,7 +592,7 @@ impl App {
                 WatchOutcome::Found(ms)
             } else if Instant::now() >= watch.deadline {
                 n.clip_watch = None;
-                n.note = "Клип не появился в кэше Steam за 60 с; проверьте Медиа позже.".into();
+                n.note = i18n::tr_ref("capture.the_clip_didn_t_appear_in_steam").into();
                 WatchOutcome::Expired
             } else {
                 WatchOutcome::Waiting
@@ -585,7 +602,7 @@ impl App {
             WatchOutcome::Idle => {}
             WatchOutcome::Found(ms) => {
                 crate::diag::log("clip_watch", serde_json::json!({"result": "found", "duration_ms": ms}));
-                self.toast(&format!("Клип сохранён: {} с", ms / 1000));
+                self.toast(&i18n::tr_args("capture.clip_saved_sec", &[("ms", &(ms / 1000).to_string())]));
             }
             WatchOutcome::Expired => {
                 crate::diag::log("clip_watch", serde_json::json!({"result": "expired"}));
@@ -616,7 +633,7 @@ impl App {
             let result=bridge.request_native_clip_cache();
             super::defer(move |a| {
                 NATIVE.with(|n| { let mut n=n.borrow_mut(); n.reading=false;
-                    n.note=if result.is_ok() { "Показаны известные Steam клипы; кэш может быть неполным" } else { "Запрос кэша не подтверждён; пустой список не доказан" }.into(); });
+                    n.note=if result.is_ok() { i18n::tr_ref("capture.shown_famous_steam_clips_cache_may_be") } else { i18n::tr_ref("capture.cache_request_not_confirmed_empty_list_not") }.into(); });
                 a.refresh_native_recording();
             });
         });
@@ -634,7 +651,7 @@ impl App {
             let mut n=n.borrow_mut();
             if n.sending || n.reading { return; }
             n.pending=None; n.view=None;
-            n.note="Неизвестный исход принят пользователем. Команда не повторена; состояние перечитывается.".into();
+            n.note=i18n::tr_ref("capture.unknown_outcome_is_accepted_by_the_user").into();
         });
         self.refresh_native_recording();
     }
@@ -668,7 +685,7 @@ impl App {
                 n.session_ended_at=Some(Instant::now());
                 n.clip_watch=Some(ClipWatch { before, deadline: Instant::now() + CLIP_WATCH_WINDOW });
             }
-            n.note="Команда отправляется один раз; ожидается подтверждение состояния Steam".into();
+            n.note=i18n::tr_ref("capture.the_command_is_sent_once_confirmation_of").into();
             Some(command)
         });
         let Some(command)=command else { self.refresh_native_recording(); return; };
@@ -689,11 +706,11 @@ impl App {
                     let mut n=n.borrow_mut(); n.sending=false;
                     if !start && !matches!(reply, Ok(CommandReply::StopDispatched)) { n.stop_sent_at=None; }
                     match reply {
-                        Ok(CommandReply::Rejected(code)) => { n.pending=None; n.note=format!("Steam отклонил запуск (EResult {code})"); },
-                        Ok(CommandReply::Unavailable) => { n.pending=None; n.note="Условия или возможности Steam изменились; команда не выполнена".into(); },
-                        Ok(CommandReply::StartAccepted) => n.note="Steam принял запуск; ожидается наблюдение сессии".into(),
-                        Ok(CommandReply::StopDispatched) => n.note="Остановка вызвана; ожидается конец сессии. Сохранение клипа не подтверждено ответом Steam.".into(),
-                        Err(_) => n.note="Исход команды неизвестен. Повтор заблокирован; обновление только читает состояние.".into(),
+                        Ok(CommandReply::Rejected(code)) => { n.pending=None; n.note=i18n::tr_args("capture.steam_rejected_the_launch_eresult", &[("code", &(code).to_string())]); },
+                        Ok(CommandReply::Unavailable) => { n.pending=None; n.note=i18n::tr_ref("capture.steam_s_terms_or_features_have_changed").into(); },
+                        Ok(CommandReply::StartAccepted) => n.note=i18n::tr_ref("capture.steam_accepts_launch_session_observation_expected").into(),
+                        Ok(CommandReply::StopDispatched) => n.note=i18n::tr_ref("capture.the_stop_is_called_the_end_of").into(),
+                        Err(_) => n.note=i18n::tr_ref("capture.the_outcome_of_the_command_is_unknown").into(),
                     }
                 });
                 a.refresh_native_recording();
@@ -701,7 +718,7 @@ impl App {
             });
         });
         if spawned.is_err() {
-            NATIVE.with(|n| { let mut n=n.borrow_mut(); n.sending=false; n.pending=None; n.note="Команда не отправлена: поток не создан".into(); });
+            NATIVE.with(|n| { let mut n=n.borrow_mut(); n.sending=false; n.pending=None; n.note=i18n::tr_ref("capture.command_not_sent_stream_not_created").into(); });
             self.push_native_recording();
         }
     }
@@ -797,80 +814,5 @@ mod clip_watch_tests {
 }
 
 #[cfg(test)]
-mod record_gate_tests {
-    use super::*;
-
-    const SEC: fn(u64) -> Duration = Duration::from_secs;
-
-    #[test]
-    fn start_within_the_cooldown_after_a_stop_is_refused() {
-        // Task 182 failure: Stop at 23:58:43.19, Start at 23:58:53.93 (10.7 s later), GPU ring timeout 18 s after it.
-        let ended = Instant::now();
-        let gap = Duration::from_millis(10_740);
-        let wait = start_wait(ended + gap, Some(ended), false).expect("refused");
-        assert!(matches!(wait, StartWait::Cooldown(left) if left > SEC(49) && left < SEC(50)));
-    }
-
-    #[test]
-    fn start_after_a_long_gap_is_allowed_like_the_good_run() {
-        // Good run: Stop 23:52:55.58, Start 23:54:39.58 (104 s later).
-        let ended = Instant::now();
-        assert_eq!(start_wait(ended + Duration::from_millis(104_000), Some(ended), false), None);
-        assert_eq!(start_wait(ended + START_COOLDOWN, Some(ended), false), None);
-        assert!(start_wait(ended + START_COOLDOWN - Duration::from_millis(1), Some(ended), false).is_some());
-    }
-
-    #[test]
-    fn no_session_end_means_no_wait_and_an_open_save_always_waits() {
-        let now = Instant::now();
-        assert_eq!(start_wait(now, None, false), None);
-        assert_eq!(start_wait(now, None, true), Some(StartWait::SaveOpen));
-        assert_eq!(start_wait(now + SEC(600), Some(now), true), Some(StartWait::SaveOpen));
-    }
-
-    #[test]
-    fn cooldown_message_rounds_up_and_names_the_reason() {
-        let text = wait_message(StartWait::Cooldown(Duration::from_millis(49_260)));
-        assert!(text.contains("50 с"), "{text}");
-        assert!(wait_message(StartWait::SaveOpen).contains("сохраняет"));
-    }
-
-    #[test]
-    fn repeated_presses_never_send_a_second_start_while_one_is_unconfirmed() {
-        // Start sent, reply lost or session not yet observed: the next presses wait, then expire. No replay.
-        let now = Instant::now();
-        assert_eq!(press_outcome(SEC(0), true, false, true, now, None, false), PressOutcome::Queued);
-        assert_eq!(press_outcome(Duration::from_millis(9_900), true, false, true, now, None, false), PressOutcome::Queued);
-        assert_eq!(press_outcome(SEC(10), true, false, true, now, None, false), PressOutcome::Expired);
-        assert_eq!(press_outcome(SEC(30), true, true, false, now, None, false), PressOutcome::Expired);
-    }
-
-    #[test]
-    fn a_lost_stop_reply_is_never_replayed_as_stop_or_start() {
-        // Stop was sent (pending) and the session still shows active: presses must not stop again.
-        let now = Instant::now();
-        assert_eq!(press_outcome(SEC(1), true, true, false, now, Some(now), true), PressOutcome::Queued);
-        assert_eq!(press_outcome(SEC(12), true, true, false, now, Some(now), true), PressOutcome::Expired);
-    }
-
-    #[test]
-    fn stop_is_the_only_action_while_a_session_is_observed() {
-        let now = Instant::now();
-        assert_eq!(press_outcome(SEC(0), false, true, false, now, None, false), PressOutcome::Stop);
-        // A Start cannot be chosen while a session is active, even if a stale read says it could.
-        assert_eq!(press_outcome(SEC(0), false, true, true, now, None, false), PressOutcome::Stop);
-    }
-
-    #[test]
-    fn press_after_stop_waits_then_starts_once_the_gate_opens() {
-        let stop = Instant::now();
-        // Press 10.7 s after the Stop: refused with the remaining cooldown.
-        let at = stop + Duration::from_millis(10_740);
-        assert!(matches!(press_outcome(SEC(0), false, false, true, at, Some(stop), false), PressOutcome::Wait(StartWait::Cooldown(_))));
-        // Save still open after the cooldown: still refused.
-        assert_eq!(press_outcome(SEC(0), false, false, true, stop + START_COOLDOWN, Some(stop), true), PressOutcome::Wait(StartWait::SaveOpen));
-        // Gate open: exactly one Start.
-        assert_eq!(press_outcome(SEC(0), false, false, true, stop + START_COOLDOWN, Some(stop), false), PressOutcome::Start);
-        assert_eq!(press_outcome(SEC(0), false, false, false, stop + START_COOLDOWN, Some(stop), false), PressOutcome::Unavailable);
-    }
-}
+#[path = "capture_record_gate_tests.rs"]
+mod record_gate_tests;

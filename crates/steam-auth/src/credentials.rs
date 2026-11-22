@@ -1,6 +1,7 @@
 //! Вход по имени и паролю (sp.js 247030–247120): GetPasswordRSAPublicKey → пароль RSA → BeginAuthSessionViaCredentials
 //! → подтверждение (код из письма / мобильный код / подтверждение в приложении) → PollAuthSessionStatus.
 
+use steam_assets::i18n::tr_ref;
 use crate::proto::Msg;
 use crate::{eresult, poll, Device, Error, Guard, Result, Secret, Tokens, Transport, Writer};
 use std::time::Duration;
@@ -58,8 +59,8 @@ pub fn begin(t: &dyn Transport, device: &Device, account: &str, password: &Secre
     let (er, data) = t.call("Authentication", "GetPasswordRSAPublicKey", &Writer::default().string(1, &account).0, false)?;
     if er != eresult::OK { return Err(Error::Steam(er)); }
     let key = Msg::new(&data).ok_or(Error::Protocol("GetPasswordRSAPublicKey"))?;
-    let (Some(m), Some(e), Some(ts)) = (key.string(1), key.string(2), key.uint(3)) else { return Err(Error::Protocol("RSA-ключ без полей")) };
-    let enc = crate::rsa::encrypt_pkcs1(&m, &e, pw.expose().as_bytes()).ok_or(Error::Protocol("RSA-ключ неразборчив"))?;
+    let (Some(m), Some(e), Some(ts)) = (key.string(1), key.string(2), key.uint(3)) else { return Err(Error::Protocol(tr_ref("steam_auth.rsa_fields_missing"))) };
+    let enc = crate::rsa::encrypt_pkcs1(&m, &e, pw.expose().as_bytes()).ok_or(Error::Protocol(tr_ref("steam_auth.invalid_rsa")))?;
     let enc = Secret::new(crate::b64(&enc));
 
     let mut body = Writer::default()
@@ -80,7 +81,7 @@ pub fn begin(t: &dyn Transport, device: &Device, account: &str, password: &Secre
     if er != eresult::OK { return Err(Error::Steam(er)); }
     let r = Msg::new(&data).ok_or(Error::Protocol("BeginAuthSessionViaCredentials"))?;
     let (Some(client_id), Some(req), Some(steamid)) = (r.uint(1), r.bytes(2), r.uint(5)) else {
-        return Err(Error::Protocol("BeginAuthSessionViaCredentials: нет client_id/request_id/steamid"));
+        return Err(Error::Protocol(tr_ref("steam_auth.credentials_fields_missing")));
     };
     let confirmations = r.all(4).iter().filter_map(|c| Some((Guard::from_raw(c.uint(1)?), c.string(2).unwrap_or_default()))).collect();
     let secs = r.float(3).filter(|v| v.is_finite()).unwrap_or(5.0).clamp(1.0, 30.0);

@@ -23,6 +23,7 @@ pub fn dry_run() -> bool {
 /// One row/control of a panel (css px geometry, relative to the panel; converted to device px by `ui`).
 #[derive(Clone, Debug, Default)]
 pub struct Item {
+    pub setting: Option<String>,
     pub kind: i32, // 0 button 1 toggle 2 slider 3 select 4 collapse 5 chip 6 text 7 header
     pub x: f32,
     pub y: f32,
@@ -65,7 +66,7 @@ fn f(v: &Value) -> f32 {
     v.as_f64().unwrap_or(0.0) as f32
 }
 fn s(v: &Value) -> String {
-    v.as_str().unwrap_or("").to_string()
+    steam_assets::i18n::captured_text(v.as_str().unwrap_or_default()).to_owned()
 }
 
 fn parse_panel(p: &Value, is_list: bool) -> PanelDef {
@@ -100,6 +101,7 @@ fn parse_panel(p: &Value, is_list: bool) -> PanelDef {
         let ctl = main.map(|n| n.rect).unwrap_or([0.0, 0.0, w, h]);
         let row = if it["row"].is_object() { Some((s(&it["row"]["label"]), s(&it["row"]["desc"]))) } else { None };
         items.push(Item {
+            setting: it["setting"].as_str().map(str::to_owned),
             kind,
             x,
             y,
@@ -119,7 +121,7 @@ fn parse_panel(p: &Value, is_list: bool) -> PanelDef {
     // section fragments above the first item
     if let Some(fr) = p["frag"].as_array().and_then(|a| a.first()).and_then(|v| v.as_str()) {
         let top = items.iter().map(|i| i.y).fold(f32::MAX, f32::min);
-        items.insert(0, Item { kind: 7, x: 48.0, y: (top - 26.0).max(52.0), w: 300.0, h: 24.0, label: fr.to_string(), ..Default::default() });
+        items.insert(0, Item { kind: 7, x: 48.0, y: (top - 26.0).max(52.0), w: 300.0, h: 24.0, label: steam_assets::i18n::captured_text(fr).to_owned(), ..Default::default() });
     }
     PanelDef {
         name: s(&p["name"]),

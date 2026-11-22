@@ -2,6 +2,7 @@
 //! Сетевой протокол — `steam_auth` (как стоковый экран, sp.js 247516 / 245740 / 247030); всё сетевое — в фоновом
 //! потоке, UI обновляется через `defer` с проверкой поколения (уход со страницы останавливает поток).
 //! Итог — `LoginRequest::Token` в общую модель (`account_request::submit`), дальше — поток смены аккаунта.
+use steam_assets::i18n;
 use super::account_request::{self, LoginRequest};
 use crate::{app::App, AccountState};
 use slint::{ComponentHandle, Rgba8Pixel, SharedPixelBuffer};
@@ -107,10 +108,10 @@ fn set_qr_state(a: &App, state: i32, error: &str) {
 fn failure_text(f: qr::Failure) -> &'static str {
     // Стоковые строки shared_russian: Login_Error_*_Title.
     match f {
-        qr::Failure::Expired => "Истёк срок действия QR-кода — нажмите «обновить»",
-        qr::Failure::Network => "Проблема с подключением",
-        qr::Failure::RateLimit => "Слишком много попыток",
-        qr::Failure::Generic => "Ошибка входа по QR-коду",
+        qr::Failure::Expired => i18n::tr_ref("account_auth.qr_code_expires_click_update"),
+        qr::Failure::Network => i18n::tr_ref("account_auth.connection_problem"),
+        qr::Failure::RateLimit => i18n::tr_ref("account_auth.too_many_retries"),
+        qr::Failure::Generic => i18n::tr_ref("account_auth.error_of_qr_code_entry"),
     }
 }
 
@@ -187,7 +188,7 @@ fn qr_worker(generation: u64, stop: Arc<AtomicBool>, t: &dyn Transport) {
                 return;
             }
             Ok(qr::Event::Agreement) => {
-                post(generation, |a| set_qr_state(a, QR_FAILED, "Steam просит принять соглашение: войдите на steampowered.com"));
+                post(generation, |a| set_qr_state(a, QR_FAILED, i18n::tr_ref("account_auth.steam_asks_to_accept_agreement_log_in")));
                 return;
             }
             Err(f) => { post(generation, move |a| set_qr_state(a, QR_FAILED, failure_text(f))); return; }
@@ -205,7 +206,7 @@ fn finish(a: &mut App, tokens: steam_auth::Tokens) {
     a.account.auth.done = true;
     qr_stop(a); pw_stop(a);
     let name = tokens.account_name.clone();
-    a.ui().global::<AccountState>().set_message(format!("Вход подтверждён: {name}. Переключение аккаунта…").into());
+    a.ui().global::<AccountState>().set_message(i18n::tr_args("account_auth.signed_in_as_switching_accounts", &[("name", &(name).to_string())]).into());
     account_request::submit(a, LoginRequest::Token(tokens));
 }
 
@@ -221,14 +222,14 @@ pub fn pw_stop(a: &mut App) {
 pub fn eresult_text(e: &steam_auth::Error) -> String {
     use steam_auth::{eresult as r, Error};
     match e {
-        Error::Steam(r::INVALID_PASSWORD) => "Неверный пароль.".into(),
-        Error::Steam(r::RATE_LIMIT | r::ACCOUNT_LOGIN_DENIED_THROTTLE) => "Превышено допустимое число попыток входа. Повторите попытку позже.".into(),
-        Error::Steam(r::INVALID_LOGIN_AUTH_CODE | r::TWO_FACTOR_MISMATCH) => "Неверный код, попробуйте еще раз".into(),
-        Error::Steam(r::EXPIRED | r::FILE_NOT_FOUND) => "Срок действия этого кода истёк.".into(),
-        Error::Steam(r::AGREEMENT_REQUIRED) => "Steam просит принять соглашение: войдите на steampowered.com.".into(),
-        Error::Network(_) | Error::Steam(r::NO_CONNECTION | r::TIMEOUT | r::SERVICE_UNAVAILABLE) => "При подключении к Steam возникла проблема. Повторите попытку позже.".into(),
-        Error::Steam(c) => format!("При входе в аккаунт произошла ошибка (код {c}). Повторите попытку позже."),
-        Error::Protocol(_) => "При входе в аккаунт произошла ошибка. Повторите попытку позже.".into(),
+        Error::Steam(r::INVALID_PASSWORD) => i18n::tr_ref("account_auth.incorrect_password").into(),
+        Error::Steam(r::RATE_LIMIT | r::ACCOUNT_LOGIN_DENIED_THROTTLE) => i18n::tr_ref("account_auth.too_many_recent_sign_in_attempts_try").into(),
+        Error::Steam(r::INVALID_LOGIN_AUTH_CODE | r::TWO_FACTOR_MISMATCH) => i18n::tr_ref("account_auth.incorrect_code_please_try_again").into(),
+        Error::Steam(r::EXPIRED | r::FILE_NOT_FOUND) => i18n::tr_ref("account_auth.that_code_is_too_old_and_has").into(),
+        Error::Steam(r::AGREEMENT_REQUIRED) => i18n::tr_ref("account_auth.steam_asks_you_to_accept_the_agreement").into(),
+        Error::Network(_) | Error::Steam(r::NO_CONNECTION | r::TIMEOUT | r::SERVICE_UNAVAILABLE) => i18n::tr_ref("account_auth.there_was_a_problem_communicating_with_steam").into(),
+        Error::Steam(c) => i18n::tr_args("account_auth.sign_in_failed_code_try_again_later", &[("code", &(c).to_string())]),
+        Error::Protocol(_) => i18n::tr_ref("account_auth.something_went_wrong_while_attempting_to_sign").into(),
     }
 }
 
@@ -239,12 +240,12 @@ pub fn password_start(a: &mut App, password: Secret, remember: bool) {
     if account.is_empty() || password.is_empty() { return; }
     let ui = a.ui(); let st = ui.global::<AccountState>();
     if offline(a) {
-        st.set_message("Без сети (мок/тест): вход по паролю не отправляется.".into());
+        st.set_message(i18n::tr_ref("account_auth.without_a_network_wet_test_no_password").into());
         return;
     }
     a.account.auth.password_busy = true;
     st.set_busy(true);
-    st.set_message("Вход в Steam…".into());
+    st.set_message(i18n::tr_ref("account_auth.logging_in_to_steam").into());
     let generation = a.account.auth.generation;
     let stop = Arc::new(AtomicBool::new(false));
     a.account.auth.pw_stop = Some(stop.clone());
@@ -286,7 +287,7 @@ fn password_worker(generation: u64, stop: Arc<AtomicBool>, codes: mpsc::Receiver
         if sleep_or_stop(&stop, session.interval.min(Duration::from_secs(3))) { return; }
         while let Ok((code, kind)) = codes.try_recv() {
             match session.submit_code(t, &code, kind) {
-                Ok(()) => post(generation, |a| a.ui().global::<AccountState>().set_message("Код принят. Вход…".into())),
+                Ok(()) => post(generation, |a| a.ui().global::<AccountState>().set_message(i18n::tr_ref("account_auth.code_accepted").into())),
                 Err(e) => {
                     let msg = eresult_text(&e);
                     post(generation, move |a| { let ui = a.ui(); let st = ui.global::<AccountState>(); st.set_busy(false); st.set_message(msg.into()); });
@@ -299,7 +300,7 @@ fn password_worker(generation: u64, stop: Arc<AtomicBool>, codes: mpsc::Receiver
             Err(e) => { fail(eresult_text(&e)); post(generation, |a| a.ui().global::<AccountState>().set_page(1)); return; }
         }
         // Сервер сам завершает сессию по таймауту (Expired); подстраховка — 10 минут.
-        if started.elapsed() > Duration::from_secs(600) { fail("Истёк срок действия запроса на вход в аккаунт".into()); return; }
+        if started.elapsed() > Duration::from_secs(600) { fail(i18n::tr_ref("account_auth.the_sign_in_request_has_expired").into()); return; }
     }
 }
 
@@ -312,12 +313,12 @@ pub fn guard_primary(a: &mut App) {
         return;
     }
     let code = a.account.auth.guard_code.trim().to_uppercase();
-    if code.len() < 5 { st.set_message("Введите код целиком (5 символов).".into()); return; }
+    if code.len() < 5 { st.set_message(i18n::tr_ref("account_auth.enter_the_entire_code_5_characters").into()); return; }
     let kind = if a.account.auth.guard_kind == 1 { Guard::EmailCode } else { Guard::DeviceCode };
     if let Some(tx) = &a.account.auth.code_tx {
         let _ = tx.send((code, kind));
         st.set_busy(true);
-        st.set_message("Проверка кода…".into());
+        st.set_message(i18n::tr_ref("account_auth.code_check").into());
     }
 }
 
@@ -338,52 +339,5 @@ pub fn reset(a: &mut App) {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn qr_render_is_card_sized_with_stock_colors_and_decodable_geometry() {
-        let buf = render_qr("https://s.team/q/1/3190591570734873285").unwrap();
-        assert_eq!((buf.width(), buf.height()), (QR_CARD, QR_CARD));
-        let px = buf.as_slice();
-        assert!(px.iter().any(|p| (p.r, p.g, p.b) == (21, 23, 28)), "тёмные модули стока");
-        assert_eq!((px[0].r, px[0].g, px[0].b), (255, 255, 255), "тихая зона белая");
-        // Код помещается в ~200px по центру: поля не меньше 20px.
-        let first_dark = px.iter().position(|p| p.r == 21).unwrap() as u32;
-        assert!(first_dark % QR_CARD >= 20 && first_dark / QR_CARD >= 20);
-        let b = blur(&buf);
-        assert!(b.as_slice().iter().any(|p| p.r > 30 && p.r < 220), "размытие даёт полутона");
-    }
-    #[test]
-    fn eresult_texts_are_stock_russian() {
-        assert_eq!(eresult_text(&steam_auth::Error::Steam(5)), "Неверный пароль.");
-        assert!(eresult_text(&steam_auth::Error::Steam(88)).contains("Неверный код"));
-        assert!(eresult_text(&steam_auth::Error::Network("x".into())).contains("подключении"));
-    }
-
-    /// Мок-транспорт с готовыми ответами: QR-воркер доходит до успеха, токены уходят в общую модель.
-    struct Script(std::sync::Mutex<Vec<(&'static str, (i32, Vec<u8>))>>);
-    impl Transport for Script {
-        fn call(&self, _s: &str, m: &str, _b: &[u8], _p: bool) -> steam_auth::Result<(i32, Vec<u8>)> {
-            let mut v = self.0.lock().unwrap();
-            let i = v.iter().position(|(n, _)| *n == m).expect(m);
-            Ok(v.remove(i).1)
-        }
-    }
-    #[test]
-    fn qr_worker_walks_begin_poll_scan_success_without_ui() {
-        use steam_auth::proto::Writer;
-        let mut begin = Writer::default().uint(1, 5).string(2, "https://s.team/q/1/5").bytes(3, b"r").0;
-        begin.extend_from_slice(&[0x25]); begin.extend_from_slice(&1.0f32.to_bits().to_le_bytes());
-        let t = Script(std::sync::Mutex::new(vec![
-            ("BeginAuthSessionViaQR", (1, begin)),
-            ("PollAuthSessionStatus", (1, Writer::default().uint(5, 1).0)),
-            ("PollAuthSessionStatus", (1, Writer::default().string(3, "R").string(6, "fixture").0)),
-        ]));
-        let stop = Arc::new(AtomicBool::new(false));
-        // Без цикла событий `post` ничего не применяет; проверяем, что воркер завершается сам на Done.
-        let started = Instant::now();
-        qr_worker(1, stop, &t);
-        assert!(t.0.lock().unwrap().is_empty(), "все ответы израсходованы: begin → scan → done");
-        assert!(started.elapsed() < Duration::from_secs(5));
-    }
-}
+#[path = "account_auth_tests.rs"]
+mod tests;

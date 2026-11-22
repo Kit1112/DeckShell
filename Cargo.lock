@@ -888,6 +888,7 @@ name = "deck-system"
 version = "0.1.0"
 dependencies = [
  "libc",
+ "steam-assets",
 ]
 
 [[package]]
@@ -4499,7 +4500,13 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 name = "steam-assets"
 version = "0.1.0"
 dependencies = [
+ "i-slint-compiler",
+ "proc-macro2",
+ "serde",
  "serde_json",
+ "syn 2.0.119",
+ "tempfile",
+ "unicode-script",
 ]
 
 [[package]]
@@ -4507,6 +4514,7 @@ name = "steam-auth"
 version = "0.1.0"
 dependencies = [
  "num-bigint",
+ "steam-assets",
  "ureq",
 ]
 
@@ -4516,6 +4524,7 @@ version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
+ "steam-assets",
  "steam-control",
  "steam-data",
  "tungstenite",

@@ -13,6 +13,7 @@
 //! Geometry is absolute window px (content x 395..1240), computed here so tests can lint overlaps and walk the pad focus.
 //! Network and decoding run on worker threads; results come back through `slint::invoke_from_event_loop` into `apply_*`
 //! functions that tests call directly.
+use steam_assets::i18n;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -29,7 +30,7 @@ use crate::input::Action;
 use crate::{AnimItem, AnimPageState, SettingsState};
 
 pub const PAGE: &str = "customization";
-pub const LABEL: &str = "Анимации";
+pub const LABEL: &str = "anim_page.animations";
 
 pub const X0: f32 = 395.0;
 pub const W: f32 = 845.0;
@@ -71,10 +72,10 @@ pub const SLOTS: [&str; 4] = ["boot", "suspend", "throbber", "shutdown"];
 
 pub fn slot_title(slot: &str) -> &'static str {
     match slot {
-        "boot" => "Запуск",
-        "suspend" => "Сон",
-        "throbber" => "Сон из загрузки",
-        _ => "Выключение и перезагрузка",
+        "boot" => i18n::tr_ref("anim_page.launching"),
+        "suspend" => i18n::tr_ref("anim_page.son"),
+        "throbber" => i18n::tr_ref("anim_page.sleep_from_loading"),
+        _ => i18n::tr_ref("anim_page.shutdown_and_restart"),
     }
 }
 
@@ -102,12 +103,12 @@ impl LibSort {
     pub const ALL: [LibSort; 6] = [LibSort::Name, LibSort::Newest, LibSort::Oldest, LibSort::Popular, LibSort::Liked, LibSort::Size];
     pub fn label(self) -> &'static str {
         match self {
-            LibSort::Name => "По названию",
-            LibSort::Newest => "Сначала новые",
-            LibSort::Oldest => "Сначала старые",
-            LibSort::Popular => "Популярные",
-            LibSort::Liked => "Понравившиеся",
-            LibSort::Size => "По размеру",
+            LibSort::Name => i18n::tr_ref("anim_page.by_name"),
+            LibSort::Newest => i18n::tr_ref("anim_page.newest_first"),
+            LibSort::Oldest => i18n::tr_ref("anim_page.oldest_first"),
+            LibSort::Popular => i18n::tr_ref("anim_page.popular_dlc_first"),
+            LibSort::Liked => i18n::tr_ref("anim_page.liked_ones"),
+            LibSort::Size => i18n::tr_ref("anim_page.fit"),
         }
     }
 }
@@ -381,21 +382,21 @@ fn slot_id(c: &Config, slot: &str) -> String {
 fn slot_value(c: &Config, slot: &str) -> (String, i32) {
     let id = slot_id(c, slot);
     if id.is_empty() {
-        return (if slot == "shutdown" { "Как для сна".into() } else { "Стандартная Steam".into() }, 0);
+        return (if slot == "shutdown" { i18n::tr_ref("anim_page.like_sleeping").into() } else { i18n::tr_ref("anim_page.standard_steam").into() }, 0);
     }
     if c.resolve(&id).is_none() {
-        return (format!("Файл не найден ({})", name_of(c, &id)), 0);
+        return (i18n::tr_args("anim_page.file_not_found", &[("id", &(name_of(c, &id)).to_string())]), 0);
     }
     (name_of(c, &id), 0)
 }
 
-fn duration_ru(secs: f64) -> String {
+fn duration_label(secs: f64) -> String {
     let s = secs.round() as i64;
-    if s >= 60 { format!("{} мин {} с", s / 60, s % 60) } else { format!("{s} с") }
+    if s >= 60 { i18n::tr_args("anim_page.min_sec", &[("seconds", &(s / 60).to_string()), ("seconds_2", &(s % 60).to_string())]) } else { i18n::tr_args("anim_page.sec", &[("seconds", &(s).to_string())]) }
 }
 
-fn count_ru(n: usize) -> String {
-    format!("{n} {}", repo::plural(n as i64, ["анимация", "анимации", "анимаций"]))
+fn animation_count(n: usize) -> String {
+    i18n::tr_plural("anim_page.animation_count", n as i64, &[])
 }
 
 fn now_unix() -> i64 {
@@ -406,10 +407,10 @@ fn now_unix() -> i64 {
 
 fn tab_label(t: Tab, n_local: usize, _n_cat: Option<usize>) -> String {
     match t {
-        Tab::Overview => "Выбор".into(),
-        Tab::Library => format!("Мои анимации · {n_local}"),
-        Tab::Catalog => "Каталог".into(), // the filtered count is in the status line under the bar
-        Tab::Storage => "Хранилище".into(),
+        Tab::Overview => i18n::tr_ref("anim_page.choice").into(),
+        Tab::Library => i18n::tr_args("anim_page.my_animations", &[("n_local", &(n_local).to_string())]),
+        Tab::Catalog => i18n::tr_ref("anim_page.catalogue").into(), // the filtered count is in the status line under the bar
+        Tab::Storage => i18n::tr_ref("anim_page.storage").into(),
     }
 }
 
@@ -449,83 +450,83 @@ pub fn build(s: &St, c: &Config, boot_now: &str, active: bool) -> Vec<Item> {
             let slot = s.hero_slot.unwrap_or("boot");
             let id = if slot == "boot" { boot_now.to_string() } else { slot_id(c, slot) };
             let mut hero = Item::new(Key::Text(900), 11, X0, BODY_Y, W, 210.0);
-            hero.value = if slot == "boot" { "ЗАПУСК · СЕЙЧАС".into() } else { slot_title(slot).to_uppercase() };
+            hero.value = if slot == "boot" { i18n::tr_ref("anim_page.running_now").into() } else { slot_title(slot).to_uppercase() };
             let meta = all.iter().find(|l| l.id == id);
-            hero.label = if id.is_empty() { if slot == "shutdown" { "Как для сна".into() } else { "Стандартная анимация Steam".into() } } else { name_of(c, &id) };
+            hero.label = if id.is_empty() { if slot == "shutdown" { i18n::tr_ref("anim_page.like_sleeping").into() } else { i18n::tr_ref("anim_page.standard_steam_animation").into() } } else { name_of(c, &id) };
             let mut lines = vec![];
             if let Some(m) = meta {
                 let mut parts = vec![];
-                if !m.author.is_empty() { parts.push(format!("Автор: {}", m.author)); }
-                if m.size > 0 { parts.push(repo::size_ru(m.size)); }
+                if !m.author.is_empty() { parts.push(i18n::tr_args("anim_page.author", &[("author", &(m.author).to_string())])); }
+                if m.size > 0 { parts.push(repo::size_label(m.size)); }
                 if !parts.is_empty() { lines.push(parts.join(" · ")); }
             } else if !id.is_empty() {
-                lines.push("Файл анимации не найден: будет показана стандартная".into());
+                lines.push(i18n::tr_ref("anim_page.animation_file_not_found_standard_image_will").into());
             }
             if slot == "boot" && boot_now != c.get("boot") {
-                lines.push(format!("При следующем запуске: {}", if c.get("boot").is_empty() { "стандартная".into() } else { name_of(c, &c.get("boot")) }));
+                lines.push(i18n::tr_args("anim_page.next_launch", &[("boot", &(if c.get("boot").is_empty() { i18n::tr_ref("anim_page.standard").into() } else { name_of(c, &c.get("boot")) }).to_string())]));
             }
             if slot == "boot" && c.x.boot_on_resume {
-                lines.push("Эта же анимация играет при выходе из сна".into());
+                lines.push(i18n::tr_ref("anim_page.this_same_animation_plays_when_you_get").into());
             }
             if !active {
-                lines.push("Проигрыватель анимаций сейчас выключен: изменения применятся после перезапуска DeckShell".into());
+                lines.push(i18n::tr_ref("anim_page.animation_player_is_now_off_changes_will").into());
             }
             hero.desc = lines.join("\n");
             hero.img = Some(format!("hero:{slot}"));
             v.push(hero);
             let mut y = BODY_Y + 226.0;
             let descs = [
-                ("boot", "Ролик при включении. Выбор в слоте — на следующий запуск"),
-                ("suspend", "Перед переходом в сон из меню или кнопкой питания"),
-                ("throbber", "Сон, когда на экране индикатор загрузки"),
-                ("shutdown", "По умолчанию — тот же ролик, что и для сна"),
+                ("boot", i18n::tr_ref("anim_page.select_in_the_slot_for_the_next")),
+                ("suspend", i18n::tr_ref("anim_page.before_going_to_sleep_from_the_menu")),
+                ("throbber", i18n::tr_ref("anim_page.sleep_when_the_loading_indicator_is_on")),
+                ("shutdown", i18n::tr_ref("anim_page.by_default_the_same_video_as_for")),
             ];
             for (slot, d) in descs {
                 let (val, on) = slot_value(c, slot);
                 v.push(row(Key::Slot(slot), 3, &mut y, slot_title(slot), d).value(val).on(on));
             }
-            v.push(section(&mut y, "Поведение", 901));
+            v.push(section(&mut y, i18n::tr_ref("anim_page.behavior"), 901));
             for (slot, label, desc) in [
-                (ShuffleSlot::Boot, "Перемешать для запуска", "Выбирать случайный ролик для следующего запуска"),
-                (ShuffleSlot::Suspend, "Перемешать для сна", "Выбирать случайный ролик при каждом переходе в сон"),
+                (ShuffleSlot::Boot, i18n::tr_ref("anim_page.stir_to_launch"), i18n::tr_ref("anim_page.select_a_random_roller_for_the_next")),
+                (ShuffleSlot::Suspend, i18n::tr_ref("anim_page.stir_for_sleep"), i18n::tr_ref("anim_page.select_a_random_roller_at_each_transition")),
             ] {
                 v.push(row(Key::Shuffle(slot), 4, &mut y, label, desc).on(c.shuffle_enabled(slot) as i32));
             }
-            v.push(row(Key::BootOnResume, 4, &mut y, "Анимация запуска при выходе из сна", "Показывать ролик запуска после пробуждения").on(c.x.boot_on_resume as i32));
-            let mut vol = row(Key::Volume, 16, &mut y, "Громкость анимаций", "").value(format!("{} %", (c.x.volume * 100.0).round() as i32));
+            v.push(row(Key::BootOnResume, 4, &mut y, i18n::tr_ref("anim_page.animation_of_the_launch_when_leaving_sleep"), i18n::tr_ref("anim_page.show_the_launch_video_after_waking_up")).on(c.x.boot_on_resume as i32));
+            let mut vol = row(Key::Volume, 16, &mut y, i18n::tr_ref("anim_page.volume_of_animations"), "").value(format!("{} %", (c.x.volume * 100.0).round() as i32));
             vol.progress = (c.x.volume / 1.0).clamp(0.0, 1.0);
             v.push(vol);
-            v.push(row(Key::Enabled, 4, &mut y, "Анимации DeckShell", "Проигрывать анимации запуска, сна и выключения. Действует после перезапуска").on(c.x.enabled as i32));
-            v.push(row(Key::Ipv4, 4, &mut y, "Только IPv4 для каталога", "Если каталог steamdeckrepo.com не загружается").on(c.force_ipv4() as i32));
+            v.push(row(Key::Enabled, 4, &mut y, i18n::tr_ref("anim_page.deckshell_animations"), i18n::tr_ref("anim_page.play_animations_of_start_sleep_and_shut")).on(c.x.enabled as i32));
+            v.push(row(Key::Ipv4, 4, &mut y, i18n::tr_ref("anim_page.ipv4_only_for_directory"), i18n::tr_ref("anim_page.if_the_steamdeckrepo_com_directory_does_not")).on(c.force_ipv4() as i32));
         }
         Tab::Library => {
             let bar = BODY_Y;
-            v.push(Item::new(Key::Search, 7, X0, bar, 290.0, 44.0).label("Название или автор").value(s.lib_text.clone()));
+            v.push(Item::new(Key::Search, 7, X0, bar, 290.0, 44.0).label(i18n::tr_ref("anim_page.title_or_author")).value(s.lib_text.clone()));
             v.push(Item::new(Key::Sort, 8, X0 + 305.0, bar, 200.0, 44.0).value(s.lib_sort.label()));
             v.push(Item::new(Key::Type, 8, X0 + 520.0, bar, 150.0, 44.0).value(s.lib_kind.label()));
-            v.push(Item::new(Key::FavOnly, 9, X0 + 685.0, bar + 2.0, 160.0, 40.0).label("★ Избранные").on(s.fav_only as i32));
+            v.push(Item::new(Key::FavOnly, 9, X0 + 685.0, bar + 2.0, 160.0, 40.0).label(i18n::tr_ref("anim_page.the_chosen")).on(s.fav_only as i32));
             let idx = filter_locals(&all, &s.lib_text, s.lib_sort, s.lib_kind, s.fav_only);
             let total: u64 = all.iter().map(|l| l.size).sum();
             let status = if all.is_empty() {
-                "Пока нет анимаций".to_string()
+                i18n::tr_ref("anim_page.no_animations_yet").to_string()
             } else if idx.len() == all.len() {
-                format!("{} · {}", count_ru(all.len()), repo::size_ru(total))
+                format!("{} · {}", animation_count(all.len()), repo::size_label(total))
             } else {
-                format!("Найдено {} из {}", idx.len(), all.len())
+                i18n::tr_args("anim_page.found_of", &[("len", &(idx.len()).to_string()), ("len_2", &(all.len()).to_string())])
             };
             text(&mut v, 10, bar + 54.0, 26.0, status, 0);
             let gy = bar + 92.0;
             if idx.is_empty() {
-                let msg = if all.is_empty() { "Скачайте анимации на вкладке «Каталог» или импортируйте файлы Animation Changer на вкладке «Хранилище»" } else { "Ничего не найдено. Измените поиск или фильтры" };
+                let msg = if all.is_empty() { i18n::tr_ref("anim_page.download_animations_in_the_catalog_tab_or") } else { i18n::tr_ref("anim_page.nothing_found_change_the_search_or_filters") };
                 text(&mut v, 15, gy, 120.0, msg.into(), 0);
             }
             for (k, i) in idx.iter().enumerate() {
                 let l = &all[*i];
                 let (cx, cy) = (X0 + (k % COLS) as f32 * (card_w() + GAP), gy + (k / COLS) as f32 * (card_h() + GAP));
                 let mut it = Item::new(Key::Card(l.id.clone()), 6, cx, cy, card_w(), card_h()).label(l.name.clone());
-                it.badge = if l.target == "suspend" { "Сон".into() } else { "Запуск".into() };
+                it.badge = if l.target == "suspend" { i18n::tr_ref("anim_page.son").into() } else { i18n::tr_ref("anim_page.launching").into() };
                 if !l.slots.is_empty() {
-                    it.badge2 = "Выбрана".into();
+                    it.badge2 = i18n::tr_ref("anim_page.selected").into();
                     it.on = 1;
                 } else if l.favorite {
                     it.badge2 = "★".into();
@@ -534,36 +535,36 @@ pub fn build(s: &St, c: &Config, boot_now: &str, active: bool) -> Vec<Item> {
                 if l.favorite && !l.slots.is_empty() { meta.push("★".to_string()); }
                 if !l.author.is_empty() { meta.push(l.author.clone()); }
                 meta.push(match l.origin {
-                    Origin::Missing => "файл не найден".into(),
-                    Origin::Local => "набор из папки".into(),
-                    _ => repo::size_ru(l.size),
+                    Origin::Missing => i18n::tr_ref("anim_page.file_not_found_2").into(),
+                    Origin::Local => i18n::tr_ref("anim_page.folder").into(),
+                    _ => repo::size_label(l.size),
                 });
-                if l.excluded { meta.push("без перемешивания".into()); }
+                if l.excluded { meta.push(i18n::tr_ref("anim_page.stirlessly").into()); }
                 it.desc = meta.join(" · ");
-                it.value = if l.path.is_some() { "Загрузка кадра…".into() } else { "Нет файла".into() };
+                it.value = if l.path.is_some() { i18n::tr_ref("anim_page.uploading_the_frame").into() } else { i18n::tr_ref("anim_page.no_file").into() };
                 it.img = Some(format!("local:{}", l.id));
                 v.push(it);
             }
         }
         Tab::Catalog => {
             let bar = BODY_Y;
-            v.push(Item::new(Key::Search, 7, X0, bar, 230.0, 44.0).label("Поиск в каталоге").value(s.cat_q.text.clone()));
+            v.push(Item::new(Key::Search, 7, X0, bar, 230.0, 44.0).label(i18n::tr_ref("anim_page.catalogue_search")).value(s.cat_q.text.clone()));
             v.push(Item::new(Key::Sort, 8, X0 + 242.0, bar, 190.0, 44.0).value(s.cat_q.sort.label()));
             v.push(Item::new(Key::Type, 8, X0 + 444.0, bar, 130.0, 44.0).value(s.cat_q.kind.label()));
             v.push(Item::new(Key::DeckOnly, 9, X0 + 586.0, bar + 2.0, 135.0, 40.0).label("Steam Deck").on(s.cat_q.deck_only as i32));
             let busy = s.cat_state == Some(CatState::Loading);
-            v.push(Item::new(Key::Refresh, 14, X0 + 733.0, bar, 112.0, 44.0).label(if busy { "Загрузка…" } else { "Обновить" }).on(if busy { -1 } else { 0 }));
+            v.push(Item::new(Key::Refresh, 14, X0 + 733.0, bar, 112.0, 44.0).label(if busy { i18n::tr_ref("anim_page.uploading") } else { i18n::tr_ref("anim_page.update") }).on(if busy { -1 } else { 0 }));
             let (status, level) = match (&s.cat_state, &s.cat) {
-                (None, _) => ("Каталог steamdeckrepo.com загрузится при открытии вкладки".to_string(), 0),
-                (Some(CatState::Loading), None) => ("Загрузка каталога steamdeckrepo.com…".to_string(), 0),
-                (Some(CatState::Loading), Some(_)) => (format!("{} · обновление…", count_ru(s.cat_view.len())), 0),
+                (None, _) => (i18n::tr_ref("anim_page.steamdeckrepo_com_directory_will_load_when_you").to_string(), 0),
+                (Some(CatState::Loading), None) => (i18n::tr_ref("anim_page.download_the_steamdeckrepo_com_directory").to_string(), 0),
+                (Some(CatState::Loading), Some(_)) => (i18n::tr_args("anim_page.update_2", &[("len", &(animation_count(s.cat_view.len())).to_string())]), 0),
                 (Some(CatState::Failed(e)), _) => (e.clone(), 3),
                 (Some(CatState::Ready { fetched, offline }), _) => {
                     let age = fetched.elapsed().map(|d| d.as_secs() as i64).unwrap_or(0);
-                    let when = repo::relative_ru(&chrono::DateTime::from_timestamp(now_unix() - age, 0).map(|d| d.to_rfc3339()).unwrap_or_default(), now_unix());
+                    let when = repo::relative_age(&chrono::DateTime::from_timestamp(now_unix() - age, 0).map(|d| d.to_rfc3339()).unwrap_or_default(), now_unix());
                     match offline {
-                        Some(e) => (format!("{e}. Показан сохранённый каталог ({when})"), 2),
-                        None => (format!("{} · каталог обновлён {when}", count_ru(s.cat_view.len())), 0),
+                        Some(e) => (i18n::tr_args("anim_page.showing_the_cached_catalog", &[("error", &(e).to_string()), ("when", &(when).to_string())]), 2),
+                        None => (i18n::tr_args("anim_page.catalog_updated", &[("len", &(animation_count(s.cat_view.len())).to_string()), ("when", &(when).to_string())]), 0),
                     }
                 }
             };
@@ -571,7 +572,7 @@ pub fn build(s: &St, c: &Config, boot_now: &str, active: bool) -> Vec<Item> {
             let gy = bar + 92.0;
             if let Some(cat) = &s.cat {
                 if s.cat_view.is_empty() {
-                    text(&mut v, 15, gy, 120.0, "Ничего не найдено. Измените поиск или фильтры".into(), 0);
+                    text(&mut v, 15, gy, 120.0, i18n::tr_ref("anim_page.nothing_found_change_the_search_or_filters").into(), 0);
                 }
                 // only the rows around the viewport exist (the catalog has ~9000 posts)
                 let pitch = card_h() + GAP;
@@ -590,25 +591,25 @@ pub fn build(s: &St, c: &Config, boot_now: &str, active: bool) -> Vec<Item> {
                     let p = &cat[*i];
                     let (cx, cy) = (X0 + (k % COLS) as f32 * (card_w() + GAP), gy + r as f32 * pitch);
                     let mut it = Item::new(Key::Card(p.id.clone()), 6, cx, cy, card_w(), card_h()).label(p.name.clone());
-                    it.badge = if p.target == "suspend" { "Сон".into() } else { "Запуск".into() };
+                    it.badge = if p.target == "suspend" { i18n::tr_ref("anim_page.son").into() } else { i18n::tr_ref("anim_page.launching").into() };
                     let have = c.entry(&p.id).is_some() && c.resolve(&p.id).is_some();
                     if let Some(d) = s.downloads.get(&p.id) {
                         it.progress = d.fraction();
                         it.badge2 = format!("{} %", (d.fraction() * 100.0) as i32);
                         it.on = 1;
                     } else if have {
-                        it.badge2 = "Скачано".into();
+                        it.badge2 = i18n::tr_ref("anim_page.downloaded").into();
                         it.on = 1;
                     } else if s.errors.contains_key(&p.id) {
-                        it.badge2 = "Ошибка".into();
+                        it.badge2 = i18n::tr_ref("anim_page.error").into();
                     }
                     let mut meta = vec![];
                     if !p.author.is_empty() { meta.push(p.author.clone()); }
                     meta.push(format!("⬇ {}", repo::short_count(p.downloads)));
                     meta.push(format!("♥ {}", repo::short_count(p.likes)));
-                    if let Some(d) = p.duration { meta.push(duration_ru(d)); }
+                    if let Some(d) = p.duration { meta.push(duration_label(d)); }
                     it.desc = meta.join(" · ");
-                    it.value = "Обложка…".into();
+                    it.value = i18n::tr_ref("anim_page.cover").into();
                     it.img = Some(format!("thumb:{}", p.id));
                     v.push(it);
                 }
@@ -623,26 +624,26 @@ pub fn build(s: &St, c: &Config, boot_now: &str, active: bool) -> Vec<Item> {
         Tab::Storage => {
             let st = s.storage.clone().unwrap_or_default();
             let mut y = BODY_Y;
-            let files = |(n, b): (usize, u64)| format!("{} {} · {}", n, repo::plural(n as i64, ["файл", "файла", "файлов"]), repo::size_ru(b));
+            let files = |(n, b): (usize, u64)| format!("{} · {}", i18n::tr_plural("anim_page.file_count", n as i64, &[]), repo::size_label(b));
             let mut info = |v: &mut Vec<Item>, y: &mut f32, label: &str, value: String| {
                 n += 1;
                 v.push(Item::new(Key::Text(n), 12, X0, *y, W, 48.0).label(label).value(value));
                 *y += 52.0;
             };
-            info(&mut v, &mut y, "Скачано в DeckShell", files(st.own));
-            info(&mut v, &mut y, "Файлы Animation Changer (только чтение)", files(st.plugin));
-            info(&mut v, &mut y, "Свободно на диске", st.free.map(repo::size_ru).unwrap_or_else(|| "неизвестно".into()));
-            v.push(section(&mut y, "Перенос из Animation Changer", 902));
-            v.push(row(Key::ImportFiles, 5, &mut y, "Импортировать файлы", "Скопировать скачанные плагином ролики в папку DeckShell. Файлы плагина не меняются").value("Импортировать"));
-            v.push(row(Key::ImportSettings, 5, &mut y, "Перенести выбор плагина", "Взять из плагина анимации слотов, перемешивание, исключения и IPv4").value("Перенести"));
-            v.push(row(Key::Rescan, 5, &mut y, "Перечитать папки", "Найти вручную добавленные ролики и наборы").value("Перечитать"));
-            v.push(section(&mut y, "Кэш", 903));
-            v.push(row(Key::ClearFrames, 5, &mut y, "Кадры для плавного воспроизведения", &format!("{} из {}. Пересоберётся автоматически", repo::size_ru(st.frames), repo::size_ru(st.frames_budget))).value("Очистить"));
-            v.push(row(Key::ClearRepo, 5, &mut y, "Обложки и превью каталога", &format!("{}. Каталог для работы без сети сохраняется", repo::size_ru(st.repo))).value("Очистить"));
-            v.push(section(&mut y, "Об этом разделе", 904));
+            info(&mut v, &mut y, i18n::tr_ref("anim_page.downloaded_at_deckshell"), files(st.own));
+            info(&mut v, &mut y, i18n::tr_ref("anim_page.animation_changer_files_read_only"), files(st.plugin));
+            info(&mut v, &mut y, i18n::tr_ref("anim_page.free_on_disk"), st.free.map(repo::size_label).unwrap_or_else(|| i18n::tr_ref("anim_page.unknown").into()));
+            v.push(section(&mut y, i18n::tr_ref("anim_page.transfer_from_animation_changer"), 902));
+            v.push(row(Key::ImportFiles, 5, &mut y, i18n::tr_ref("anim_page.import_files"), i18n::tr_ref("anim_page.copy_the_videos_downloaded_by_the_plugin")).value(i18n::tr_ref("anim_page.import")));
+            v.push(row(Key::ImportSettings, 5, &mut y, i18n::tr_ref("anim_page.move_the_selection_of_the_plugin"), i18n::tr_ref("anim_page.take_from_the_plugin_slot_animations_stirring")).value(i18n::tr_ref("anim_page.move_over")));
+            v.push(row(Key::Rescan, 5, &mut y, i18n::tr_ref("anim_page.reread_the_folders"), i18n::tr_ref("anim_page.find_manually_added_rollers_and_sets")).value(i18n::tr_ref("anim_page.read_it_again")));
+            v.push(section(&mut y, i18n::tr_ref("anim_page.cash"), 903));
+            v.push(row(Key::ClearFrames, 5, &mut y, i18n::tr_ref("anim_page.footage_for_smooth_reproduction"), &i18n::tr_args("anim_page.of_it_will_rebuild_automatically", &[("frames", &(repo::size_label(st.frames)).to_string()), ("frames_budget", &(repo::size_label(st.frames_budget)).to_string())])).value(i18n::tr_ref("anim_page.clear")));
+            v.push(row(Key::ClearRepo, 5, &mut y, i18n::tr_ref("anim_page.catalogue_covers_and_previews"), &i18n::tr_args("anim_page.catalog_for_working_without_a_network_is", &[("repo", &(repo::size_label(st.repo)).to_string())])).value(i18n::tr_ref("anim_page.clear")));
+            v.push(section(&mut y, i18n::tr_ref("anim_page.about_this_section"), 904));
             n += 1;
             v.push(Item::new(Key::Text(n), 13, X0, y, W, 120.0).label(
-                "Раздел повторяет возможности Decky-плагина Animation Changer (SDH-AnimationChanger, Justin Marentette, лицензия BSD-3-Clause) и написан заново для DeckShell. Анимации — с сайта steamdeckrepo.com, права на ролики принадлежат их авторам. Скачивание выполняется только по вашему действию.",
+                i18n::tr_ref("anim_page.the_section_replicates_the_capabilities_of_the"),
             ));
         }
     }
@@ -871,18 +872,18 @@ pub fn hints() -> Vec<(&'static str, &'static str, i32, &'static str, Action)> {
     let b = ("b", "#ActionButtonLabelBack", 1, "Esc", Action::B);
     let (modal, key, tab, kb) = with(|s| (s.modal.clone(), s.focus.clone(), s.tab, s.keyboard.is_some()));
     if kb {
-        return vec![("a", "Ввод", 1, "Enter", Action::A), ("b", "Готово", 1, "Esc", Action::B)];
+        return vec![("a", i18n::tr_ref("anim_page.input"), 1, "Enter", Action::A), ("b", i18n::tr_ref("anim_page.done"), 1, "Esc", Action::B)];
     }
-    let tabs = ("lb", "Вкладки", 1, "[ ]", Action::LB);
+    let tabs = ("lb", i18n::tr_ref("anim_page.tabs"), 1, "[ ]", Action::LB);
     match modal {
-        Some(Modal::Picker { .. }) => vec![("a", "Выбрать", 1, "Enter", Action::A), ("x", "Смотреть со звуком", 1, "F3", Action::X), ("y", "Избранное", 1, "F4", Action::Y), b],
-        Some(Modal::Details { .. }) => vec![("a", "Выбрать", 1, "Enter", Action::A), ("x", "Смотреть со звуком", 1, "F3", Action::X), b],
-        Some(Modal::Menu { .. }) => vec![("a", "Выбрать", 1, "Enter", Action::A), b],
+        Some(Modal::Picker { .. }) => vec![("a", i18n::tr_ref("anim_page.select"), 1, "Enter", Action::A), ("x", i18n::tr_ref("anim_page.watch_with_sound"), 1, "F3", Action::X), ("y", i18n::tr_ref("anim_page.favorites"), 1, "F4", Action::Y), b],
+        Some(Modal::Details { .. }) => vec![("a", i18n::tr_ref("anim_page.select"), 1, "Enter", Action::A), ("x", i18n::tr_ref("anim_page.watch_with_sound"), 1, "F3", Action::X), b],
+        Some(Modal::Menu { .. }) => vec![("a", i18n::tr_ref("anim_page.select"), 1, "Enter", Action::A), b],
         None => match (tab, key) {
-            (Some(Tab::Library), Some(Key::Card(_))) => vec![("a", "Действия", 1, "Enter", Action::A), ("x", "Смотреть со звуком", 1, "F3", Action::X), ("y", "Избранное", 1, "F4", Action::Y), tabs, b],
-            (Some(Tab::Catalog), Some(Key::Card(_))) => vec![("a", "Подробнее", 1, "Enter", Action::A), ("x", "Скачать", 1, "F3", Action::X), tabs, b],
-            (_, Some(Key::Slot(_))) => vec![("a", "Выбрать", 1, "Enter", Action::A), ("x", "Смотреть со звуком", 1, "F3", Action::X), tabs, b],
-            (_, Some(Key::Volume)) => vec![("a", "Изменить", 1, "Enter", Action::A), tabs, b],
+            (Some(Tab::Library), Some(Key::Card(_))) => vec![("a", i18n::tr_ref("anim_page.activity"), 1, "Enter", Action::A), ("x", i18n::tr_ref("anim_page.watch_with_sound"), 1, "F3", Action::X), ("y", i18n::tr_ref("anim_page.favorites"), 1, "F4", Action::Y), tabs, b],
+            (Some(Tab::Catalog), Some(Key::Card(_))) => vec![("a", i18n::tr_ref("anim_page.more_information"), 1, "Enter", Action::A), ("x", i18n::tr_ref("anim_page.download"), 1, "F3", Action::X), tabs, b],
+            (_, Some(Key::Slot(_))) => vec![("a", i18n::tr_ref("anim_page.select"), 1, "Enter", Action::A), ("x", i18n::tr_ref("anim_page.watch_with_sound"), 1, "F3", Action::X), tabs, b],
+            (_, Some(Key::Volume)) => vec![("a", i18n::tr_ref("anim_page.edit"), 1, "Enter", Action::A), tabs, b],
             _ => vec![("a", "#ActionButtonLabelSelect", 1, "Enter", Action::A), tabs, b],
         },
     }
@@ -1039,7 +1040,7 @@ fn activate(a: &mut App, k: Key) {
                 c.x.enabled
             });
             anim::page_commit();
-            a.toast(if on { "Анимации включатся после перезапуска DeckShell" } else { "Анимации выключатся после перезапуска DeckShell" });
+            a.toast(if on { i18n::tr_ref("anim_page.animations_will_turn_on_after_deckshell_restart") } else { i18n::tr_ref("anim_page.animations_will_shut_down_after_deckshell_restarts") });
             rebuild(a);
         }
         Key::Ipv4 => {
@@ -1058,12 +1059,12 @@ fn activate(a: &mut App, k: Key) {
             } else {
                 (LibSort::ALL.iter().map(|s| s.label().to_string()).collect(), with(|s| LibSort::ALL.iter().position(|x| *x == s.lib_sort).unwrap_or(0)))
             };
-            open_menu(a, "Сортировка", opts.into_iter().enumerate().map(|(i, l)| (l, MenuAct::SetSort(i))).collect(), cur);
+            open_menu(a, i18n::tr_ref("anim_page.sort"), opts.into_iter().enumerate().map(|(i, l)| (l, MenuAct::SetSort(i))).collect(), cur);
         }
         Key::Type => {
             let cur = with(|s| if s.tab == Some(Tab::Catalog) { s.cat_q.kind } else { s.lib_kind });
             let pos = repo::Kind::ALL.iter().position(|k| *k == cur).unwrap_or(0);
-            open_menu(a, "Тип анимации", repo::Kind::ALL.iter().enumerate().map(|(i, k)| (k.label().to_string(), MenuAct::SetType(i))).collect(), pos);
+            open_menu(a, i18n::tr_ref("anim_page.type_of_animation"), repo::Kind::ALL.iter().enumerate().map(|(i, k)| (k.label().to_string(), MenuAct::SetType(i))).collect(), pos);
         }
         Key::FavOnly => {
             with(|s| s.fav_only = !s.fav_only);
@@ -1088,11 +1089,11 @@ fn activate(a: &mut App, k: Key) {
             let r = anim::with_config(|c, _| c.import_files(&repo::free_space));
             anim::page_commit();
             let msg = if r.no_space {
-                format!("Недостаточно места: скопировано {}", r.copied)
+                i18n::tr_args("anim_page.not_enough_space_copied", &[("copied", &(r.copied).to_string())])
             } else if r.copied == 0 && r.failed == 0 {
-                if r.present > 0 { "Все файлы Animation Changer уже в DeckShell".to_string() } else { "Файлы Animation Changer не найдены".to_string() }
+                if r.present > 0 { i18n::tr_ref("anim_page.all_animation_changer_files_are_already_in").to_string() } else { i18n::tr_ref("anim_page.animation_changer_files_not_found").to_string() }
             } else {
-                format!("Скопировано {} ({}){}", count_ru(r.copied), repo::size_ru(r.bytes), if r.failed > 0 { format!(", ошибок: {}", r.failed) } else { String::new() })
+                i18n::tr_args("anim_page.copied", &[("copied", &(animation_count(r.copied)).to_string()), ("bytes", &(repo::size_label(r.bytes)).to_string()), ("new", &(if r.failed > 0 { i18n::tr_args("anim_page.errors", &[("count", &r.failed.to_string())]) } else { String::new() }).to_string())])
             };
             a.toast(&msg);
             refresh_storage();
@@ -1107,7 +1108,7 @@ fn activate(a: &mut App, k: Key) {
                 ok
             });
             anim::page_commit();
-            a.toast(if ok { "Выбор Animation Changer перенесён" } else { "Настройки Animation Changer не найдены" });
+            a.toast(if ok { i18n::tr_ref("anim_page.animation_changer_selection_delayed") } else { i18n::tr_ref("anim_page.animation_changer_settings_not_found") });
             rebuild(a);
         }
         Key::Rescan => {
@@ -1117,7 +1118,7 @@ fn activate(a: &mut App, k: Key) {
                 c.all().len()
             });
             anim::page_commit();
-            a.toast(&format!("Найдено: {}", count_ru(n)));
+            a.toast(&i18n::tr_args("anim_page.found", &[("count", &(animation_count(n)).to_string())]));
             refresh_storage();
             rebuild(a);
         }
@@ -1129,7 +1130,7 @@ fn activate(a: &mut App, k: Key) {
                 }
             }
             anim::page_commit(); // rebuilds the caches of the chosen slots in the background
-            a.toast("Кэш кадров очищен");
+            a.toast(i18n::tr_ref("anim_page.cash_personnel_cleared"));
             refresh_storage();
             rebuild(a);
         }
@@ -1140,7 +1141,7 @@ fn activate(a: &mut App, k: Key) {
                 s.imgs.retain(|k, _| !k.starts_with("thumb:"));
                 s.img_failed.clear();
             });
-            a.toast("Обложки и превью удалены");
+            a.toast(i18n::tr_ref("anim_page.covers_and_previews_removed"));
             refresh_storage();
             rebuild(a);
         }
@@ -1155,7 +1156,7 @@ const MODAL_W: f32 = 1040.0;
 fn picker_options(c: &Config, slot: &str) -> Vec<(String, String)> {
     let mut all: Vec<Local> = locals(c).into_iter().filter(|l| slot_accepts(slot, &l.target) && l.path.is_some()).collect();
     all.sort_by_cached_key(|l| (!l.favorite, l.name.to_lowercase()));
-    let mut v = vec![(String::new(), if slot == "shutdown" { "Как для сна".to_string() } else { "Стандартная Steam".to_string() })];
+    let mut v = vec![(String::new(), if slot == "shutdown" { i18n::tr_ref("anim_page.like_sleeping").to_string() } else { i18n::tr_ref("anim_page.standard_steam").to_string() })];
     v.extend(all.into_iter().map(|l| (l.id, l.name)));
     v
 }
@@ -1184,17 +1185,17 @@ fn open_card_menu(a: &mut App, id: &str) {
     for slot in SLOTS {
         if slot_accepts(slot, &l.target) && l.path.is_some() {
             let on = l.slots.contains(&slot);
-            o.push((format!("{}{}", if on { "✓ " } else { "Назначить: " }, slot_title(slot).to_lowercase()), MenuAct::Assign(l.id.clone(), slot)));
+            o.push((format!("{}{}", if on { "✓ " } else { i18n::tr_ref("anim_page.designate") }, slot_title(slot).to_lowercase()), MenuAct::Assign(l.id.clone(), slot)));
         }
     }
     if l.path.is_some() {
-        o.push(("Смотреть со звуком".into(), MenuAct::Watch(l.id.clone(), l.target == "suspend")));
+        o.push((i18n::tr_ref("anim_page.watch_with_sound").into(), MenuAct::Watch(l.id.clone(), l.target == "suspend")));
     }
-    o.push((if l.favorite { "Убрать из избранного" } else { "Добавить в избранное" }.into(), MenuAct::Fav(l.id.clone())));
-    o.push((if l.excluded { "Участвовать в перемешивании" } else { "Не участвовать в перемешивании" }.into(), MenuAct::Exclude(l.id.clone())));
-    o.push(("Подробнее".into(), MenuAct::Details(l.id.clone())));
+    o.push((if l.favorite { i18n::tr_ref("anim_page.remove_from_favorites") } else { i18n::tr_ref("anim_page.add_to_favorites") }.into(), MenuAct::Fav(l.id.clone())));
+    o.push((if l.excluded { i18n::tr_ref("anim_page.participate_in_stirring") } else { i18n::tr_ref("anim_page.do_not_engage_in_stirring") }.into(), MenuAct::Exclude(l.id.clone())));
+    o.push((i18n::tr_ref("anim_page.more_information").into(), MenuAct::Details(l.id.clone())));
     if l.origin != Origin::Local {
-        o.push(("Удалить".into(), MenuAct::AskDelete(l.id.clone())));
+        o.push((i18n::tr_ref("anim_page.delete").into(), MenuAct::AskDelete(l.id.clone())));
     }
     open_menu(a, &l.name, o, 0);
 }
@@ -1226,30 +1227,30 @@ fn detail_buttons(s: &St, c: &Config, post: Option<usize>, local: &Option<String
     if let Some(p) = post.and_then(|i| s.cat.as_ref()?.get(i)) {
         let have = c.entry(&p.id).is_some() && c.resolve(&p.id).is_some();
         if let Some(d) = s.downloads.get(&p.id) {
-            b.push((format!("Отменить загрузку · {} %", (d.fraction() * 100.0) as i32), "cancel", 0, d.fraction()));
+            b.push((i18n::tr_args("anim_page.cancel_download", &[("i32", &((d.fraction() * 100.0) as i32).to_string())]), "cancel", 0, d.fraction()));
         } else if have {
-            b.push(("Назначить…".into(), "assign", 0, -1.0));
+            b.push((i18n::tr_ref("anim_page.appoint").into(), "assign", 0, -1.0));
         } else {
-            b.push(("Скачать".into(), "download", 0, -1.0));
+            b.push((i18n::tr_ref("anim_page.download").into(), "download", 0, -1.0));
         }
         match &s.preview_dl {
             Some((id, f, cancel)) if *id == p.id && !cancel.load(Ordering::Relaxed) => {
-                b.push((format!("Превью · {} %", (*f * 100.0) as i32), "preview-cancel", 0, *f));
+                b.push((i18n::tr_args("anim_page.preview", &[("i32", &((*f * 100.0) as i32).to_string())]), "preview-cancel", 0, *f));
             }
-            Some(_) => b.push(("Предпросмотр".into(), "preview", -1, -1.0)),
+            Some(_) => b.push((i18n::tr_ref("anim_page.preview_2").into(), "preview", -1, -1.0)),
             None if s.preview_id.as_ref() == Some(&p.id) && anim::player::catalog_playing() => {
-                b.push(("Остановить".into(), "preview-stop", 0, -1.0));
+                b.push((i18n::tr_ref("anim_page.stop").into(), "preview-stop", 0, -1.0));
             }
-            None => b.push(("Предпросмотр".into(), "preview", 0, -1.0)),
+            None => b.push((i18n::tr_ref("anim_page.preview_2").into(), "preview", 0, -1.0)),
         }
         if have {
-            b.push(("Удалить".into(), "delete", 2, -1.0));
+            b.push((i18n::tr_ref("anim_page.delete").into(), "delete", 2, -1.0));
         }
     } else if let Some(id) = local {
-        b.push(("Назначить…".into(), "assign", 0, -1.0));
-        b.push(("Смотреть со звуком".into(), "watch", 0, -1.0));
+        b.push((i18n::tr_ref("anim_page.appoint").into(), "assign", 0, -1.0));
+        b.push((i18n::tr_ref("anim_page.watch_with_sound").into(), "watch", 0, -1.0));
         if c.origin(id) != Origin::Local {
-            b.push(("Удалить".into(), "delete", 2, -1.0));
+            b.push((i18n::tr_ref("anim_page.delete").into(), "delete", 2, -1.0));
         }
     }
     b
@@ -1277,20 +1278,20 @@ fn push_modal(a: &App, s: &St) {
             }
             let fid = options.get(*focus).map(|o| o.0.clone()).unwrap_or_default();
             let mut prev = mk(21, 528.0, 64.0, 488.0, 305.0);
-            prev.value = if fid.is_empty() { "Стандартная анимация".into() } else { "Загрузка превью…".into() };
+            prev.value = if fid.is_empty() { i18n::tr_ref("anim_page.standard_animation").into() } else { i18n::tr_ref("anim_page.download_previews").into() };
             items.push(prev);
             let mut info = mk(22, 528.0, 385.0, 488.0, 170.0);
             anim::with_config(|c, _| {
                 let l = locals(c).into_iter().find(|l| l.id == fid);
                 info.label = options.get(*focus).map(|o| o.1.clone()).unwrap_or_default().into();
-                info.value = l.as_ref().map(|l| [l.author.clone(), repo::size_ru(l.size)].into_iter().filter(|x| !x.is_empty()).collect::<Vec<_>>().join(" · ")).unwrap_or_default().into();
-                info.desc = l.map(|l| l.description).unwrap_or_else(|| if fid.is_empty() { "Steam покажет свою стандартную анимацию (или файл из uioverrides).".into() } else { String::new() }).into();
+                info.value = l.as_ref().map(|l| [l.author.clone(), repo::size_label(l.size)].into_iter().filter(|x| !x.is_empty()).collect::<Vec<_>>().join(" · ")).unwrap_or_default().into();
+                info.desc = l.map(|l| l.description).unwrap_or_else(|| if fid.is_empty() { i18n::tr_ref("anim_page.steam_will_show_its_standard_animation_or").into() } else { String::new() }).into();
             });
             items.push(info);
             let mut hint = mk(24, 24.0, 584.0, 992.0, 32.0);
-            hint.label = "A — выбрать · X — смотреть со звуком · Y — избранное · B — закрыть".into();
+            hint.label = i18n::tr_ref("anim_page.a_select_x_watch_with_sound_y").into();
             items.push(hint);
-            (format!("{}: выбор анимации", slot_title(slot)), MODAL_W, 640.0, *focus as i32, (24.0, 64.0, 480.0, 512.0, options.len() as f32 * 48.0))
+            (i18n::tr_args("anim_page.choose_an_animation", &[("slot", &(slot_title(slot)).to_string())]), MODAL_W, 640.0, *focus as i32, (24.0, 64.0, 480.0, 512.0, options.len() as f32 * 48.0))
         }
         Modal::Menu { title, options, focus } => {
             for (i, (label, _)) in options.iter().enumerate() {
@@ -1309,28 +1310,28 @@ fn push_modal(a: &App, s: &St) {
                 let mut status = mk(24, 24.0, 498.0, 992.0, 52.0);
                 let title;
                 if let Some(p) = post.and_then(|i| s.cat.as_ref()?.get(i)) {
-                    title = if p.target == "suspend" { "Анимация сна" } else { "Анимация запуска" }.to_string();
+                    title = if p.target == "suspend" { i18n::tr_ref("anim_page.sleep_animation") } else { i18n::tr_ref("anim_page.launch_animations") }.to_string();
                     if let Some(img) = s.imgs.get(&format!("thumb:{}", p.id)) {
                         prev.img = img.clone();
                         prev.has_img = true;
                     }
-                    prev.value = "Обложка загружается…".into();
+                    prev.value = i18n::tr_ref("anim_page.the_cover_is_downloading").into();
                     info.label = p.name.as_str().into();
                     let mut meta = vec![];
-                    if !p.author.is_empty() { meta.push(format!("Автор: {}", p.author)); }
-                    let when = repo::relative_ru(&p.updated, now_unix());
-                    if !when.is_empty() { meta.push(format!("обновлено {when}")); }
+                    if !p.author.is_empty() { meta.push(i18n::tr_args("anim_page.author", &[("author", &(p.author).to_string())])); }
+                    let when = repo::relative_age(&p.updated, now_unix());
+                    if !when.is_empty() { meta.push(i18n::tr_args("anim_page.updated", &[("when", &(when).to_string())])); }
                     let mut line2 = vec![format!("⬇ {}", repo::short_count(p.downloads)), format!("♥ {}", repo::short_count(p.likes))];
-                    if let Some(d) = p.duration { line2.push(duration_ru(d)); }
+                    if let Some(d) = p.duration { line2.push(duration_label(d)); }
                     info.value = format!("{}\n{}", meta.join(", "), line2.join(" · ")).into();
-                    info.desc = if p.description.is_empty() { "Без описания".into() } else { p.description.as_str().into() };
+                    info.desc = if p.description.is_empty() { i18n::tr_ref("anim_page.no_description").into() } else { p.description.as_str().into() };
                     let mut st = vec![];
-                    if !p.for_deck() { st.push("Автор отметил ролик только для Steam Machine: на Steam Deck он может выглядеть иначе".to_string()); }
+                    if !p.for_deck() { st.push(i18n::tr_ref("anim_page.the_author_noted_the_video_only_for").to_string()); }
                     if let Some(e) = s.errors.get(&p.id) { st.push(e.clone()); status.on = 3; }
                     status.label = st.join(". ").into();
                 } else if let Some(id) = local {
                     let l = locals(c).into_iter().find(|l| l.id == *id);
-                    title = "Моя анимация".into();
+                    title = i18n::tr_ref("anim_page.my_animation").into();
                     if let Some(img) = s.imgs.get(&format!("local:{id}")) {
                         prev.img = img.clone();
                         prev.has_img = true;
@@ -1338,19 +1339,19 @@ fn push_modal(a: &App, s: &St) {
                     if let Some(l) = l {
                         info.label = l.name.as_str().into();
                         let origin = match l.origin {
-                            Origin::Own => "в папке DeckShell",
-                            Origin::Plugin => "файл Animation Changer",
-                            Origin::Local => "набор из папки",
-                            Origin::Custom => "свой файл",
-                            Origin::Missing => "файл не найден",
+                            Origin::Own => i18n::tr_ref("anim_page.deckshell_folder"),
+                            Origin::Plugin => i18n::tr_ref("anim_page.animation_changer_file"),
+                            Origin::Local => i18n::tr_ref("anim_page.folder"),
+                            Origin::Custom => i18n::tr_ref("anim_page.file_4"),
+                            Origin::Missing => i18n::tr_ref("anim_page.file_not_found_2"),
                         };
                         let mut meta = vec![];
-                        if !l.author.is_empty() { meta.push(format!("Автор: {}", l.author)); }
-                        meta.push(format!("{} · {}", repo::size_ru(l.size), origin));
+                        if !l.author.is_empty() { meta.push(i18n::tr_args("anim_page.author", &[("author", &(l.author).to_string())])); }
+                        meta.push(format!("{} · {}", repo::size_label(l.size), origin));
                         info.value = meta.join("\n").into();
                         info.desc = l.description.as_str().into();
                         if !l.slots.is_empty() {
-                            status.label = format!("Выбрана: {}", l.slots.iter().map(|s| slot_title(s).to_lowercase()).collect::<Vec<_>>().join(", ")).into();
+                            status.label = i18n::tr_args("anim_page.selected_2", &[("join", &(l.slots.iter().map(|s| slot_title(s).to_lowercase()).collect::<Vec<_>>().join(", ")).to_string())]).into();
                         }
                     }
                 } else {
@@ -1467,7 +1468,7 @@ pub fn handle_modal(a: &mut App, act: Action) {
                                 a.toast(&e);
                             }
                         }
-                        None => a.toast("Сначала откройте предпросмотр или скачайте анимацию"),
+                        None => a.toast(i18n::tr_ref("anim_page.first_open_the_preview_or_download_animation")),
                     }
                 }
                 _ => {}
@@ -1575,7 +1576,7 @@ fn menu_act(a: &mut App, act: MenuAct) {
         MenuAct::Exclude(id) => {
             let ex = anim::with_config(|c, _| c.toggle_exclusion(&id));
             anim::page_commit();
-            a.toast(if ex { "Не будет выбираться при перемешивании" } else { "Снова участвует в перемешивании" });
+            a.toast(if ex { i18n::tr_ref("anim_page.it_won_t_get_out_when_stirring") } else { i18n::tr_ref("anim_page.getting_involved_in_stirring_again") });
         }
         MenuAct::Details(id) => {
             open_details(a, None, Some(id));
@@ -1583,7 +1584,7 @@ fn menu_act(a: &mut App, act: MenuAct) {
         }
         MenuAct::AskDelete(id) => {
             let name = anim::with_config(|c, _| name_of(c, &id));
-            open_menu(a, &format!("Удалить «{name}»?"), vec![("Удалить".into(), MenuAct::Delete(id)), ("Отмена".into(), MenuAct::Cancel)], 1);
+            open_menu(a, &i18n::tr_args("anim_page.delete_2", &[("name", &(name).to_string())]), vec![(i18n::tr_ref("anim_page.delete").into(), MenuAct::Delete(id)), (i18n::tr_ref("anim_page.cancel").into(), MenuAct::Cancel)], 1);
             return;
         }
         MenuAct::Delete(id) => {
@@ -1597,9 +1598,9 @@ fn menu_act(a: &mut App, act: MenuAct) {
             anim::page_commit();
             match r {
                 Ok(r) => {
-                    let mut msg = if r.plugin_file_kept && !r.deleted_file { "Убрано из списка. Файл Animation Changer не удалён".to_string() } else { "Анимация удалена".to_string() };
+                    let mut msg = if r.plugin_file_kept && !r.deleted_file { i18n::tr_ref("anim_page.removed_from_the_list_animation_changer_file").to_string() } else { i18n::tr_ref("anim_page.animation_deleted").to_string() };
                     if !r.cleared_slots.is_empty() {
-                        msg.push_str(&format!(". Стандартная для: {}", r.cleared_slots.iter().map(|s| slot_title(s).to_lowercase()).collect::<Vec<_>>().join(", ")));
+                        msg.push_str(&i18n::tr_args("anim_page.default_for", &[("join", &(r.cleared_slots.iter().map(|s| slot_title(s).to_lowercase()).collect::<Vec<_>>().join(", ")).to_string())]));
                     }
                     a.toast(&msg);
                 }
@@ -1636,7 +1637,7 @@ fn menu_act(a: &mut App, act: MenuAct) {
 fn toggle_fav(a: &mut App, id: &str) {
     let on = anim::with_config(|c, _| c.toggle_favorite(id));
     anim::page_commit();
-    a.toast(if on { "Добавлено в избранное" } else { "Убрано из избранного" });
+    a.toast(if on { i18n::tr_ref("anim_page.added_to_selected") } else { i18n::tr_ref("anim_page.removed_from_the_elect") });
     rebuild(a);
 }
 
@@ -1929,7 +1930,7 @@ pub fn apply_catalog(a: &mut App, r: Result<(Arc<Vec<repo::Post>>, SystemTime), 
             s.cat_state = Some(if more { CatState::Loading } else { CatState::Ready { fetched, offline: None } });
         }
         Err(e) => {
-            let msg = e.ru();
+            let msg = e.message();
             eprintln!("[anim-page] catalog: {e:?}");
             s.cat_state = Some(match s.cat_state.clone() {
                 _ if s.cat.is_some() => {
@@ -1956,7 +1957,7 @@ fn start_download_id(a: &mut App, id: &str) {
     let Some(p) = p else { return };
     let have = anim::with_config(|c, _| c.entry(&p.id).is_some() && c.resolve(&p.id).is_some());
     if have {
-        a.toast("Эта анимация уже скачана");
+        a.toast(i18n::tr_ref("anim_page.this_animation_is_already_downloaded"));
         return;
     }
     if with(|s| s.downloads.contains_key(&p.id)) {
@@ -1983,7 +1984,7 @@ fn start_download_id(a: &mut App, id: &str) {
         });
         post(move |a| apply_download(a, p, r));
     });
-    a.toast("Загрузка началась");
+    a.toast(i18n::tr_ref("anim_page.download_started"));
     rebuild(a);
 }
 
@@ -2023,11 +2024,11 @@ pub fn apply_download(a: &mut App, p: repo::Post, r: Result<u64, repo::NetErr>) 
                     s.imgs.insert(format!("local:{}", p.id), img);
                 }
             });
-            a.toast(&format!("«{}» скачана", p.name));
+            a.toast(&i18n::tr_args("anim_page.downloaded_2", &[("name", &(p.name).to_string())]));
         }
-        Err(repo::NetErr::Cancelled) => a.toast("Загрузка отменена"),
+        Err(repo::NetErr::Cancelled) => a.toast(i18n::tr_ref("anim_page.download_cancelled")),
         Err(e) => {
-            let msg = e.ru();
+            let msg = e.message();
             eprintln!("[anim-page] download {}: {e:?}", p.id);
             a.toast(&msg);
             with(|s| {
@@ -2048,7 +2049,7 @@ fn start_catalog_preview(a: &mut App, id: String, path: PathBuf) {
         post(move |a| {
             if is_page(a) && CLIP_GEN.load(Ordering::Relaxed) == generation {
                 if outcome == anim::player::Outcome::Failed {
-                    a.toast("Не удалось воспроизвести предпросмотр");
+                    a.toast(i18n::tr_ref("anim_page.we_were_unable_to_reproduce_the_preview"));
                 }
                 modal_changed(a);
             }
@@ -2111,7 +2112,7 @@ fn start_preview_download(a: &mut App, post_idx: usize) {
                     }
                 }
                 Err(repo::NetErr::Cancelled) => {}
-                Err(e) if !cancel.load(Ordering::Relaxed) => a.toast(&e.ru()),
+                Err(e) if !cancel.load(Ordering::Relaxed) => a.toast(&e.message()),
                 Err(_) => {}
             }
             if is_page(a) {
@@ -2296,6 +2297,7 @@ fn refresh_storage() {
 
 pub fn wire(ui: &crate::AppWindow) {
     let g = ui.global::<AnimPageState>();
+    g.set_label_standard_steam_animation(i18n::tr("anim_page.standard_steam_animation").into());
     g.on_activated(|i| {
         super::defer(move |a| {
             let key = with(|s| s.items.get(i as usize).filter(|it| it.focusable).map(|it| it.key.clone()));
@@ -2329,557 +2331,5 @@ pub fn wire(ui: &crate::AppWindow) {
 // ---------------------------------------------------------------- tests (headless, fixtures, no internet)
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::anim::config::Dirs;
-    use crate::anim::repo::tests::{serve, webm, FIXTURE};
-    use crate::router::Route;
-    use crate::screens::settings::Page;
-    use crate::AppWindow;
-    use serde_json::json;
-
-    /// One page test at a time: worker results go through the process-wide TEST_POSTS queue.
-    static LOCK: Mutex<()> = Mutex::new(());
-
-    fn fixture_dirs(name: &str) -> Dirs {
-        let root = std::env::temp_dir().join(format!("anim-page-{name}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&root);
-        let d = Dirs::under(&root);
-        std::fs::create_dir_all(d.plugin_data.join("downloads")).unwrap();
-        std::fs::create_dir_all(d.plugin_config.parent().unwrap()).unwrap();
-        for (id, len) in [("PDkKY", 3_877_957), ("nvWjE", 838_027), ("ndbjY", 25_859), ("Extra", 1_000)] {
-            std::fs::write(d.plugin_data.join("downloads").join(format!("{id}.webm")), webm(len)).unwrap();
-        }
-        std::fs::write(
-            &d.plugin_config,
-            serde_json::to_vec(&json!({
-                "boot": "PDkKY", "suspend": "ndbjY", "throbber": "ndbjY", "randomize": "all", "force_ipv4": true,
-                "downloads": [
-                    {"id": "PDkKY", "name": "Playstation 2", "author": "Parimak", "target": "boot", "likes": 262, "downloads": 60373, "last_changed": "2022-10-11T21:25:37.000000Z", "description": "A (Unity remake of) Playstation 2's bootup sequence"},
-                    {"id": "nvWjE", "name": "90's Valve Machine", "author": "PieMuncher", "target": "boot", "likes": 198, "downloads": 46690, "last_changed": "2022-10-12T20:18:21.000000Z"},
-                    {"id": "ndbjY", "name": "minimal glitch logo suspend", "author": "x", "target": "suspend", "likes": 5, "downloads": 9, "last_changed": "2023-01-01T00:00:00.000000Z"}
-                ]
-            }))
-            .unwrap(),
-        )
-        .unwrap();
-        d
-    }
-
-    struct H {
-        ui: AppWindow,
-        a: App,
-        _g: std::sync::MutexGuard<'static, ()>,
-        root: PathBuf,
-    }
-
-    impl Drop for H {
-        fn drop(&mut self) {
-            TEST_MODE.store(false, Ordering::Relaxed);
-            *TEST_NET.lock().unwrap() = None;
-            TEST_POSTS.lock().unwrap().clear();
-            let _ = std::fs::remove_dir_all(&self.root);
-        }
-    }
-
-    fn harness(name: &str) -> H {
-        let g = LOCK.lock().unwrap_or_else(|e| e.into_inner());
-        TEST_MODE.store(true, Ordering::Relaxed);
-        TEST_POSTS.lock().unwrap().clear();
-        let _ = slint::platform::set_platform(Box::new(i_slint_backend_testing::TestingBackend::new(i_slint_backend_testing::TestingBackendOptions {
-            renderer_name: Some("software".into()),
-            mock_time: true,
-            ..Default::default()
-        })));
-        let ui = AppWindow::new().unwrap();
-        ui.window().set_size(slint::PhysicalSize::new(1280, 800));
-        ui.global::<crate::Shell>().set_page(4);
-        let st = ui.global::<SettingsState>();
-        st.set_rail(ModelRc::new(VecModel::from(vec![crate::ListEntry { label: LABEL.into(), ..Default::default() }])));
-        let ds = Arc::new(crate::data::DataSource::new());
-        let loader = crate::loader::Loader::start(ds.clone(), 0);
-        let mut a = App::new(ui.as_weak(), ds, Arc::new(steam_data::Library::default()), loader);
-        let dirs = fixture_dirs(name);
-        let root = dirs.own.parent().unwrap().to_path_buf();
-        anim::install_page_config(Config::load_from(dirs));
-        ST.with(|s| *s.borrow_mut() = St { lib_kind: repo::Kind::All, cat_q: repo::Query { deck_only: true, ..Default::default() }, ..Default::default() });
-        a.se.pages = vec![Page { id: PAGE.into(), label: LABEL.into() }];
-        a.router.replace(Route::Settings(PAGE.into()));
-        a.sync_settings(PAGE);
-        H { ui, a, _g: g, root }
-    }
-
-    fn drain_until(a: &mut App, what: &str, cond: impl Fn(&mut App) -> bool) {
-        let t = Instant::now();
-        loop {
-            let posts: Vec<Post> = std::mem::take(&mut *TEST_POSTS.lock().unwrap());
-            for f in posts {
-                f(a);
-            }
-            if cond(a) {
-                return;
-            }
-            assert!(t.elapsed() < Duration::from_secs(15), "timed out waiting for {what}");
-            std::thread::sleep(Duration::from_millis(15));
-        }
-    }
-
-    fn focus() -> Option<Key> {
-        with(|s| s.focus.clone())
-    }
-
-    fn cfg<R>(f: impl FnOnce(&mut Config) -> R) -> R {
-        anim::with_config(|c, _| f(c))
-    }
-
-    fn catalog() -> Arc<Vec<repo::Post>> {
-        Arc::new(repo::parse_catalog(FIXTURE.as_bytes()).unwrap().posts)
-    }
-
-    fn assert_clean_layout(items: &[Item], what: &str) {
-        let o = overlaps(items);
-        assert!(o.is_empty(), "{what}: overlapping items {:?}", o.iter().map(|(i, j)| (&items[*i].key, &items[*j].key)).collect::<Vec<_>>());
-        for it in items {
-            assert!(it.x >= X0 - 0.5 && it.x + it.w <= X0 + W + 0.5, "{what}: {:?} leaves the content column ({}..{})", it.key, it.x, it.x + it.w);
-            assert!(it.y >= TABS_Y - 0.5, "{what}: {:?} above the tabs", it.key);
-        }
-    }
-
-    #[test]
-    fn every_tab_lays_out_without_overlap_inside_the_content_column() {
-        let mut h = harness("layout");
-        for tab in Tab::ALL {
-            switch_tab(&mut h.a, tab);
-            with(|s| {
-                if tab == Tab::Catalog {
-                    s.cat = Some(catalog());
-                    s.cat_state = Some(CatState::Ready { fetched: SystemTime::now(), offline: None });
-                    s.downloads.insert("MnZgE".into(), Dl { done: 50, total: Some(100), cancel: Arc::new(AtomicBool::new(false)) });
-                    s.errors.insert("RuZ01".into(), "Сайт отклонил запрос (ошибка 404)".into());
-                }
-                if tab == Tab::Storage {
-                    s.storage = Some(Storage { own: (3, 5 << 20), plugin: (31, 107 << 20), frames: 640 << 20, frames_budget: 3 << 30, repo: 45 << 20, free: Some(23 << 30) });
-                }
-            });
-            rebuild(&mut h.a);
-            let items = with(|s| s.items.clone());
-            assert!(items.iter().any(|i| i.focusable && !matches!(i.key, Key::Tab(_))), "{tab:?} has controls");
-            assert_clean_layout(&items, &format!("{tab:?}"));
-            let tabs: Vec<&Item> = items.iter().filter(|i| matches!(i.key, Key::Tab(_))).collect();
-            assert_eq!(tabs.len(), 4);
-        }
-        // filters narrowing the library to nothing and an empty library show a message, not an empty grid
-        switch_tab(&mut h.a, Tab::Library);
-        with(|s| s.lib_text = "нет такого".into());
-        rebuild(&mut h.a);
-        let items = with(|s| s.items.clone());
-        assert!(items.iter().any(|i| i.kind == 15));
-        assert_clean_layout(&items, "library empty");
-    }
-
-    #[test]
-    fn gamepad_walk_assigns_slots_and_toggles_settings() {
-        let mut h = harness("pad");
-        let a = &mut h.a;
-        assert_eq!(a.se.zone, 0);
-        a.handle_pad(Action::Right);
-        assert_eq!(a.se.zone, 1, "Right on the rail enters the page");
-        assert_eq!(focus(), Some(Key::Slot("boot")));
-        a.handle_pad(Action::Down);
-        assert_eq!(focus(), Some(Key::Slot("suspend")));
-        assert_eq!(with(|s| s.hero_slot), Some("suspend"), "the hero follows the focused slot");
-        a.handle_pad(Action::Up);
-        a.handle_pad(Action::Up);
-        assert!(matches!(focus(), Some(Key::Tab(_))), "Up from the first slot reaches the tabs, got {:?}", focus());
-        a.handle_pad(Action::Down);
-        assert_eq!(focus(), Some(Key::Slot("boot")));
-        // Y belongs to the page here: no global search
-        a.handle_pad(Action::Y);
-        assert!(!a.lb.search);
-        // picker: preview before applying, then A assigns
-        a.handle_pad(Action::A);
-        let (n, first) = with(|s| match &s.modal {
-            Some(Modal::Picker { options, focus, .. }) => (options.len(), options[*focus].0.clone()),
-            m => panic!("picker expected, got {m:?}"),
-        });
-        assert_eq!(first, "PDkKY", "opens on the current choice");
-        assert_eq!(n, 1 + 3, "default + three boot animations (suspend ones are not offered)");
-        // options: default, then by name: 90's Valve Machine, Extra, Playstation 2 (current)
-        a.handle_pad(Action::Up);
-        assert_eq!(with(|s| match &s.modal { Some(Modal::Picker { options, focus, .. }) => options[*focus].0.clone(), _ => String::new() }), "Extra");
-        a.handle_pad(Action::Up);
-        a.handle_pad(Action::Up);
-        a.handle_pad(Action::Up);
-        assert!(crate::screens::chrome::hf() < 0, "the list edge does not escape to the header");
-        a.handle_pad(Action::A);
-        assert!(with(|s| s.modal.is_none()));
-        assert_eq!(cfg(|c| c.get("boot")), "", "default chosen");
-        assert_eq!(anim::with_config(|_, now| now.clone()), "", "boot_now follows like `anim set boot`");
-        // B in a modal closes only the modal
-        a.handle_pad(Action::A);
-        assert!(with(|s| s.modal.is_some()));
-        a.handle_pad(Action::B);
-        assert!(with(|s| s.modal.is_none()));
-        assert_eq!(a.se.zone, 1);
-        // walk down to the behaviour rows
-        for _ in 0..4 {
-            a.handle_pad(Action::Down);
-        }
-        assert_eq!(focus(), Some(Key::Shuffle(ShuffleSlot::Boot)));
-        a.handle_pad(Action::A);
-        assert!(!cfg(|c| c.shuffle_enabled(ShuffleSlot::Boot)));
-        assert!(cfg(|c| c.shuffle_enabled(ShuffleSlot::Suspend)));
-        a.handle_pad(Action::Down);
-        assert_eq!(focus(), Some(Key::Shuffle(ShuffleSlot::Suspend)));
-        a.handle_pad(Action::A);
-        assert!(!cfg(|c| c.shuffle_enabled(ShuffleSlot::Suspend)));
-        assert!(!cfg(|c| c.shuffle_enabled(ShuffleSlot::Boot)));
-        a.handle_pad(Action::Down);
-        assert_eq!(focus(), Some(Key::BootOnResume));
-        let before = cfg(|c| c.x.boot_on_resume);
-        a.handle_pad(Action::A);
-        assert_eq!(cfg(|c| c.x.boot_on_resume), !before);
-        a.handle_pad(Action::Down);
-        assert_eq!(focus(), Some(Key::Volume));
-        a.handle_pad(Action::Left);
-        a.handle_pad(Action::Left);
-        assert!((cfg(|c| c.x.volume) - 0.8).abs() < 1e-6);
-        assert_eq!(a.se.zone, 1, "Left on the volume row adjusts, it does not leave the page");
-        // saved to disk
-        let saved: serde_json::Value = serde_json::from_slice(&std::fs::read(Config::config_path(&cfg(|c| c.dirs.clone()))).unwrap()).unwrap();
-        assert_eq!(saved["randomize_boot"], false);
-        assert_eq!(saved["randomize_suspend"], false);
-        assert_eq!(saved["deckshell"]["volume"].as_f64().map(|v| (v * 10.0).round()), Some(8.0));
-        // Left from a plain row returns to the rail
-        a.handle_pad(Action::Down);
-        a.handle_pad(Action::Left);
-        assert_eq!(a.se.zone, 0);
-    }
-
-    #[test]
-    fn library_grid_favorites_exclusions_and_delete() {
-        let mut h = harness("lib");
-        let a = &mut h.a;
-        a.handle_pad(Action::Right);
-        a.handle_pad(Action::RB);
-        assert_eq!(with(|s| s.tab), Some(Tab::Library));
-        assert_eq!(focus(), Some(Key::Tab(Tab::Library)));
-        a.handle_pad(Action::Down);
-        assert!(matches!(focus(), Some(Key::Search | Key::Sort | Key::Type | Key::FavOnly)), "{:?}", focus());
-        a.handle_pad(Action::Down);
-        let Some(Key::Card(first)) = focus() else { panic!("card expected, got {:?}", focus()) };
-        assert_eq!(first, "nvWjE", "sorted by name: 90's Valve Machine first");
-        a.handle_pad(Action::Right);
-        let Some(Key::Card(second)) = focus() else { panic!() };
-        assert_ne!(first, second);
-        a.handle_pad(Action::Y);
-        assert!(cfg(|c| c.is_favorite(&second)));
-        // favorites filter
-        with(|s| s.fav_only = true);
-        rebuild(a);
-        let cards: Vec<Key> = with(|s| s.items.iter().filter(|i| matches!(i.key, Key::Card(_))).map(|i| i.key.clone()).collect());
-        assert_eq!(cards, vec![Key::Card(second.clone())]);
-        with(|s| s.fav_only = false);
-        rebuild(a);
-        // card menu → shuffle exclusion
-        with(|s| s.focus = Some(Key::Card("ndbjY".into())));
-        a.handle_pad(Action::A);
-        let opts = with(|s| match &s.modal {
-            Some(Modal::Menu { options, .. }) => options.clone(),
-            m => panic!("{m:?}"),
-        });
-        assert!(opts.iter().any(|o| matches!(o.1, MenuAct::Assign(_, "suspend"))));
-        assert!(!opts.iter().any(|o| matches!(o.1, MenuAct::Assign(_, "boot"))), "a sleep animation is not offered for boot");
-        let ex = opts.iter().position(|o| matches!(o.1, MenuAct::Exclude(_))).unwrap();
-        for _ in 0..ex {
-            a.handle_pad(Action::Down);
-        }
-        a.handle_pad(Action::A);
-        assert!(cfg(|c| c.is_excluded("ndbjY")));
-        // delete asks first; default answer is «Отмена»
-        a.handle_pad(Action::A);
-        let del = with(|s| match &s.modal {
-            Some(Modal::Menu { options, .. }) => options.iter().position(|o| matches!(o.1, MenuAct::AskDelete(_))).unwrap(),
-            _ => panic!(),
-        });
-        for _ in 0..del {
-            a.handle_pad(Action::Down);
-        }
-        a.handle_pad(Action::A);
-        assert!(with(|s| matches!(&s.modal, Some(Modal::Menu { focus: 1, .. }))));
-        a.handle_pad(Action::Up);
-        a.handle_pad(Action::A);
-        assert!(cfg(|c| c.entry("ndbjY").is_none()));
-        assert_eq!(cfg(|c| (c.get("suspend"), c.get("throbber"))), (String::new(), String::new()), "slots reset");
-        assert!(cfg(|c| c.plugin_download("ndbjY").is_file()), "the plugin's file is not deleted");
-        // grid edge: Left from the first column goes back to the rail
-        with(|s| s.focus = Some(Key::Card(first.clone())));
-        a.handle_pad(Action::Left);
-        assert_eq!(a.se.zone, 0);
-    }
-
-    #[test]
-    fn catalog_download_cancel_errors_and_offline_on_fixtures() {
-        let mut h = harness("cat");
-        let video = webm(300_000);
-        let v2 = video.clone();
-        let f = serve(move |p, base| match p {
-            "/api/posts/all" => (200, vec![], FIXTURE.as_bytes().to_vec(), 0),
-            "/post/download/MnZgE" => (302, vec![("Location".into(), format!("{base}/videos/MnZgE.webm?sig=1"))], vec![], 0),
-            "/videos/MnZgE.webm?sig=1" => (200, vec![], v2.clone(), 0),
-            "/post/download/Mach1" => (200, vec![], webm(2_000_000), 40),
-            _ => (404, vec![], vec![], 0),
-        });
-        *TEST_NET.lock().unwrap() = Some((f.base.clone(), f.base.trim_start_matches("http://").into()));
-        let a = &mut h.a;
-        a.handle_pad(Action::Right);
-        a.handle_pad(Action::RB);
-        a.handle_pad(Action::RB);
-        assert_eq!(with(|s| s.tab), Some(Tab::Catalog));
-        drain_until(a, "catalog", |_| with(|s| matches!(s.cat_state, Some(CatState::Ready { offline: None, .. }))));
-        assert_eq!(f.hits.lock().unwrap().iter().filter(|p| *p == "/api/posts/all").count(), 1);
-        assert_eq!(with(|s| s.cat_view.len()), 5, "Steam Deck filter hides the Steam Machine-only post");
-        let status = with(|s| s.items.iter().find(|i| i.kind == 10).map(|i| i.label.clone()).unwrap());
-        assert!(status.starts_with("5 анимаций"), "{status}");
-        assert!(cfg(|c| c.dirs.repo.join("posts.json").is_file()), "saved for offline use");
-        // search through the shared keyboard target
-        with(|s| s.focus = Some(Key::Search));
-        a.handle_pad(Action::A);
-        assert!(keyboard_target());
-        for c in "star".chars() {
-            type_char(a, Some(c));
-        }
-        assert_eq!(with(|s| s.cat_view.iter().map(|i| s.cat.as_ref().unwrap()[*i].id.clone()).collect::<Vec<_>>()), vec!["MnZgE"]);
-        assert!(a.settings_back(), "B closes the keyboard first");
-        assert!(!keyboard_target());
-        for _ in 0..4 {
-            type_char(a, None);
-        }
-        // an animation the plugin already downloaded is not fetched again
-        with(|s| s.focus = Some(Key::Card("PDkKY".into())));
-        a.handle_pad(Action::X);
-        assert!(!with(|s| s.downloads.contains_key("PDkKY")));
-        // download with progress → appears in «Мои анимации»
-        with(|s| s.focus = Some(Key::Card("MnZgE".into())));
-        a.handle_pad(Action::X);
-        assert!(with(|s| s.downloads.contains_key("MnZgE")));
-        drain_until(a, "download", |_| with(|s| !s.downloads.contains_key("MnZgE")));
-        assert_eq!(std::fs::read(cfg(|c| c.own_download("MnZgE"))).unwrap(), video);
-        assert_eq!(cfg(|c| c.origin("MnZgE")), Origin::Own);
-        assert_eq!(cfg(|c| c.entry("MnZgE").unwrap()["download_url"].clone()), json!("https://steamdeckrepo.com/post/download/MnZgE"));
-        let card = with(|s| s.items.iter().find(|i| i.key == Key::Card("MnZgE".into())).cloned().unwrap());
-        assert_eq!(card.badge2, "Скачано");
-        assert!(cfg(|c| locals(c).iter().any(|l| l.id == "MnZgE" && l.author == "Jaidek")));
-        // 404 → a readable error on the card and in details
-        with(|s| s.focus = Some(Key::Card("RuZ01".into())));
-        a.handle_pad(Action::X);
-        drain_until(a, "error", |_| with(|s| s.errors.contains_key("RuZ01")));
-        assert!(with(|s| s.errors["RuZ01"].contains("404")));
-        assert!(!cfg(|c| c.own_download("RuZ01")).exists());
-        assert_eq!(with(|s| s.items.iter().find(|i| i.key == Key::Card("RuZ01".into())).map(|i| i.badge2.clone())), Some("Ошибка".into()));
-        // cancel: X again on a running download
-        with(|s| s.cat_q.deck_only = false);
-        rebuild(a);
-        with(|s| s.focus = Some(Key::Card("Mach1".into())));
-        a.handle_pad(Action::X);
-        drain_until(a, "progress", |_| with(|s| s.downloads.get("Mach1").is_some_and(|d| d.done > 0)));
-        a.handle_pad(Action::X);
-        drain_until(a, "cancel", |_| with(|s| !s.downloads.contains_key("Mach1")));
-        let dest = cfg(|c| c.own_download("Mach1"));
-        assert!(!dest.exists() && !repo::part_path(&dest).exists());
-        assert!(cfg(|c| c.entry("Mach1")).is_none());
-        // details modal of a catalog post: buttons and A → download state
-        with(|s| s.focus = Some(Key::Card("RuZ01".into())));
-        a.handle_pad(Action::A);
-        assert!(with(|s| matches!(s.modal, Some(Modal::Details { .. }))));
-        let labels = with(|s| anim::with_config(|c, _| detail_buttons(s, c, match &s.modal { Some(Modal::Details { post, .. }) => *post, _ => None }, &None)));
-        assert_eq!(labels.iter().map(|b| b.0.as_str()).collect::<Vec<_>>(), vec!["Скачать", "Предпросмотр"]);
-        a.handle_pad(Action::B);
-        // offline: the saved catalog stays usable with a warning
-        let dead = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-        let addr = dead.local_addr().unwrap().to_string();
-        drop(dead);
-        *TEST_NET.lock().unwrap() = Some((format!("http://{addr}"), addr));
-        ensure_catalog(a, true);
-        drain_until(a, "offline", |_| with(|s| matches!(s.cat_state, Some(CatState::Ready { offline: Some(_), .. }))));
-        let status = with(|s| s.items.iter().find(|i| i.kind == 10).map(|i| (i.label.clone(), i.on)).unwrap());
-        assert!(status.0.contains("Нет подключения") && status.0.contains("сохранённый каталог"), "{}", status.0);
-        assert_eq!(status.1, 2);
-        // a fresh start without network and without a saved catalog says so
-        with(|s| {
-            s.cat = None;
-            s.cat_state = None;
-        });
-        let _ = std::fs::remove_file(cfg(|c| c.dirs.repo.join("posts.json")));
-        ensure_catalog(a, false);
-        drain_until(a, "failed", |_| with(|s| matches!(s.cat_state, Some(CatState::Failed(_)))));
-        assert!(with(|s| s.items.iter().any(|i| i.kind == 10 && i.on == 3)));
-    }
-
-    #[test]
-    fn catalog_preview_keeps_gamepad_focus_and_closing_stops_it() {
-        let mut h = harness("catalog-preview-pad");
-        let a = &mut h.a;
-        a.handle_pad(Action::Right);
-        with(|s| {
-            s.tab = Some(Tab::Catalog);
-            s.cat = Some(catalog());
-            s.focus = Some(Key::Card("PDkKY".into()));
-        });
-        rebuild(a);
-        a.handle_pad(Action::A);
-        a.handle_pad(Action::Right);
-        a.handle_pad(Action::A);
-        assert!(anim::player::catalog_playing());
-        assert_eq!(anim::player::INPUT_MODE.load(Ordering::Relaxed), 0);
-        assert_eq!(with(|s| modal_focus(s)), 1);
-        a.handle_pad(Action::B);
-        assert!(!anim::player::catalog_playing());
-        assert!(with(|s| s.modal.is_none() && s.preview_id.is_none()));
-        assert_eq!(focus(), Some(Key::Card("PDkKY".into())));
-
-        a.handle_pad(Action::A);
-        a.handle_pad(Action::Right);
-        a.handle_pad(Action::A);
-        assert!(anim::player::catalog_playing());
-        switch_tab(a, Tab::Library);
-        assert!(!anim::player::catalog_playing());
-        assert!(with(|s| s.modal.is_none() && s.preview_id.is_none()));
-    }
-
-    #[test]
-    fn grid_moves_by_index_including_the_last_partial_row() {
-        let _g = LOCK.lock().unwrap_or_else(|e| e.into_inner());
-        let ids: Vec<String> = (0..7).map(|i| format!("c{i}")).collect();
-        with(|s| {
-            s.items = ids.iter().map(|id| Item::new(Key::Card(id.clone()), 6, 0.0, 0.0, 1.0, 1.0)).collect();
-        });
-        let mv = |from: &str, act| card_move(Tab::Library, &Some(Key::Card(from.into())), act);
-        assert_eq!(mv("c0", Action::Right), Some(Key::Card("c1".into())));
-        assert_eq!(mv("c2", Action::Right), None, "row end");
-        assert_eq!(mv("c0", Action::Left), None, "leaves the grid (rail)");
-        assert_eq!(mv("c1", Action::Down), Some(Key::Card("c4".into())));
-        assert_eq!(mv("c5", Action::Down), Some(Key::Card("c6".into())), "to the last card of a shorter row");
-        assert_eq!(mv("c6", Action::Down), None);
-        assert_eq!(mv("c4", Action::Up), Some(Key::Card("c1".into())));
-        assert_eq!(mv("c1", Action::Up), None, "first row: spatial move to the filters");
-    }
-
-    // ------------------------------------------------ PNG gallery of the key states (DECKSHELL_GALLERY_DIR=<dir> to save)
-
-    fn solid(w: u32, h: u32, rgb: [u8; 3], stripe: [u8; 3]) -> Image {
-        let mut b = SharedPixelBuffer::<Rgba8Pixel>::new(w, h);
-        for (i, px) in b.make_mut_slice().iter_mut().enumerate() {
-            let (x, y) = (i as u32 % w, i as u32 / w);
-            let c = if (x + y) / 24 % 2 == 0 { rgb } else { stripe };
-            *px = Rgba8Pixel { r: c[0], g: c[1], b: c[2], a: 255 };
-        }
-        Image::from_rgba8(b)
-    }
-
-    #[test]
-    fn page_gallery_renders_key_states() {
-        let mut h = harness("gallery");
-        let dir = std::env::var_os("DECKSHELL_GALLERY_DIR").map(PathBuf::from);
-        if let Some(d) = &dir {
-            std::fs::create_dir_all(d).unwrap();
-        }
-        let ui = h.ui.clone_strong();
-        let save = |name: &str| {
-            let _ = ui.window().take_snapshot().unwrap();
-            i_slint_backend_testing::mock_elapsed_time(Duration::from_secs(1));
-            slint::platform::update_timers_and_animations();
-            let img = ui.window().take_snapshot().unwrap();
-            assert_eq!((img.width(), img.height()), (1280, 800));
-            // something is drawn in the content column (not an empty page)
-            let px = img.as_bytes();
-            let lit = (200..700).filter(|y| (400..1240).any(|x| { let o = (y * 1280 + x) * 4; px[o] > 120 })).count();
-            assert!(lit > 20, "{name}: content column is empty");
-            if let Some(d) = &dir {
-                image::save_buffer(d.join(format!("anim-{name}.png")), img.as_bytes(), img.width(), img.height(), image::ColorType::Rgba8).unwrap();
-            }
-        };
-        let a = &mut h.a;
-        let palette = [([28, 74, 120], [36, 90, 140]), ([110, 40, 60], [130, 52, 74]), ([40, 100, 60], [52, 120, 74]), ([90, 70, 20], [110, 88, 30]), ([60, 40, 110], [74, 52, 130]), ([20, 90, 100], [30, 110, 120])];
-        let ids = ["PDkKY", "nvWjE", "ndbjY", "Extra", "MnZgE", "RuZ01", "Mach1"];
-        with(|s| {
-            for (i, id) in ids.iter().enumerate() {
-                let (c1, c2) = palette[i % palette.len()];
-                s.imgs.insert(format!("local:{id}"), solid(288, 180, c1, c2));
-                s.imgs.insert(format!("thumb:{id}"), solid(288, 180, c2, c1));
-            }
-        });
-        let hero = solid(336, 210, [24, 60, 100], [30, 76, 120]);
-        a.handle_pad(Action::Right);
-        {
-            let ui = a.ui();
-            let g = ui.global::<AnimPageState>();
-            g.set_preview(hero.clone());
-            g.set_has_preview(true);
-        }
-        save("overview");
-        a.handle_pad(Action::A);
-        {
-            let ui = a.ui();
-            ui.global::<AnimPageState>().set_preview(solid(488, 305, [80, 30, 50], [100, 40, 64]));
-        }
-        save("picker");
-        a.handle_pad(Action::B);
-        cfg(|c| c.set_shuffle(ShuffleSlot::Boot, false));
-        rebuild(a);
-        for _ in 0..7 {
-            a.handle_pad(Action::Down);
-        }
-        save("overview-scrolled");
-        a.handle_pad(Action::RB);
-        a.handle_pad(Action::Down);
-        a.handle_pad(Action::Down);
-        save("library");
-        a.handle_pad(Action::A);
-        save("library-menu");
-        a.handle_pad(Action::B);
-        cfg(|c| c.toggle_favorite("PDkKY"));
-        rebuild(a);
-        a.handle_pad(Action::RB);
-        with(|s| {
-            s.cat = Some(catalog());
-            s.cat_state = Some(CatState::Ready { fetched: SystemTime::now() - Duration::from_secs(300), offline: None });
-            s.downloads.insert("MnZgE".into(), Dl { done: 45, total: Some(100), cancel: Arc::new(AtomicBool::new(false)) });
-            s.errors.insert("RuZ01".into(), repo::NetErr::Status(404).ru());
-            s.focus = Some(Key::Card("MnZgE".into()));
-        });
-        rebuild(a);
-        save("catalog");
-        with(|s| s.focus = Some(Key::Card("PDkKY".into())));
-        a.handle_pad(Action::A);
-        a.handle_pad(Action::Right);
-        a.handle_pad(Action::A);
-        let g = ui.global::<AnimPageState>();
-        g.set_preview(solid(560, 350, [24, 60, 100], [30, 76, 120]));
-        g.set_has_preview(true);
-        save("catalog-preview");
-        a.handle_pad(Action::B);
-        with(|s| s.focus = Some(Key::Card("RuZ01".into())));
-        a.handle_pad(Action::A);
-        save("catalog-details-error");
-        a.handle_pad(Action::B);
-        with(|s| {
-            s.cat_state = Some(CatState::Ready { fetched: SystemTime::now() - Duration::from_secs(3 * 86_400), offline: Some(repo::NetErr::Offline(String::new()).ru()) });
-            s.focus = Some(Key::Search);
-            s.cat_q.text = "star".into();
-        });
-        rebuild(a);
-        save("catalog-offline-search");
-        with(|s| {
-            s.cat = None;
-            s.cat_state = Some(CatState::Failed(repo::NetErr::RateLimited.ru()));
-            s.cat_q.text.clear();
-        });
-        rebuild(a);
-        save("catalog-error");
-        a.handle_pad(Action::RB);
-        with(|s| s.storage = Some(Storage { own: (3, 5 << 20), plugin: (31, 107 << 20), frames: 640 << 20, frames_budget: 3 << 30, repo: 45 << 20, free: Some(23 << 30) }));
-        rebuild(a);
-        save("storage");
-    }
-}
+#[path = "anim_page_tests.rs"]
+mod tests;

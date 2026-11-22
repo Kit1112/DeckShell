@@ -1,3 +1,4 @@
+use steam_assets::i18n::{tr_args, tr_ref};
 use std::cell::RefCell;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
@@ -90,14 +91,14 @@ pub(super) fn close(a: &mut App, owner: Owner) {
 
 pub(super) fn open(a: &mut App, owner: Owner, identity: Identity) {
     if crate::actions::dryrun() {
-        a.toast("Пробный запуск · калибровка отключена");
+        a.toast(tr_ref("controller.dry_run_calibration_is_disabled"));
         return;
     }
     if WIZARD.with_borrow(Option::is_some) {
         return;
     }
     let Some(bridge) = crate::actions::bridge() else {
-        a.toast("Steam недоступен");
+        a.toast(tr_ref("controller.steam_unavailable"));
         return;
     };
     let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
@@ -171,9 +172,9 @@ fn run(
                 return false;
             };
             w.name = if target.name.is_empty() {
-                "Контроллер".into()
+                tr_ref("controller.controller").into()
             } else if target.name.starts_with('#') {
-                t_or(&target.name, "Контроллер")
+                t_or(&target.name, tr_ref("controller.controller"))
             } else {
                 target.name
             };
@@ -211,16 +212,14 @@ fn run(
         (result, Err(err)) => {
             let detail = match result {
                 Ok(Some(Stage::Saved { error: None })) => {
-                    "Steam подтвердил результат калибровки. Запрос на сохранение отправлен.".into()
+                    tr_ref("controller.steam_confirmed_calibration_save_request_sent").into()
                 }
-                Ok(Some(Stage::Saved { error: Some(error) })) => format!(
-                    "Steam подтвердил результат калибровки. Сохранение не подтверждено: {error}"
-                ),
-                Ok(Some(Stage::Complete { .. })) => "Steam подтвердил результат калибровки.".into(),
+                Ok(Some(Stage::Saved { error: Some(error) })) => tr_args("controller.steam_confirmed_calibration_save_unconfirmed_error", &[("error", &error)]),
+                Ok(Some(Stage::Complete { .. })) => tr_ref("controller.steam_confirmed_calibration").into(),
                 Ok(Some(Stage::Failed { detail, .. })) | Err(detail) => detail,
-                _ => "Сеанс калибровки завершён в DeckShell.".into(),
+                _ => tr_ref("controller.calibration_session_finished_in_deckshell").into(),
             };
-            return Err(format!("{detail} Не удалось завершить сеанс Steam: {err}"));
+            return Err(tr_args("controller.detail_could_not_end_the_steam_session_err", &[("detail", &detail), ("err", &err.to_string())]));
         }
         (Ok(None), Ok(_)) => {}
     }
@@ -251,7 +250,7 @@ fn track(
                 return Ok(Some(stage));
             }
             _ if start.elapsed() >= Duration::from_secs(30) => {
-                return Err("Steam не подтвердил завершение калибровки за 30 с.".into());
+                return Err(tr_ref("controller.steam_did_not_confirm_calibration_within_30_seconds").into());
             }
             _ => {}
         }
@@ -330,96 +329,96 @@ fn presentation(
     &'static str,
     &'static str,
 ) {
-    let title = "Калибровка гироскопа";
-    let still = "Положите контроллер на ровную поверхность и не двигайте его.";
+    let title = tr_ref("controller.gyro_calibration");
+    let still = tr_ref("controller.place_the_controller_on_a_flat_surface_and");
     match stage {
         Stage::Loading => (
             title,
-            "Чтение данных выбранного контроллера…".into(),
+            tr_ref("controller.reading_selected_controller_data").into(),
             None,
             "",
-            "Отмена",
+            tr_ref("controller.cancel"),
         ),
-        Stage::Prompt => (title, still.into(), None, "Продолжить", "Отмена"),
+        Stage::Prompt => (title, still.into(), None, tr_ref("controller.continue"), tr_ref("controller.cancel")),
         Stage::Countdown { seconds } => (
             title,
-            format!("{still} Начало через {seconds} с."),
+            tr_args("controller.still_starting_in_seconds_s", &[("still", still), ("seconds", &seconds.to_string())]),
             None,
             "",
-            "Отмена",
+            tr_ref("controller.cancel"),
         ),
-        Stage::Waiting => (title, "Ожидание ответа Steam…".into(), None, "", "Закрыть"),
+        Stage::Waiting => (title, tr_ref("controller.waiting_for_steam").into(), None, "", tr_ref("controller.close")),
         Stage::Stationary { progress } => (
             title,
-            "Измерение шума датчиков в покое.".into(),
+            tr_ref("controller.measuring_sensor_noise_at_rest").into(),
             *progress,
             "",
-            "Отмена",
+            tr_ref("controller.cancel"),
         ),
         Stage::Drift { progress } => (
             title,
-            "Компенсация дрейфа гироскопа.".into(),
+            tr_ref("controller.compensating_for_gyro_drift").into(),
             *progress,
             "",
-            "Отмена",
+            tr_ref("controller.cancel"),
         ),
         Stage::Hardware { progress } => (
             title,
-            "Аппаратная калибровка · время ожидания".into(),
+            tr_ref("controller.hardware_calibration_timeout").into(),
             Some(*progress),
             "",
-            "Закрыть",
+            tr_ref("controller.close"),
         ),
         Stage::Complete { savable: true } => (
-            "Калибровка завершена",
-            "Steam подтвердил результат. Сохранить полученные допуски?".into(),
+            tr_ref("controller.calibration_complete"),
+            tr_ref("controller.steam_confirmed_the_result_save_the_new_tolerances").into(),
             None,
-            "Сохранить",
-            "Закрыть",
+            tr_ref("controller.save"),
+            tr_ref("controller.close"),
         ),
         Stage::Complete { savable: false } => (
-            "Калибровка завершена",
-            "Steam подтвердил результат. Новые допуски для сохранения недоступны.".into(),
+            tr_ref("controller.calibration_complete"),
+            tr_ref("controller.steam_confirmed_the_result_new_tolerances_are_unavailable").into(),
             None,
-            "ОК",
+            tr_ref("controller.ok"),
             "",
         ),
         Stage::Unconfirmed => (
             title,
-            "Время ожидания истекло. Steam не сообщил результат аппаратной калибровки.".into(),
+            tr_ref("controller.timed_out_steam_did_not_report_a_hardware").into(),
             None,
-            "ОК",
+            tr_ref("controller.ok"),
             "",
         ),
         Stage::Failed {
             detail,
             retryable: true,
         } => (
-            "Ошибка калибровки",
+            tr_ref("controller.calibration_error"),
             detail.clone(),
             None,
-            "Повторить",
-            "Отмена",
+            tr_ref("controller.retry"),
+            tr_ref("controller.cancel"),
         ),
         Stage::Failed {
             detail,
             retryable: false,
-        } => ("Сообщение мастера калибровки", detail.clone(), None, "ОК", ""),
+        } => (tr_ref("controller.calibration_wizard_message"), detail.clone(), None, tr_ref("controller.ok"), ""),
         Stage::Saving => (
             title,
-            "Ожидание ответа Steam на сохранение…".into(),
+            tr_ref("controller.waiting_for_steam_to_save").into(),
             None,
             "",
             "",
         ),
         Stage::Saved { error } => (
-            "Калибровка завершена",
+            tr_ref("controller.calibration_complete"),
             error.as_ref().map_or_else(
-                || "Steam подтвердил результат калибровки. Запрос на сохранение отправлен.".into(),
-                |error| format!("Steam подтвердил результат калибровки. Сохранение не подтверждено: {error}"),
+                || tr_ref("controller.steam_confirmed_calibration_save_request_sent").into(),
+                |error| tr_args("controller.steam_confirmed_calibration_save_unconfirmed_error", &[("error", &error)]),
             ),
             None,
-            "ОК",
+            tr_ref("controller.ok"),
             "",
         ),
     }

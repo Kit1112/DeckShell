@@ -20,7 +20,7 @@
        if(e?.strOperation!=='written' || window.settingsStore?.clientSettings?.enable_screenshot_notification===false)return;
        const handle=e.details?.hHandle??e.hScreenshot, appid=e.unAppID||Number(e.details?.strGameID)||0;
        const key=appid && handle!=null?`s:${appid}:${handle}`:null;
-       add({kind:'screenshot',title:'Скриншот сделан',body:window.appStore?.GetAppOverviewByAppID?.(appid)?.display_name||'',image:e.details?.strUrl||''},key);
+       add({kind:'screenshot',body:window.appStore?.GetAppOverviewByAppID?.(appid)?.display_name||'',image:e.details?.strUrl||''},key);
      });
      s.shotRegistered=true;
    } catch(_) {}
@@ -31,7 +31,7 @@
        if(!e?.unAppID || !e?.achievement?.bAchieved || window.settingsStore?.clientSettings?.achievement_notification_toast===false)return;
        const a=e.achievement;
        const key=a.strID && a.rtUnlocked?`a:${e.unAppID}:${a.strID}:${a.rtUnlocked}`:null;
-       add({kind:'achievement',title:a.strName||'Получено достижение',body:a.strDescription||'',image:a.strImage||''},key);
+       add({kind:'achievement',title:a.strName||'',body:a.strDescription||'',image:a.strImage||''},key);
      });
      s.achievementRegistered=true;
    } catch(_) {}
@@ -56,7 +56,7 @@
          if(name && title && allowed && window.settingsStore?.friendSettings?.bNotifications_ShowIngame!==false && (last===undefined || at>last+10)) {
            s.friendToasts.set(key,at);
            for(const [k,t] of s.friendToasts) if(at>t+10)s.friendToasts.delete(k);
-           add({kind:'friend',title:name,body:`В игре: ${title}`,image:p.avatar_url_medium||''},null);
+           add({kind:'friend',title:name,game:title,image:p.avatar_url_medium||''},null);
          }
        }
      } catch(_) { /* Missing persona data is not an idle observation. */ }

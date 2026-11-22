@@ -1,3 +1,4 @@
+use steam_assets::i18n::{tr_args, tr_ref};
 mod account_flow;
 mod notifications;
 mod exit_request;
@@ -96,7 +97,7 @@ fn env_flag(name: &str) -> bool {
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     if args.get(1).is_some_and(|s| s == "--recording-mic-guardian") {
-        if let Err(e) = recording_mic::guardian(&args[2..]) { eprintln!("Сторож микрофона: {e}"); std::process::exit(1); }
+        if let Err(e) = recording_mic::guardian(&args[2..]) { eprintln!("{}", tr_args("capture.mic_guardian", &[("e", &e.to_string())])); std::process::exit(1); }
         return;
     }
     if args.get(1).is_some_and(|s| s == "--restore-steam-guide-focus") {
@@ -138,6 +139,7 @@ fn main() {
     level::select_overlay_backend().expect("select overlay backend");
     let ui = AppWindow::new().expect("create window");
     ui.set_dry_run(actions::dryrun());
+    ui.set_dry_run_label(tr_ref("app.dry_run_banner").into());
     load_fonts();
     ui.global::<Shell>().set_kenburns(!env_flag("DECKSHELL_NOKENBURNS"));
     if std::env::var("DECKSHELL_FULLSCREEN").map(|v| v != "0" && !v.is_empty()).unwrap_or(false) {

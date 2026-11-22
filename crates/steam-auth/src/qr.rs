@@ -4,6 +4,7 @@
 //! * `had_remote_interaction`: телефон отсканировал код — QR размывается, крутится загрузка;
 //! * EResult 9/27 → «истёк» (Expired), 84 → лимит запросов, прочее → общая ошибка; кнопка «обновить» начинает новую сессию.
 
+use steam_assets::i18n::tr_ref;
 use crate::{eresult, poll, Device, Error, Result, Tokens, Transport, Writer};
 use crate::proto::Msg;
 use std::time::Duration;
@@ -50,9 +51,9 @@ pub fn begin(t: &dyn Transport, device: &Device) -> Result<Session> {
     if er != eresult::OK { return Err(Error::Steam(er)); }
     let m = Msg::new(&data).ok_or(Error::Protocol("BeginAuthSessionViaQR"))?;
     let (Some(client_id), Some(url), Some(req)) = (m.uint(1), m.string(2), m.bytes(3)) else {
-        return Err(Error::Protocol("BeginAuthSessionViaQR: нет client_id/challenge_url/request_id"));
+        return Err(Error::Protocol(tr_ref("steam_auth.qr_fields_missing")));
     };
-    if url.is_empty() || req.is_empty() { return Err(Error::Protocol("BeginAuthSessionViaQR: пустой ответ")); }
+    if url.is_empty() || req.is_empty() { return Err(Error::Protocol(tr_ref("steam_auth.qr_empty"))); }
     // interval в секундах (float); сток: m_msPollInterval = interval*1000. Ограничим разумными рамками.
     let secs = m.float(4).filter(|v| v.is_finite()).unwrap_or(5.0).clamp(1.0, 30.0);
     Ok(Session { client_id, request_id: req.to_vec(), challenge_url: url, interval: Duration::from_secs_f32(secs), remote_interaction: false, network_errors: 0 })

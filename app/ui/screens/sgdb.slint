@@ -12,6 +12,17 @@ export struct SgdbItem { img: image, has-img: bool, flags: int, tag: string, dim
 export struct SgdbRow { label: string, kind: int, on: bool, sub: string, }   // kind: 0 plain, 1 toggle, 2 section header, 3 plain with arrow
 
 export global SgdbState {
+    in property <string> label-banner-position;
+    in property <string> label-cancel;
+    in property <string> label-epilepsy;
+    in property <string> label-humour;
+    in property <string> label-it-applies;
+    in property <string> label-logo-position;
+    in property <string> label-no-picture;
+    in property <string> label-reset;
+    in property <string> label-save;
+    in property <string> label-the-crucifix-is-to-point-at-the;
+    in property <string> label-uploading;
     in property <bool> open;
     in property <string> title;
     in property <string> subtitle;        // matched SteamGridDB game / mode line
@@ -99,7 +110,7 @@ component Frame inherits Rectangle {
         if root.kind == 0 || root.kind == 1: Rectangle {
             width: parent.width; height: parent.height;
             Image { visible: root.main-has; width: parent.width; height: parent.height; source: root.main; image-fit: cover; }
-            if !root.main-has: Text { text: "нет картинки"; color: #5d646c; font-size: 13px; horizontal-alignment: center; vertical-alignment: center; font-family: GStyle.loc-font; }
+            if !root.main-has: Text { text: SgdbState.label-no-picture; color: #5d646c; font-size: 13px; horizontal-alignment: center; vertical-alignment: center; font-family: GStyle.loc-font; }
         }
         if root.kind == 2 || root.kind == 3: Rectangle {
             CroppedImage { visible: root.kind == 2 ? root.main-has : root.back-has; width: parent.width; height: parent.height; src: root.kind == 2 ? root.main : root.back; crop: root.crop; }
@@ -187,11 +198,11 @@ export component SgdbScreen inherits Rectangle {
                 HorizontalLayout { x: 6px; y: 6px; height: 18px; spacing: 4px; alignment: start;
                     if Math.mod(it.flags, 2) >= 1: Chip { text: it.tag != "" ? it.tag : "ANIM"; fill: #e2a256; fg: #23262e; }
                     if Math.mod(Math.floor(it.flags / 2), 2) >= 1: Chip { text: "18+"; fill: #e5344c; }
-                    if Math.mod(Math.floor(it.flags / 4), 2) >= 1: Chip { text: "Юмор"; fill: #eec314; fg: #434343; }
-                    if Math.mod(Math.floor(it.flags / 8), 2) >= 1: Chip { text: "Эпилепсия"; fill: #735f9f; }
+                    if Math.mod(Math.floor(it.flags / 4), 2) >= 1: Chip { text: SgdbState.label-humour; fill: #eec314; fg: #434343; }
+                    if Math.mod(Math.floor(it.flags / 8), 2) >= 1: Chip { text: SgdbState.label-epilepsy; fill: #735f9f; }
                     if Math.mod(Math.floor(it.flags / 16), 2) >= 1: Chip { text: "i"; fill: #8a8a8a; }
                 }
-                if it.busy: Rectangle { background: #000000aa; Text { text: "Применяется…"; color: #ffffff; font-size: 14px; horizontal-alignment: center; vertical-alignment: center; font-family: GStyle.loc-font; } }
+                if it.busy: Rectangle { background: #000000aa; Text { text: SgdbState.label-it-applies; color: #ffffff; font-size: 14px; horizontal-alignment: center; vertical-alignment: center; font-family: GStyle.loc-font; } }
                 Rectangle { y: parent.height - 18px; height: 18px; background: #000000a0; visible: SgdbState.focus == i && it.author != "";
                     Text { x: 6px; width: parent.width - 12px; text: it.author; color: #dcdedf; font-size: 11px; vertical-alignment: center; overflow: elide; font-family: GStyle.loc-font; } }
                 Rectangle { border-width: 3px; border-color: SgdbState.zone == 1 && SgdbState.focus == i ? #dcdedf : transparent; border-radius: 4px; }
@@ -201,7 +212,7 @@ export component SgdbScreen inherits Rectangle {
     }
     if SgdbState.status != "": Text { x: root.gx; y: root.gy + 60px; width: root.gw; height: 120px; text: SgdbState.status; color: #8b929a; font-size: 18px; horizontal-alignment: center; wrap: word-wrap; font-family: GStyle.loc-font; }
     if SgdbState.busy: Rectangle { x: root.gx + root.gw - 120px; y: root.gy - 24px; width: 120px; height: 18px;
-        Text { text: "Загрузка…"; color: #8b929a; font-size: 12px; horizontal-alignment: right; font-family: GStyle.loc-font; } }
+        Text { text: SgdbState.label-uploading; color: #8b929a; font-size: 12px; horizontal-alignment: right; font-family: GStyle.loc-font; } }
     // list panel (filters / actions / games): BasicUIContextMenu look, rows 44 px
     if SgdbState.list-open: Rectangle { background: #00000099;
         TouchArea { clicked => { SgdbState.dismiss(); } }
@@ -223,7 +234,7 @@ export component SgdbScreen inherits Rectangle {
     // Top 80 px belong to the top bar (clock, avatar), the bottom 80 px to the footer hints: the editor sits between them.
     if SgdbState.hero-edit-open || SgdbState.edit-open: Rectangle { background: #0b1017f0;
         TouchArea { }
-        Text { x: 40px; y: 88px; width: root.width - 80px; text: SgdbState.edit-open ? "Положение логотипа" : "Положение баннера"; color: #ffffff; font-size: 22px; font-weight: 500; font-family: GStyle.loc-font; }
+        Text { x: 40px; y: 88px; width: root.width - 80px; text: SgdbState.edit-open ? SgdbState.label-logo-position : SgdbState.label-banner-position; color: #ffffff; font-size: 22px; font-weight: 500; font-family: GStyle.loc-font; }
         he := Rectangle { x: 40px; y: 132px;
             width: min(root.width * 0.64, (root.height - 232px) / (Tokens.game-hero-h / root.width));
             height: self.width * (Tokens.game-hero-h / root.width); clip: true; border-radius: 4px; background: #151b23;
@@ -239,10 +250,10 @@ export component SgdbScreen inherits Rectangle {
                 HorizontalLayout { spacing: 8px; height: 52px;
                     HBtn { text: "−"; idx: 4; } HBtn { text: "+"; idx: 5; } }
                 HorizontalLayout { spacing: 8px; height: 52px;
-                    HBtn { text: "Сброс"; idx: 6; } HBtn { text: "Отмена"; idx: 7; } HBtn { text: "Сохранить"; idx: 8; } }
+                    HBtn { text: SgdbState.label-reset; idx: 6; } HBtn { text: SgdbState.label-cancel; idx: 7; } HBtn { text: SgdbState.label-save; idx: 8; } }
             }
             Text { x: 0px; y: 318px; width: parent.width; height: 120px; wrap: word-wrap; color: #8b929a; font-size: 15px; vertical-alignment: top; font-family: GStyle.loc-font;
-                text: "Крестовина — навести на кнопку, A — нажать. Левый стик — сдвиг кадра напрямую.\nСдвиг: −100% левый/верхний край, +100% правый/нижний. LB/RB масштаб · X сброс · B отмена."; }
+                text: SgdbState.label-the-crucifix-is-to-point-at-the; }
         }
     }
     // запрос названия/ключа: заголовок и поле над общей виртуальной клавиатурой (screens/osk.slint)

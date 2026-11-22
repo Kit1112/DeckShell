@@ -60,6 +60,12 @@ export struct DlPageRow {
 }
 
 export global DownloadsState {
+    in property <string> label-disk-usage;
+    in property <string> label-installing-files;
+    in property <string> label-managing-downloads-for;
+    in property <string> label-network;
+    in property <string> label-peak;
+    in property <string> label-this-device;
     in property <[DlPageRow]> rows;
     in property <string> headline;
     in property <string> detail;
@@ -174,23 +180,23 @@ export component DownloadsScreen inherits Page {
                     // типы содержимого: шейдеры / контент
                     VerticalLayout { x: 500px; y: 74px; width: 190px; spacing: 4px; alignment: start;
                         for b in r.badges: Badge { label: b.label; state: b.state; } }
-                    Stat { x: 724px; y: 84px; width: 190px; label: "Сеть"; value: DownloadsState.net; }
-                    Stat { x: 938px; y: 84px; width: 150px; label: "Макс."; value: DownloadsState.peak; }
-                    Stat { x: 1092px; y: 84px; width: 190px; disk: true; label: "Исп. диска"; value: DownloadsState.disc; }
+                    Stat { x: 724px; y: 84px; width: 190px; label: DownloadsState.label-network; value: DownloadsState.net; }
+                    Stat { x: 938px; y: 84px; width: 150px; label: DownloadsState.label-peak; value: DownloadsState.peak; }
+                    Stat { x: 1092px; y: 84px; width: 190px; disk: true; label: DownloadsState.label-disk-usage; value: DownloadsState.disc; }
                     // загрузка данных
                     Text { x: 724px; y: 170px; width: 300px; height: 28px; text: r.state; color: r.tone == 2 ? #eb5757 : Tokens.text; font-size: 18px; vertical-alignment: center; overflow: elide; }
                     Text { x: 1010px; y: 170px; width: parent.width - 1010px - 52px; height: 28px; text: r.done != "" ? r.done : r.size; color: Tokens.text; font-size: 16px; font-weight: 700; horizontal-alignment: right; vertical-alignment: center; overflow: elide; }
                     Rectangle { x: parent.width - 18px - 28px; y: 170px; width: 18px; height: 28px; Icon { y: 5px; s: 18px; c: #c8cdd3; src: Icons.downloads; } }
                     Prog { x: 724px; y: 204px; width: parent.width - 724px - 18px; value: r.progress; fill: r.tone == 1 ? Tokens.accent : #8b929a; }
                     // установка файлов
-                    Text { x: 724px; y: 224px; width: 300px; height: 28px; text: "Установка файлов"; color: Tokens.text; font-size: 18px; vertical-alignment: center; }
+                    Text { x: 724px; y: 224px; width: 300px; height: 28px; text: DownloadsState.label-installing-files; color: Tokens.text; font-size: 18px; vertical-alignment: center; }
                     Prog { x: 724px; y: 258px; width: parent.width - 724px - 18px; value: -1; }
                     Text { x: 724px; y: 298px; width: 440px; height: 28px; text: r.eta; color: Tokens.text-dim; font-size: 18px; vertical-alignment: center; overflow: elide; }
                     if r.b1 != "": SqBtn { x: parent.width - 18px - 54px; y: 288px; icon: r.b1-icon; focused: b1-focus; light: true; }
                     // плашка «управление загрузками»
                     Rectangle { x: 15px; y: 312px; width: 456px; height: 44px; border-radius: 6px; background: #000000b3;
-                        mg := Text { x: 12px; height: parent.height; vertical-alignment: center; font-size: 17px; font-weight: 700; text: "УПРАВЛЕНИЕ ЗАГРУЗКАМИ:"; color: white; }
-                        Text { x: mg.x + mg.preferred-width + 6px; height: parent.height; vertical-alignment: center; font-size: 17px; font-weight: 700; text: "ЭТО УСТРОЙСТВО"; color: Tokens.accent; } }
+                        mg := Text { x: 12px; height: parent.height; vertical-alignment: center; font-size: 17px; font-weight: 700; text: DownloadsState.label-managing-downloads-for; color: white; }
+                        Text { x: mg.x + mg.preferred-width + 6px; height: parent.height; vertical-alignment: center; font-size: 17px; font-weight: 700; text: DownloadsState.label-this-device; color: Tokens.accent; } }
                 }
                 // --- заголовок секции: крупное название и число, тонкая линия, справа мелкая подпись
                 if r.kind == 2: Rectangle {

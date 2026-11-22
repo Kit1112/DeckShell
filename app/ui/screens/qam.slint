@@ -31,6 +31,7 @@ export struct QamRow {
 }
 
 export global QamState {
+    in property <string> label-to-start-choose-a-friend-or-group;
     in property <bool> open;
     in property <bool> expanded; // Friends opened from the main menu uses the full chat surface.
     in property <int> tab;                 // selected rail tab (0 notifications, 1 friends, 2 quick settings, 3 performance, 4 decky)
@@ -127,7 +128,7 @@ export component Qam inherits Rectangle {
         if panel.wide-friends: Rectangle {
             x: GMenuGeo.qam-rail-w + 288px; width: parent.width - self.x; height: parent.height; background: #0e141b;
             Rectangle { x: 0px; width: 1px; height: parent.height; background: #000000; }
-            Text { y: 215px; width: parent.width; height: 30px; text: "ЧТОБЫ НАЧАТЬ, ВЫБЕРИТЕ ДРУГА ИЛИ ГРУППУ"; color: #969696; font-size: 15px; font-weight: 700; letter-spacing: 1px; horizontal-alignment: center; vertical-alignment: center; }
+            Text { y: 215px; width: parent.width; height: 30px; text: QamState.label-to-start-choose-a-friend-or-group; color: #969696; font-size: 15px; font-weight: 700; letter-spacing: 1px; horizontal-alignment: center; vertical-alignment: center; }
         }
         // ---- content column (rows scroll under the sticky title)
         content := Rectangle {

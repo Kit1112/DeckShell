@@ -3,6 +3,7 @@
 //! ключи, порядок (`sortOrder`), разделы, зависимости. Значения и пределы читаются из редактируемой копии раскладки
 //! (`group.settings`: ключ, значение, min, max — знаковый zigzag), запись — тем же `SetEditingControllerConfigurationSourceMode`.
 //! Геометрия строк — устройство 1280×800 (кадры 1:1), выведена из измерений кадров.
+use steam_assets::i18n::tr_ref;
 use super::controller_live::{msg, number};
 use super::controller_sticks as sticks;
 use crate::assets::t_or;
@@ -11,60 +12,60 @@ use steam_bridge::controller_edit::BindingTarget;
 /// Режим группы, для которого есть страница (`mouse_joystick`, «Как джойстик»).
 pub const MODE: i64 = 12;
 pub const SECTIONS: [(&str, &str); 5] = [
-    ("#ControllerConfigurator_Section_Basic", "Основное"),
-    ("#ControllerConfigurator_Section_Output", "Вывод"),
-    ("#ControllerConfigurator_Section_Trackpad", "Трекпад"),
-    ("#ControllerConfigurator_Section_TriggerDampening", "Замедление триггером"),
-    ("#ControllerConfigurator_Section_Haptic", "Тактильная отдача"),
+    ("#ControllerConfigurator_Section_Basic", "controller.general"),
+    ("#ControllerConfigurator_Section_Output", "controller.output"),
+    ("#ControllerConfigurator_Section_Trackpad", "controller.trackpad"),
+    ("#ControllerConfigurator_Section_TriggerDampening", "controller.trigger_dampening"),
+    ("#ControllerConfigurator_Section_Haptic", "controller.haptics_settings"),
 ];
-fn section_name(i: usize) -> String { let (t, f) = SECTIONS[i.min(4)]; t_or(t, f) }
+fn section_name(i: usize) -> String { let (t, f) = SECTIONS[i.min(4)]; t_or(t, tr_ref(f)) }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Kind { Slider, Toggle, Choice }
 /// (значение, `ControllerSettingValue_<id>`, запасной текст)
 type Opt = (i64, &'static str, &'static str);
-const FRICTION: &[Opt] = &[(0, "Off", "Выкл."), (1, "Low", "Низк."), (2, "Medium", "Средн."), (3, "High", "Высок."), (4, "None", "Отсутствует")];
-const HAPTIC: &[Opt] = &[(0, "Off", "Выкл."), (1, "Low", "Низк."), (2, "Medium", "Средн."), (3, "High", "Высок.")];
-const OUTPUT: &[Opt] = &[(0, "LeftJoystick", "Левый джойстик"), (1, "RightJoystick", "Правый джойстик")];
+const FRICTION: &[Opt] = &[(0, "Off", "controller.off"), (1, "Low", "controller.low"), (2, "Medium", "controller.medium"), (3, "High", "controller.high"), (4, "None", "controller.none_3")];
+const HAPTIC: &[Opt] = &[(0, "Off", "controller.off"), (1, "Low", "controller.low"), (2, "Medium", "controller.medium"), (3, "High", "controller.high")];
+const OUTPUT: &[Opt] = &[(0, "LeftJoystick", "controller.left_joystick_2"), (1, "RightJoystick", "controller.right_joystick_2")];
 const CLAMP: &[Opt] = &[
-    (0, "Off", "Выкл."), (1, "TriggerDampeningRightSoft", "Замедление при плавном нажатии правого триггера"),
-    (2, "TriggerDampeningLeftSoft", "Замедление при плавном нажатии левого триггера"), (3, "TriggerDampeningBothSoft", "Замедление при плавном нажатии любого триггера"),
-    (4, "TriggerDampeningRightAlways", "Замедление при нажатии правого триггера"), (5, "TriggerDampeningLeftAlways", "Замедление при нажатии левого триггера"),
-    (6, "TriggerDampeningBothAlways", "Замедление при нажатии любого триггера"),
+    (0, "Off", "controller.off"), (1, "TriggerDampeningRightSoft", "controller.right_trigger_soft_pull_dampening"),
+    (2, "TriggerDampeningLeftSoft", "controller.left_trigger_soft_pull_dampening"), (3, "TriggerDampeningBothSoft", "controller.both_trigger_soft_pull_dampening"),
+    (4, "TriggerDampeningRightAlways", "controller.right_trigger_soft_full_pull_dampening"), (5, "TriggerDampeningLeftAlways", "controller.left_trigger_soft_full_pull_dampening"),
+    (6, "TriggerDampeningBothAlways", "controller.both_trigger_soft_full_pull_dampening"),
 ];
-const GYRO_HAPTIC: &[Opt] = &[(0, "Off", "Выкл."), (1, "OnEnable", "При включении гироскопа"), (2, "OnDisable", "При выключении гироскопа"), (3, "OnEnableAndDisable", "При включении/выключении гироскопа")];
+const GYRO_HAPTIC: &[Opt] = &[(0, "Off", "controller.off"), (1, "OnEnable", "controller.on_gyro_enable"), (2, "OnDisable", "controller.on_gyro_disable"), (3, "OnEnableAndDisable", "controller.on_gyro_enable_disable")];
 
 struct Def {
     key: i64, id: &'static str, label: &'static str, desc: &'static str, section: usize, order: i32, kind: Kind, opts: &'static [Opt],
     /// Показывать, только если настройка `.0` имеет одно из значений `.1` (`Ie([{eControllerSetting,rgValues}])` стока).
     when: Option<(i64, &'static [i64])>,
 }
-const DEADZONE_DESC: &str = "Определяет минимальное перемещение джойстика. Идеальная настройка полностью компенсирует встроенную в игру мёртвую зону. Увеличивайте это значение, пока мелкие движения не станут плавными и точными. Снизьте его, если движения станут слишком грубыми. Также попробуйте настройку «Увеличить точность малых движений».";
+const DEADZONE_DESC: &str = "controller.this_value_determines_the_minimum_amount_the_output";
 const fn d(key: i64, id: &'static str, label: &'static str, desc: &'static str, section: usize, order: i32, kind: Kind, opts: &'static [Opt], when: Option<(i64, &'static [i64])>) -> Def {
     Def { key, id, label, desc, section, order, kind, opts, when }
 }
 const DEFS: &[Def] = &[
-    d(31, "VerticalSensitivityMouseJoystick", "Пропорции вертикальной чувствительности", "", 0, 1, Kind::Slider, &[], None),
-    d(10, "CustomCurveExponent_mouse_joystick", "Пользовательская кривая", "В разных играх используются разные кривые чувствительности джойстика. Чтобы поведение совпадало с управлением мышью, лучше всего подойдёт линейная кривая. С помощью этой настройки можно компенсировать встроенную в игру кривую чувствительности. Обычно её стоит использовать лишь в крайнем случае, но если вы чувствуете нежелательное ускорение или слабую начальную реакцию на нажатие, передвиньте ползунок вправо. Если же вам необходимо избавиться от обратной акселерации, передвиньте ползунок влево.", 0, 25, Kind::Slider, &[], None),
-    d(52, "DeadZonePrecisionJoystickMouse", "Увеличить точность малых движений", "Увеличивает точность небольших движений. Эта настройка должна сочетаться со значением минимального перемещения по горизонтали/вертикали. Если оно будет слишком высоким, то при включении этой настройки управление будет дрожащим даже в состоянии покоя. Если оно будет слишком низким, то небольшие движения будут считываться плохо или не будут работать вовсе. Сочетание этих настроек позволит увеличить точность движений и понизить частоту случайных срабатываний в состоянии покоя.", 0, 44, Kind::Slider, &[], None),
-    d(8, "OutputJoystickMouseJoystick", "Отправка на джойстик", "Сигнал будет отправляться на выбранный джойстик.", 1, 0, Kind::Choice, OUTPUT, None),
-    d(42, "InvertMouseYMouseJoystick", "Инверсия вертикальной оси", "", 1, 10, Kind::Toggle, &[], None),
-    d(41, "InvertXMouseMouseJoystick", "Инверсия горизонтальной оси", "", 1, 11, Kind::Toggle, &[], None),
-    d(45, "RotationMouseJoystick", "Компенсация движения по дуге", "Изменяет движение мыши по горизонтали. Проводя пальцем по трекпаду, вы совершаете дуговые движения. Чтобы они получались идеально прямыми, подстройте эту опцию под себя.", 1, 40, Kind::Slider, &[], None),
-    d(44, "MouseMoveThresholdMouseJoystick", "Минимальное перемещение", "Курсор начнёт двигаться только после достижения указанной разницы между исходной и текущей позициями. Это полезно при работе с приложениями, фильтрующими или ограничивающими движения мыши, в результате чего мелкие движения могут не распознаваться. В идеале это значение должно быть достаточно маленьким, чтобы не подавлять небольшие движения.", 1, 41, Kind::Slider, &[], None),
-    d(50, "DeadzoneXJoystickMouse", "Мин. перемещение по горизонтали", DEADZONE_DESC, 1, 42, Kind::Slider, &[], None),
-    d(51, "DeadzoneYJoystickMouse", "Мин. перемещение по вертикали", DEADZONE_DESC, 1, 43, Kind::Slider, &[], None),
-    d(33, "TrackballMouseJoystick", "Режим трекбола", "В этом режиме трекпад будет действовать как трекбол, а не как мышь. Появятся инерция и трение, характерные для трекбола.", 2, 30, Kind::Toggle, &[], None),
-    d(34, "FrictionMouseJoystick", "Трение трекбола", "", 2, 31, Kind::Choice, FRICTION, Some((33, &[1]))),
-    d(35, "VerticalFrictionMouseJoystick", "Чувствительность вертикального трения", "", 2, 32, Kind::Slider, &[], Some((33, &[1]))),
-    d(48, "DoubleTapDurationMouseJoystick", "Длительность двойного касания", "", 2, 50, Kind::Slider, &[], None),
-    d(38, "DoubleTapBeepMouseJoystick", "Сигнал двойного касания", "", 2, 51, Kind::Toggle, &[], None),
-    d(40, "EdgeSpinScaleMouseJoystick", "Постоянная скорость", "Определяет, с какой скоростью будет двигаться указатель мыши при нажатии за пределами указанной зоны на трекпаде.", 2, 81, Kind::Slider, &[], None),
-    d(39, "EdgeSpinRadiusMouseJoystick", "Радиус постоянной скорости", "Радиус зоны постоянной скорости. Радиус представлен слайдером, полное смещение которого влево означает отсутствие зоны, а полное смещение вправо — границы зоны на краях трекпада.", 2, 82, Kind::Slider, &[], None),
-    d(78, "MouseTriggerClampMouseJoystick", "Замедление мыши при нажатии триггера", "Движения мыши замедляются во время нажатия триггера, что позволяет избежать случайных движений.", 3, 60, Kind::Choice, CLAMP, None),
-    d(79, "MouseTriggerClampAmountMouseJoystick", "Сила замедления при нажатии триггера", "Определяет, насколько сильно замедляются движения мыши. Чем правее ползунок, тем сильнее замедление.", 3, 61, Kind::Slider, &[], Some((78, &[1, 2, 3, 4, 5, 6]))),
-    d(3, "HapticIntensityMouseJoystick", "Уровень тактильной отдачи", "", 4, 100, Kind::Choice, HAPTIC, None),
-    d(158, "GyroButtonHapticEffect", "Триггеры тактильной отдачи при активации гироскопа", "Выберите, когда должна срабатывать тактильная отдача: при включении гироскопа, его выключении или в обоих случаях. Сила отдачи определяется параметром «Уровень тактильной отдачи».", 4, 101, Kind::Choice, GYRO_HAPTIC, None),
+    d(31, "VerticalSensitivityMouseJoystick", "controller.vertical_sensitivity_scale", "", 0, 1, Kind::Slider, &[], None),
+    d(10, "CustomCurveExponent_mouse_joystick", "controller.custom_curve", "controller.games_will_sometimes_have_varying_response_curves_for", 0, 25, Kind::Slider, &[], None),
+    d(52, "DeadZonePrecisionJoystickMouse", "controller.enhance_small_movement_precision", "controller.this_will_allow_for_finer_grained_control_when", 0, 44, Kind::Slider, &[], None),
+    d(8, "OutputJoystickMouseJoystick", "controller.send_to_joystick", "controller.signal_will_be_sent_out_to_the_chosen", 1, 0, Kind::Choice, OUTPUT, None),
+    d(42, "InvertMouseYMouseJoystick", "controller.invert_vertical_axis", "", 1, 10, Kind::Toggle, &[], None),
+    d(41, "InvertXMouseMouseJoystick", "controller.invert_horizontal_axis", "", 1, 11, Kind::Toggle, &[], None),
+    d(45, "RotationMouseJoystick", "controller.rotation", "controller.rotation_is_the_horizon_line_of_mouse_movement", 1, 40, Kind::Slider, &[], None),
+    d(44, "MouseMoveThresholdMouseJoystick", "controller.movement_threshold", "controller.the_mouse_will_accumulate_movement_until_this_threshold", 1, 41, Kind::Slider, &[], None),
+    d(50, "DeadzoneXJoystickMouse", "controller.minimum_joystick_x_output_value", DEADZONE_DESC, 1, 42, Kind::Slider, &[], None),
+    d(51, "DeadzoneYJoystickMouse", "controller.minimum_joystick_y_output_value", DEADZONE_DESC, 1, 43, Kind::Slider, &[], None),
+    d(33, "TrackballMouseJoystick", "controller.trackball_mode", "controller.trackball_mode_makes_the_pad_act_like_a", 2, 30, Kind::Toggle, &[], None),
+    d(34, "FrictionMouseJoystick", "controller.trackball_friction", "", 2, 31, Kind::Choice, FRICTION, Some((33, &[1]))),
+    d(35, "VerticalFrictionMouseJoystick", "controller.vertical_friction_scale", "", 2, 32, Kind::Slider, &[], Some((33, &[1]))),
+    d(48, "DoubleTapDurationMouseJoystick", "controller.double_tap_duration", "", 2, 50, Kind::Slider, &[], None),
+    d(38, "DoubleTapBeepMouseJoystick", "controller.double_tap_beep", "", 2, 51, Kind::Toggle, &[], None),
+    d(40, "EdgeSpinScaleMouseJoystick", "controller.edge_spin_speed", "controller.if_set_when_outside_the_edge_spin_radius", 2, 81, Kind::Slider, &[], None),
+    d(39, "EdgeSpinRadiusMouseJoystick", "controller.edge_spin_radius", "controller.the_radius_for_the_edge_spin_speed_zone", 2, 82, Kind::Slider, &[], None),
+    d(78, "MouseTriggerClampMouseJoystick", "controller.trigger_press_mouse_dampening", "controller.the_mouse_movement_can_be_dampened_while_the", 3, 60, Kind::Choice, CLAMP, None),
+    d(79, "MouseTriggerClampAmountMouseJoystick", "controller.trigger_dampening_amount", "controller.this_sets_how_much_the_mouse_movement_should", 3, 61, Kind::Slider, &[], Some((78, &[1, 2, 3, 4, 5, 6]))),
+    d(3, "HapticIntensityMouseJoystick", "controller.haptics_intensity", "", 4, 100, Kind::Choice, HAPTIC, None),
+    d(158, "GyroButtonHapticEffect", "controller.gyro_activation_haptics_triggers", "controller.choose_to_have_a_haptic_effect_when_the", 4, 101, Kind::Choice, GYRO_HAPTIC, None),
 ];
 
 /// Одна строка страницы: либо заголовок раздела (`heading`), либо настройка.
@@ -147,8 +148,8 @@ pub fn dropdown_width(text: &str) -> f32 { if text.chars().count() > 20 { 406. }
 fn locate(key: i64, id: &str, fallback_label: &str, fallback_desc: &str) -> (String, String) {
     let _ = key;
     // Описание показывается только там, где в таблице стока `showDesc` (у нас — непустой запасной текст).
-    let desc = if fallback_desc.is_empty() { String::new() } else { t_or(&format!("#ControllerBinding_{id}_Description"), fallback_desc) };
-    (t_or(&format!("#ControllerBinding_{id}"), fallback_label), desc)
+    let desc = if fallback_desc.is_empty() { String::new() } else { t_or(&format!("#ControllerBinding_{id}_Description"), tr_ref(fallback_desc)) };
+    (t_or(&format!("#ControllerBinding_{id}"), tr_ref(fallback_label)), desc)
 }
 
 #[derive(serde::Deserialize)]
@@ -184,11 +185,11 @@ static STOCK: std::sync::LazyLock<std::collections::BTreeMap<i64, Vec<StockRow>>
 fn button_bits() -> impl Iterator<Item = (i64, &'static str)> {
     [(0, "R2"), (1, "L2"), (2, "R1"), (3, "L1"), (4, "Y"), (5, "B"), (6, "X"), (7, "A"),
      (8, "↑"), (9, "→"), (10, "←"), (11, "↓"), (12, "⧉"), (14, "≡"), (15, "L5"), (16, "R5"),
-     (17, "Левый трекпад: нажатие"), (18, "Правый трекпад: нажатие"),
-     (19, "Левый трекпад: касание"), (20, "Правый трекпад: касание"),
-     (22, "L3"), (24, "R2 (мягкое)"), (25, "L2 (мягкое)"), (26, "R3"),
-     (30, "Левый джойстик: отклонение"), (31, "Правый джойстик: отклонение"),
-     (41, "L4"), (42, "R4"), (46, "Левый джойстик: касание"), (47, "Правый джойстик: касание")]
+     (17, tr_ref("controller.left_trackpad_click_2")), (18, tr_ref("controller.right_trackpad_click_2")),
+     (19, tr_ref("controller.left_trackpad_touch")), (20, tr_ref("controller.right_trackpad_touch")),
+     (22, "L3"), (24, tr_ref("controller.r2_soft_pull")), (25, tr_ref("controller.l2_soft_pull")), (26, "R3"),
+     (30, tr_ref("controller.left_joystick_deflection")), (31, tr_ref("controller.right_joystick_deflection")),
+     (41, "L4"), (42, "R4"), (46, tr_ref("controller.left_joystick_touch")), (47, tr_ref("controller.right_joystick_touch"))]
         .into_iter().map(|(bit, label)| (1_i64 << bit, label))
 }
 
@@ -197,9 +198,9 @@ pub const SHIFT_BUTTONS: i64 = -2;
 fn shift_buttons() -> impl Iterator<Item = (i64, &'static str)> {
     [(0, "R2"), (1, "L2"), (2, "Y"), (3, "B"), (4, "X"), (5, "A"), (6, "R1"), (7, "L1"),
      (8, "L3"), (9, "≡"), (11, "⧉"), (16, "↑"), (17, "→"), (18, "←"), (19, "↓"),
-     (20, "L5"), (21, "R5"), (42, "Левый трекпад: нажатие"), (43, "Правый трекпад: нажатие"),
-     (45, "L2 (мягкое)"), (46, "R2 (мягкое)"), (47, "L4"), (48, "R4"), (63, "R3"),
-     (64, "Левый трекпад: касание"), (65, "Правый трекпад: касание")].into_iter()
+     (20, "L5"), (21, "R5"), (42, tr_ref("controller.left_trackpad_click_2")), (43, tr_ref("controller.right_trackpad_click_2")),
+     (45, tr_ref("controller.l2_soft_pull")), (46, tr_ref("controller.r2_soft_pull")), (47, "L4"), (48, "R4"), (63, "R3"),
+     (64, tr_ref("controller.left_trackpad_touch")), (65, tr_ref("controller.right_trackpad_touch"))].into_iter()
 }
 
 pub fn read_shift_buttons(raw: &[u8], target: &BindingTarget) -> steam_bridge::Result<Vec<i64>> {
@@ -236,7 +237,7 @@ fn set_text(row: &mut PRow, suffix: &str) {
         Kind::Toggle => String::new(),
         Kind::Choice if row.mask => {
             let labels = button_bits().filter(|(bit, _)| row.value & bit != 0).map(|(_, label)| label).collect::<Vec<_>>();
-            if row.value == 0 { "Не выбрано".into() }
+            if row.value == 0 { tr_ref("controller.none").into() }
             else if labels.is_empty() { format!("{:#x}", row.value) }
             else { labels.join(" + ") }
         }
@@ -258,7 +259,7 @@ pub fn rows(raw: &[u8], t: &BindingTarget) -> Vec<PRow> {
             let Some(values) = get(def.key) else { continue };
             if def.when.is_some_and(|(dep, vals)| !get(dep).is_some_and(|v| vals.contains(&v.0))) { continue; }
             let (label, desc) = locate(def.key, def.id, def.label, def.desc);
-            let options = def.opts.iter().map(|o| (o.0, t_or(&format!("#ControllerSettingValue_{}", o.1), o.2))).collect();
+            let options = def.opts.iter().map(|o| (o.0, t_or(&format!("#ControllerSettingValue_{}", o.1), tr_ref(o.2)))).collect();
             let mut row = parameter(def.section, def.key, label, desc, def.kind, values, options);
             set_text(&mut row, "");
             if out.last().is_none_or(|p: &PRow| p.section != def.section) {
@@ -279,26 +280,26 @@ pub fn rows(raw: &[u8], t: &BindingTarget) -> Vec<PRow> {
                 values.0 = setting(def.key).and_then(|raw| signed(raw, 7)).unwrap_or_default();
                 button_bits().map(|(bit, label)| (values.0 ^ bit, format!("{} {label}", if values.0 & bit != 0 { "✓" } else { "○" }))).collect()
             } else {
-                def.options.iter().map(|(value, id, label)| (*value, t_or(&format!("#ControllerSettingValue_{id}"), label))).collect()
+                def.options.iter().map(|(value, id, label)| (*value, t_or(&format!("#ControllerSettingValue_{id}"), tr_ref(label)))).collect()
             };
             let kind = if def.toggle { Kind::Toggle } else if options.is_empty() { Kind::Slider } else { Kind::Choice };
             let section = sections.iter().position(|(id, _)| *id == def.section).unwrap_or(sections.len());
             if section == sections.len() {
                 let label = if def.section == "Basic" { section_name(0) } else {
-                    t_or(&format!("#ControllerConfigurator_Setting_Section_{}", def.section), &def.section_label)
+                    t_or(&format!("#ControllerConfigurator_Setting_Section_{}", def.section), tr_ref(&def.section_label))
                 };
                 sections.push((&def.section, vec![heading(section, label)]));
             }
-            let label = t_or(&format!("#ControllerBinding_{}", def.id), &def.label);
+            let label = t_or(&format!("#ControllerBinding_{}", def.id), tr_ref(&def.label));
             let mut desc = if def.description.is_empty() { String::new() } else {
-                t_or(&format!("#ControllerBinding_{}_Description", def.id), &def.description)
+                t_or(&format!("#ControllerBinding_{}_Description", def.id), tr_ref(&def.description))
             };
             let mut row = parameter(section, def.key, label, String::new(), kind, values, options);
             row.display_range = def.range;
             row.mask = def.mask;
             desc = desc.replace("%1$s", &row.numeric_text()).replace("%1$d", &row.numeric_text());
             row.desc = desc;
-            let suffix = def.suffix.as_ref().map(|(token, fallback)| t_or(token, fallback)).unwrap_or_default();
+            let suffix = def.suffix.as_ref().map(|(token, fallback)| t_or(token, tr_ref(fallback))).unwrap_or_default();
             set_text(&mut row, &suffix);
             sections[section].1.push(row);
         }
@@ -309,12 +310,12 @@ pub fn rows(raw: &[u8], t: &BindingTarget) -> Vec<PRow> {
         let buttons = shift_buttons().map(|(key, label)| {
             (key, format!("{} {label}", if selected.contains(&key) { "✓" } else { "○" }))
         }).collect();
-        let mut row = parameter(0, SHIFT_BUTTONS, "Кнопки сменного режима".into(), String::new(), Kind::Choice,
+        let mut row = parameter(0, SHIFT_BUTTONS, tr_ref("controller.mode_shift_buttons").into(), String::new(), Kind::Choice,
             (-1, 0, 0), buttons);
         let labels = shift_buttons().filter(|(key, _)| selected.contains(key)).map(|(_, label)| label).collect::<Vec<_>>();
-        row.text = if labels.is_empty() { "Не выбрано".into() } else { labels.join(" + ") };
+        row.text = if labels.is_empty() { tr_ref("controller.none").into() } else { labels.join(" + ") };
         for row in &mut out { row.section += 1; }
-        out.splice(0..0, [heading(0, "Сменный режим".into()), row]);
+        out.splice(0..0, [heading(0, tr_ref("controller.mode_shift").into()), row]);
     }
     layout(&mut out);
     out
@@ -456,12 +457,12 @@ pub(super) mod tests {
         let (raw, t) = fixture(1, 0);
         let r = rows(&raw, &t);
         let names: Vec<_> = r.iter().filter(|r| r.heading).map(|r| r.label.clone()).collect();
-        assert_eq!(names, ["Основное", "Вывод", "Трекпад", "Замедление триггером", "Тактильная отдача"]);
+        assert_eq!(names, [tr_ref("controller.general"), tr_ref("controller.output"), tr_ref("controller.trackpad"), tr_ref("controller.trigger_dampening"), tr_ref("controller.haptics_settings")]);
         let keys: Vec<_> = r.iter().filter(|r| !r.heading).map(|r| r.key).collect();
         assert_eq!(keys, [31, 10, 52, 8, 42, 41, 45, 44, 50, 51, 33, 34, 35, 48, 38, 40, 39, 78, 3, 158]);
-        assert_eq!(row(&r, 8).text, "Правый джойстик");
-        assert_eq!(row(&r, 3).text, "Низк.");
-        assert_eq!(row(&r, 34).text, "Средн.");
+        assert_eq!(row(&r, 8).text, tr_ref("controller.right_joystick_2"));
+        assert_eq!(row(&r, 3).text, tr_ref("controller.low"));
+        assert_eq!(row(&r, 34).text, tr_ref("controller.medium"));
     }
     #[test]
     fn dependent_rows_follow_trackball_and_trigger_clamp() {
@@ -477,18 +478,27 @@ pub(super) mod tests {
         let (raw, t) = fixture(1, 0);
         let r = rows(&raw, &t);
         let h = |k| row(&r, k).h;
-        assert_eq!(h(31), 137.0);               // кадр 05: 141…278
-        assert_eq!(h(10), 306.0);               // 288…594, 7 строк описания
-        assert_eq!(h(33), 120.0);               // кадр 08: 369…489
-        assert_eq!(h(34), 96.0);                // 498…594
-        assert_eq!(h(38), 68.0);                // 354…422
-        assert_eq!(h(8), 119.0);                // кадр 06: 543…662
-        assert_eq!(h(78), 173.0);               // кадр 10: 390…563, подпись в две строки
+        assert_eq!(h(31), 137.0); // Slider without a description
+        assert_eq!(h(34), 96.0);  // Choice without a description
+        assert_eq!(h(38), 68.0);  // Toggle without a description
         assert_eq!(h(3), 96.0);
-        assert_eq!(row(&r, 10).desc_lines, 7);
-        assert_eq!(row(&r, 52).desc_lines, 7);
-        assert_eq!(row(&r, 44).desc_lines, 5);
-        assert_eq!(row(&r, 78).label_lines, 2);
+        if steam_assets::i18n::current().code() == "ru" {
+            assert_eq!(h(10), 306.0); // Capture 05: 288…594
+            assert_eq!(h(33), 120.0); // Capture 08: 369…489
+            assert_eq!(h(8), 119.0);  // Capture 06: 543…662
+            assert_eq!(h(78), 173.0); // Capture 10: 390…563
+            assert_eq!(row(&r, 10).desc_lines, 7);
+            assert_eq!(row(&r, 52).desc_lines, 7);
+            assert_eq!(row(&r, 44).desc_lines, 5);
+            assert_eq!(row(&r, 78).label_lines, 2);
+        } else {
+            // English wraps differently. It still needs room for every description line.
+            for key in [10, 52, 44] {
+                let setting = row(&r, key);
+                assert!(setting.desc_lines > 1);
+                assert!(setting.h >= 137.0 + 24.0 * (setting.desc_lines - 1) as f32);
+            }
+        }
     }
     #[test]
     fn rows_are_placed_like_the_frames() {

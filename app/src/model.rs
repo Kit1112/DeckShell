@@ -1,5 +1,6 @@
 //! Merge Steam bridge data into the steam-data `Library` the UI works with, and library sort/section logic
 //! (docs/engine/library.json).
+use steam_assets::i18n::{tr, tr_ref};
 use std::cmp::Ordering;
 use std::collections::HashMap;
 
@@ -211,8 +212,8 @@ pub fn section(s: Sort, g: &Game, e: &Extra) -> String {
             t_or(tok, "")
         }
         Sort::LastPlayed => match g.last_played {
-            None => t_or("#GridSection_Never", "Никогда"),
-            Some(ts) if ts < 31_536_000 => t_or("#GridSection_Never", "Никогда"),
+            None => t_or("#GridSection_Never", tr_ref("library.never")),
+            Some(ts) if ts < 31_536_000 => t_or("#GridSection_Never", tr_ref("library.never")),
             Some(ts) => {
                 use chrono::Datelike;
                 let Some(dt) = chrono::DateTime::from_timestamp(ts as i64, 0) else { return String::new() };
@@ -253,6 +254,10 @@ pub fn section(s: Sort, g: &Game, e: &Extra) -> String {
 }
 
 fn month_name(m0: usize) -> String {
-    const FALLBACK: [&str; 12] = ["январь", "февраль", "март", "апрель", "май", "июнь", "июль", "август", "сентябрь", "октябрь", "ноябрь", "декабрь"];
-    FALLBACK[m0 % 12].to_string()
+    const MONTH_KEYS: [&str; 12] = [
+        "calendar.january", "calendar.february", "calendar.march", "calendar.april",
+        "calendar.may", "calendar.june", "calendar.july", "calendar.august",
+        "calendar.september", "calendar.october", "calendar.november", "calendar.december",
+    ];
+    tr(MONTH_KEYS[m0 % 12])
 }

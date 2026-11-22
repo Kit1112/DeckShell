@@ -6,6 +6,7 @@
 //! applied optimistically to the cached details so the page reflects it at once.
 //! This module also owns the modal layer shared with the game menu: list popup (drop-down / file picker), text prompt + on-screen keyboard,
 //! confirm dialog (`prompt`, `confirm`).
+use steam_assets::i18n::{self, tr_args, tr_ref};
 use std::cell::RefCell;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
@@ -53,17 +54,17 @@ enum Tab {
 impl Tab {
     fn title(self) -> String {
         let (tok, fb) = match self {
-            Tab::General => ("#AppProperties_GeneralPage", "Общие"),
-            Tab::Compat => ("#AppProperties_CompatibilityPage", "Совместимость"),
-            Tab::Updates => ("#AppProperties_UpdatesPage", "Обновления"),
-            Tab::LocalFiles => ("#AppProperties_LocalFilesPage", "Установленные файлы"),
-            Tab::Betas => ("#AppProperties_BetasPage", "Версии и бета-версии"),
-            Tab::Controller => ("#AppProperties_ControllerPage", "Контроллер"),
-            Tab::Dlc => ("#AppProperties_DLCPage", "Доп. контент"),
-            Tab::Recording => ("#AppProperties_GameRecording", "Запись игры"),
-            Tab::Privacy => ("#AppProperties_PrivacyPage", "Конфиденциальность"),
-            Tab::Custom => ("#AppProperties_Customization", "Кастомизация"),
-            Tab::Shortcut => ("#AppProperties_ShortcutPage", "Ярлык"),
+            Tab::General => ("#AppProperties_GeneralPage", i18n::tr_ref("properties.general")),
+            Tab::Compat => ("#AppProperties_CompatibilityPage", i18n::tr_ref("properties.compatibility")),
+            Tab::Updates => ("#AppProperties_UpdatesPage", i18n::tr_ref("properties.updates")),
+            Tab::LocalFiles => ("#AppProperties_LocalFilesPage", i18n::tr_ref("properties.installed_files")),
+            Tab::Betas => ("#AppProperties_BetasPage", i18n::tr_ref("properties.game_versions_betas")),
+            Tab::Controller => ("#AppProperties_ControllerPage", tr_ref("controller.controller")),
+            Tab::Dlc => ("#AppProperties_DLCPage", i18n::tr_ref("properties.dlc")),
+            Tab::Recording => ("#AppProperties_GameRecording", i18n::tr_ref("properties.game_recording")),
+            Tab::Privacy => ("#AppProperties_PrivacyPage", i18n::tr_ref("properties.privacy")),
+            Tab::Custom => ("#AppProperties_Customization", i18n::tr_ref("properties.customization")),
+            Tab::Shortcut => ("#AppProperties_ShortcutPage", i18n::tr_ref("properties.shortcut")),
         };
         t_or(tok, fb)
     }
@@ -495,41 +496,41 @@ fn lang_label(short: &str) -> String {
 
 fn auto_update_opts() -> Vec<(String, String)> {
     vec![
-        ("0".into(), t_or("#AppProperties_AutoUpdateUseDefault", "Использовать общие настройки")),
-        ("1".into(), t_or("#AppProperties_AutoUpdateOnLaunch", "Обновлять при запуске")),
-        ("2".into(), t_or("#AppProperties_AutoUpdateAlways", "Разрешить Steam выбирать время обновления")),
-        ("3".into(), t_or("#AppProperties_AutoUpdateHighPriority", "Скачивать обновления сразу")),
+        ("0".into(), t_or("#AppProperties_AutoUpdateUseDefault", i18n::tr_ref("properties.use_global_setting"))),
+        ("1".into(), t_or("#AppProperties_AutoUpdateOnLaunch", i18n::tr_ref("properties.wait_until_i_launch_the_game"))),
+        ("2".into(), t_or("#AppProperties_AutoUpdateAlways", i18n::tr_ref("properties.let_steam_decide_when_to_update"))),
+        ("3".into(), t_or("#AppProperties_AutoUpdateHighPriority", i18n::tr_ref("properties.immediately_download_updates"))),
     ]
 }
 fn bg_opts() -> Vec<(String, String)> {
     vec![
-        ("0".into(), t_or("#AppProperties_BackgroundDownloadGlobal_Allow", "Разрешить фоновые загрузки во время игры")),
-        ("1".into(), t_or("#AppProperties_BackgroundDownloadAlways", "Всегда разрешать фоновые загрузки")),
-        ("2".into(), t_or("#AppProperties_BackgroundDownloadNever", "Всегда приостанавливать фоновые загрузки")),
+        ("0".into(), t_or("#AppProperties_BackgroundDownloadGlobal_Allow", i18n::tr_ref("properties.allow_background_downloads_while_i_m_playing"))),
+        ("1".into(), t_or("#AppProperties_BackgroundDownloadAlways", i18n::tr_ref("properties.always_allow_background_downloads"))),
+        ("2".into(), t_or("#AppProperties_BackgroundDownloadNever", i18n::tr_ref("properties.never_allow_background_downloads"))),
     ]
 }
 fn input_opts() -> Vec<(String, String)> {
     vec![
-        ("0".into(), t_or("#AppProperties_SteamInputOff", "Отключить систему ввода Steam")),
-        ("1".into(), t_or("#AppProperties_SteamInputDefaultSettings", "Использовать настройки по умолчанию")),
-        ("2".into(), t_or("#AppProperties_SteamInputOn", "Включить систему ввода Steam")),
+        ("0".into(), t_or("#AppProperties_SteamInputOff", tr_ref("controller.disable_steam_input"))),
+        ("1".into(), t_or("#AppProperties_SteamInputDefaultSettings", tr_ref("controller.use_default_settings"))),
+        ("2".into(), t_or("#AppProperties_SteamInputOn", tr_ref("controller.enable_steam_input"))),
     ]
 }
 fn rumble_opts() -> Vec<(String, String)> {
     let l = |n: &str, fb: &str| t_or(&format!("#Settings_Controller_RumbleIntensity_{n}"), fb);
     vec![
-        ("0".into(), t_or("#AppProperties_RumbleIntensity_UseGlobal", "Использовать общие настройки")),
-        ("16000".into(), l("ExtraLow", "Очень низкая")),
-        ("8000".into(), l("Low", "Низкая")),
-        ("1000".into(), l("MediumLow", "Ниже средней")),
-        ("320".into(), l("Medium", "Средняя")),
-        ("200".into(), l("MediumHigh", "Выше средней")),
-        ("100".into(), l("High", "Высокая")),
-        ("60".into(), l("ExtraHigh", "Очень высокая")),
+        ("0".into(), t_or("#AppProperties_RumbleIntensity_UseGlobal", tr_ref("controller.use_controller_setting"))),
+        ("16000".into(), l("ExtraLow", tr_ref("controller.extra_low"))),
+        ("8000".into(), l("Low", tr_ref("controller.low_3"))),
+        ("1000".into(), l("MediumLow", tr_ref("controller.below_average"))),
+        ("320".into(), l("Medium", tr_ref("controller.medium_3"))),
+        ("200".into(), l("MediumHigh", tr_ref("controller.above_average"))),
+        ("100".into(), l("High", tr_ref("controller.high_3"))),
+        ("60".into(), l("ExtraHigh", tr_ref("controller.extra_high"))),
     ]
 }
 fn res_opts(cur: &str) -> Vec<(String, String)> {
-    let mut v: Vec<(String, String)> = vec![("Default".into(), t_or("#Settings_Display_GameResolution_GlobalSetting", "Общие настройки"))];
+    let mut v: Vec<(String, String)> = vec![("Default".into(), t_or("#Settings_Display_GameResolution_GlobalSetting", i18n::tr_ref("properties.common_settings")))];
     for r in ["1280x800", "1280x720", "1920x1080", "1920x1200", "960x600", "800x500", "640x400"] {
         v.push((r.into(), r.into()));
     }
@@ -543,11 +544,11 @@ fn opt_label(opts: &[(String, String)], val: &str) -> String {
 }
 
 fn betas_opts(d: &Value) -> Vec<(String, String, String)> {
-    let mut v = vec![("".to_string(), t_or("#AppProperties_Beta_SelectNoBeta", "Нет"), t_or("#AppProperties_Beta_SelectNoBeta_Desc", "Отказаться от участия во всех бета-программах"))];
+    let mut v = vec![("".to_string(), t_or("#AppProperties_Beta_SelectNoBeta", i18n::tr_ref("properties.none")), t_or("#AppProperties_Beta_SelectNoBeta_Desc", i18n::tr_ref("properties.refuse_to_participate_in_all_beta_programs")))];
     for b in d["vecBetas"].as_array().cloned().unwrap_or_default() {
         let n = s_of(&b, "strName");
         if n == "public" {
-            v.push((n, t_or("#AppProperties_Beta_Select_Default", "Стандартная общедоступная версия"), t_or("#AppProperties_Beta_Select_Default_Desc", "")));
+            v.push((n, t_or("#AppProperties_Beta_Select_Default", i18n::tr_ref("properties.default_public_version")), t_or("#AppProperties_Beta_Select_Default_Desc", "")));
         } else {
             v.push((n.clone(), n, s_of(&b, "strDescription")));
         }
@@ -644,7 +645,7 @@ fn compat_options(s: &St) -> (Vec<(String, String)>, String) {
     let active = s_of(&s.d, "strCompatToolName");
     let def = match &glob {
         Some(g) => tf("#Settings_SteamPlay_DefaultToolEntry", &[&tool_label(&tools, g)]),
-        None => t_or("#Settings_SteamPlay_DefaultToolEntry_Fallback", "По умолчанию"),
+        None => t_or("#Settings_SteamPlay_DefaultToolEntry_Fallback", i18n::tr_ref("properties.default")),
     };
     let mut opts = vec![(String::new(), def.clone())];
     for (id, l) in &tools {
@@ -670,20 +671,20 @@ fn build(s: &St, tab: Tab) -> Vec<F> {
     match tab {
         Tab::General => {
             let og = d["overlay_global"].as_bool().unwrap_or(true);
-            f.push(F::new(2, Fid::Overlay, t_or("#AppProperties_EnableOverlay", "Включить оверлей Steam в игре")).on(b_of(d, "bOverlayEnabled") && og).dis(!og));
+            f.push(F::new(2, Fid::Overlay, t_or("#AppProperties_EnableOverlay", i18n::tr_ref("properties.enable_the_steam_overlay_while_in_game"))).on(b_of(d, "bOverlayEnabled") && og).dis(!og));
             let langs = d["vecLanguages"].as_array().cloned().unwrap_or_default();
             if langs.len() > 1 {
                 let sel = s_of(&d["selectedLanguage"], "strShortName");
-                f.push(F::new(3, Fid::Lang, t_or("#AppProperties_SelectLanguage", "Язык")).val(lang_label(&sel)));
+                f.push(F::new(3, Fid::Lang, t_or("#AppProperties_SelectLanguage", i18n::tr_ref("properties.language"))).val(lang_label(&sel)));
             }
             if d["strResolutionOverride"].is_string() {
                 let cur = s_of(d, "strResolutionOverride");
                 let opts = res_opts(&cur);
-                f.push(F::new(3, Fid::Res, t_or("#AppProperties_ResolutionOverride", "Разрешение игры")).val(opt_label(&opts, &cur)));
+                f.push(F::new(3, Fid::Res, t_or("#AppProperties_ResolutionOverride", i18n::tr_ref("properties.game_resolution"))).val(opt_label(&opts, &cur)));
             }
             if b_of(d, "bCloudAvailable") {
                 hdr(&mut f, "#AppProperties_SteamCloudSection", "Steam Cloud");
-                para(&mut f, t_or("#AppProperties_SteamCloudDescription", "Сохранять данные игры в облаке Steam."));
+                para(&mut f, t_or("#AppProperties_SteamCloudDescription", i18n::tr_ref("properties.save_these_games_in_the_steam_cloud")));
                 let acc = b_of(d, "bCloudEnabledForAccount");
                 f.push(F::new(2, Fid::Cloud, tf("#AppProperties_EnableSteamCloud", &[&name])).on(b_of(d, "bCloudEnabledForApp") && acc).dis(!acc));
                 if b_of(d, "bCloudSyncOnSuspendAvailable") {
@@ -693,8 +694,8 @@ fn build(s: &St, tab: Tab) -> Vec<F> {
                     f.push(F::new(6, Fid::None, tf("#AppProperties_SteamCloudStored", &[&s_of(d, "strCloudBytesUsed")])).val(tf("#AppProperties_SteamCloudAvailable", &[&s_of(d, "strCloudBytesAvailable")])));
                 }
             }
-            hdr(&mut f, "#AppProperties_LaunchOptionsSection", "Параметры запуска");
-            para(&mut f, t_or("#AppProperties_LaunchOptionsDescription", "Дополнительные аргументы командной строки для запуска игры."));
+            hdr(&mut f, "#AppProperties_LaunchOptionsSection", i18n::tr_ref("properties.launch_options"));
+            para(&mut f, t_or("#AppProperties_LaunchOptionsDescription", i18n::tr_ref("properties.additional_command_line_arguments_to_launch_the")));
             f.push(F::new(4, Fid::LaunchOpts, "").val(s_of(d, "strLaunchOptions")));
             if b_of(d, "bHasDifferentCopies") || b_of(d, "bIsExcludedFromSharing") {
                 let k = if b_of(d, "bIsExcludedFromSharing") { "#AppProperties_SharingNotSupported" } else { "#AppProperties_OwnedButOtherAvailable" };
@@ -703,13 +704,13 @@ fn build(s: &St, tab: Tab) -> Vec<F> {
         }
         Tab::Shortcut => {
             f.push(F::new(4, Fid::SName, "").val(name.clone()));
-            f.push(F::new(4, Fid::SExe, "").cap(t_or("#AppProperties_Shortcut_TargetExecutable", "Расположение").to_uppercase()).val(s_of(d, "strShortcutExe")).btn(t_or("#AppProperties_Shortcut_BrowseFiles", "Обзор...")));
-            f.push(F::new(4, Fid::SDir, "").cap(t_or("#AppProperties_Shortcut_StartInFolder", "Рабочая папка").to_uppercase()).val(s_of(d, "strShortcutStartDir")).btn(t_or("#AppProperties_Shortcut_BrowseFiles", "Обзор...")));
-            f.push(F::new(4, Fid::SOpts, "").cap(t_or("#AppProperties_LaunchOptionsSection", "Параметры запуска").to_uppercase()).val(s_of(d, "strShortcutLaunchOptions")));
-            f.push(F::new(5, Fid::SIcon, t_or("#AppProperties_Shortcut_ChooseIconDialogTitle", "Выбрать иконку")).btn(t_or("#AppProperties_Shortcut_BrowseFiles", "Обзор...")));
+            f.push(F::new(4, Fid::SExe, "").cap(t_or("#AppProperties_Shortcut_TargetExecutable", i18n::tr_ref("properties.target")).to_uppercase()).val(s_of(d, "strShortcutExe")).btn(t_or("#AppProperties_Shortcut_BrowseFiles", i18n::tr_ref("properties.browse"))));
+            f.push(F::new(4, Fid::SDir, "").cap(t_or("#AppProperties_Shortcut_StartInFolder", i18n::tr_ref("properties.start_in")).to_uppercase()).val(s_of(d, "strShortcutStartDir")).btn(t_or("#AppProperties_Shortcut_BrowseFiles", i18n::tr_ref("properties.browse"))));
+            f.push(F::new(4, Fid::SOpts, "").cap(t_or("#AppProperties_LaunchOptionsSection", i18n::tr_ref("properties.launch_options")).to_uppercase()).val(s_of(d, "strShortcutLaunchOptions")));
+            f.push(F::new(5, Fid::SIcon, t_or("#AppProperties_Shortcut_ChooseIconDialogTitle", i18n::tr_ref("properties.choose_icon"))).btn(t_or("#AppProperties_Shortcut_BrowseFiles", i18n::tr_ref("properties.browse"))));
             let og = d["overlay_global"].as_bool().unwrap_or(true);
-            f.push(F::new(2, Fid::Overlay, t_or("#AppProperties_EnableOverlay", "Включить оверлей Steam в игре")).on(b_of(d, "bOverlayEnabled") && og).dis(!og));
-            f.push(F::new(2, Fid::SVr, t_or("#AppProperties_Shortcut_InVR", "Добавить в библиотеку виртуальной реальности")).on(b_of(d, "bShortcutIsVR")));
+            f.push(F::new(2, Fid::Overlay, t_or("#AppProperties_EnableOverlay", i18n::tr_ref("properties.enable_the_steam_overlay_while_in_game"))).on(b_of(d, "bOverlayEnabled") && og).dis(!og));
+            f.push(F::new(2, Fid::SVr, t_or("#AppProperties_Shortcut_InVR", i18n::tr_ref("properties.include_in_vr_library"))).on(b_of(d, "bShortcutIsVR")));
         }
         Tab::Compat => {
             hdr(&mut f, "#Settings_SteamPlay_SteamPlay", "Steam Play");
@@ -719,18 +720,18 @@ fn build(s: &St, tab: Tab) -> Vec<F> {
             if !cur.is_empty() && !active.is_empty() && tool_label(&compat_tools(), &cur) != active {
                 desc = active;
             }
-            f.push(F::new(3, Fid::CompatTool, t_or("#AppProperties_Compat_SelectTool", "Выбрать инструмент совместимости")).val(opt_label(&opts, &cur)).desc(desc));
-            f.push(F::new(2, Fid::ShowAll, t_or("#Settings_SteamPlay_ShowAll", "Показать все инструменты совместимости")).on(s.show_all));
+            f.push(F::new(3, Fid::CompatTool, t_or("#AppProperties_Compat_SelectTool", i18n::tr_ref("properties.select_compatibility_tool"))).val(opt_label(&opts, &cur)).desc(desc));
+            f.push(F::new(2, Fid::ShowAll, t_or("#Settings_SteamPlay_ShowAll", i18n::tr_ref("properties.show_all_compatibility_tools"))).on(s.show_all));
         }
         Tab::Updates => {
             if b_of(d, "bHasAnyLocalContent") {
                 let o = auto_update_opts();
                 let cur = i_of(d, "eAutoUpdateValue").to_string();
-                f.push(F::new(3, Fid::AutoUpdate, t_or("#AppProperties_AutoUpdateSection", "Автоматические обновления")).val(opt_label(&o, &cur)).dis(b_of(d, "bIsThirdPartyUpdater")));
+                f.push(F::new(3, Fid::AutoUpdate, t_or("#AppProperties_AutoUpdateSection", i18n::tr_ref("properties.automatic_updates"))).val(opt_label(&o, &cur)).dis(b_of(d, "bIsThirdPartyUpdater")));
             }
             let b = bg_opts();
             let cur = i_of(d, "eBackgroundDownloads").to_string();
-            f.push(F::new(3, Fid::BgDl, t_or("#AppProperties_BackgroundDownloadsSection", "Фоновые загрузки")).desc(tf("#AppProperties_BackgroundDownloadsDescription", &[&name])).val(opt_label(&b, &cur)));
+            f.push(F::new(3, Fid::BgDl, t_or("#AppProperties_BackgroundDownloadsSection", i18n::tr_ref("properties.background_downloads"))).desc(tf("#AppProperties_BackgroundDownloadsDescription", &[&name])).val(opt_label(&b, &cur)));
             f.push(F::new(6, Fid::None, tf("#AppProperties_AppID", &[&s.app_id.to_string()]).to_string()));
             f.push(F::new(6, Fid::None, tf("#AppProperties_AutoUpdateBuild", &[&i_of(d, "nBuildID").to_string()])));
             let up = d["rtLastUpdated"].as_u64().unwrap_or(0);
@@ -743,39 +744,56 @@ fn build(s: &St, tab: Tab) -> Vec<F> {
         }
         Tab::LocalFiles => {
             let ty = "game";
-            f.push(F::new(6, Fid::None, t_or("#AppProperties_LocalFilesSize", "Размер установленных файлов:")).val(tf("#AppProperties_LocalFilesSizeOnDrive", &[&fmt_size(d["lDiskUsageBytes"].as_u64().unwrap_or(0)), &s_of(d, "strInstallFolder")])));
-            f.push(F::new(5, Fid::Browse, s_of(d, "strInstallFolder")).btn(t_or("#AppProperties_LocalFilesBrowse", "Обзор...")));
-            f.push(F::new(5, Fid::Backup, t_or(&format!("#AppProperties_LocalFilesBackupLabel_{ty}"), "Создать резервную копию файлов")).btn(t_or(&format!("#AppProperties_LocalFilesBackup_{ty}"), "Создать резервную копию...")));
-            f.push(F::new(5, Fid::Restore, t_or("#AppProperties_LocalFilesRestoreLabel", "Восстановить игру из резервной копии")).btn(t_or("#AppProperties_LocalFilesRestore", "Восстановить из копии...")));
+            f.push(F::new(6, Fid::None, t_or("#AppProperties_LocalFilesSize", i18n::tr_ref("properties.size_of_installation"))).val(tf("#AppProperties_LocalFilesSizeOnDrive", &[&fmt_size(d["lDiskUsageBytes"].as_u64().unwrap_or(0)), &s_of(d, "strInstallFolder")])));
+            f.push(F::new(5, Fid::Browse, s_of(d, "strInstallFolder")).btn(t_or("#AppProperties_LocalFilesBrowse", i18n::tr_ref("properties.browse"))));
+            f.push(F::new(5, Fid::Backup, t_or(&format!("#AppProperties_LocalFilesBackupLabel_{ty}"), i18n::tr_ref("properties.create_a_backup_copy_of_files"))).btn(t_or(&format!("#AppProperties_LocalFilesBackup_{ty}"), i18n::tr_ref("properties.back_up_game_files"))));
+            f.push(F::new(5, Fid::Restore, t_or("#AppProperties_LocalFilesRestoreLabel", i18n::tr_ref("properties.restore_the_game_from_a_backup_copy"))).btn(t_or("#AppProperties_LocalFilesRestore", i18n::tr_ref("properties.restore_from_a_copy"))));
             let verify = match &s.status {
                 Some(m) => m.clone(),
-                None => t_or(&format!("#AppProperties_LocalFilesVerifyLabel_{ty}"), "Проверить целостность файлов"),
+                None => t_or(&format!("#AppProperties_LocalFilesVerifyLabel_{ty}"), i18n::tr_ref("properties.check_the_integrity_of_the_files")),
             };
-            f.push(F::new(5, Fid::Verify, verify).btn(t_or(&format!("#AppProperties_LocalFilesVerify_{ty}"), "Проверить целостность файлов")).dis(b_of(d, "bIsThirdPartyUpdater")));
+            f.push(F::new(5, Fid::Verify, verify).btn(t_or(&format!("#AppProperties_LocalFilesVerify_{ty}"), i18n::tr_ref("properties.check_the_integrity_of_the_files"))).dis(b_of(d, "bIsThirdPartyUpdater")));
         }
         Tab::Betas => {
             let o = betas_opts(d);
             let cur = s_of(d, "strSelectedBeta");
             let lab = o.iter().find(|x| x.0 == cur).map(|x| x.1.clone()).unwrap_or(cur);
-            f.push(F::new(3, Fid::Beta, t_or("#AppProperties_Beta_Selection", "Выбранная версия")).desc(t_or("#AppProperties_Beta_SelectionDescription", "")).val(lab));
-            hdr(&mut f, "#AppProperties_Beta_Private", "Скрытые версии");
-            f.push(F::new(4, Fid::BetaCode, "").cap(t_or("#AppProperties_Beta_AccessCode", "Введите код доступа")).val(String::new()).btn(t_or("#AppProperties_Beta_CheckCode", "Проверить код")));
+            f.push(F::new(3, Fid::Beta, t_or("#AppProperties_Beta_Selection", i18n::tr_ref("properties.selected_game_version"))).desc(t_or("#AppProperties_Beta_SelectionDescription", "")).val(lab));
+            hdr(&mut f, "#AppProperties_Beta_Private", i18n::tr_ref("properties.private_versions"));
+            f.push(F::new(4, Fid::BetaCode, "").cap(t_or("#AppProperties_Beta_AccessCode", i18n::tr_ref("properties.enter_the_access_code"))).val(String::new()).btn(t_or("#AppProperties_Beta_CheckCode", i18n::tr_ref("properties.check_code"))));
         }
         Tab::Controller => {
-            para(&mut f, t_or("#AppProperties_SteamInput", "Система ввода Steam позволяет использовать любые контроллеры в играх Steam и менять их раскладку."));
-            f.push(F::new(5, Fid::CtrlConfig, tf("#AppProperties_SteamInputGeneralSetting", &[&t_or("#AppProperties_SteamInputGeneralSetting_Link", "конфигуратор контроллера")])).btn(t_or("#AppProperties_SteamInputGeneralSetting_Link", "Конфигуратор контроллера")));
+            para(&mut f, t_or("#AppProperties_SteamInput", tr_ref("controller.steam_input_allows_any_controller_to_be_used")));
+            let link_token = "#AppProperties_SteamInputGeneralSetting_Link";
+            let link = t_or(link_token, tr_ref("controller.configurator_link"));
+            let general_setting = "#AppProperties_SteamInputGeneralSetting";
+            let description = if steam_assets::has_loc(general_setting) {
+                tf(general_setting, &[&link])
+            } else {
+                tr_args("controller.configurator_description", &[("link", &link)])
+            };
+            f.push(F::new(5, Fid::CtrlConfig, description)
+                .btn(t_or(link_token, tr_ref("controller.configurator_button"))));
             let o = input_opts();
             let cur = i_of(d, "eEnableThirdPartyControllerConfiguration").to_string();
-            f.push(F::new(3, Fid::SteamInput, tf("#AppProperties_SteamInputOverride", &[&name])).desc(t_or("#AppProperties_SteamInputRequiresRestart", "")).val(opt_label(&o, &cur)));
+            let override_token = "#AppProperties_SteamInputOverride";
+            let label = if steam_assets::has_loc(override_token) {
+                tf(override_token, &[&name])
+            } else {
+                tr_args("controller.steam_input_override", &[("game", &name)])
+            };
+            f.push(F::new(3, Fid::SteamInput, label)
+                .desc(t_or("#AppProperties_SteamInputRequiresRestart", tr_ref("controller.steam_input_requires_restart")))
+                .val(opt_label(&o, &cur)));
             let r = rumble_opts();
             let cur = i_of(d, "eControllerRumbleIntensity").to_string();
-            f.push(F::new(3, Fid::Rumble, t_or("#AppProperties_RumbleIntensity", "Интенсивность вибрации")).val(opt_label(&r, &cur)));
+            f.push(F::new(3, Fid::Rumble, t_or("#AppProperties_RumbleIntensity", tr_ref("controller.rumble_intensity_for_this_game"))).val(opt_label(&r, &cur)));
             if !s_of(d, "strShortcutExe").is_empty() || s.shortcut {
-                f.push(F::new(2, Fid::DesktopCfg, t_or("#AppProperties_SteamInputDesktopConfigInLauncher", "Использовать управление для ПК в программе запуска")).on(b_of(d, "bEnableAllowDesktopConfiguration")));
+                f.push(F::new(2, Fid::DesktopCfg, t_or("#AppProperties_SteamInputDesktopConfigInLauncher", tr_ref("controller.use_desktop_configuration_in_launcher"))).on(b_of(d, "bEnableAllowDesktopConfiguration")));
             }
         }
         Tab::Dlc => {
-            f.push(F::new(5, Fid::DlcStore, t_or("#AppProperties_Dlc_Name", "Название") + " / " + &t_or("#AppProperties_Dlc_SizeDisk", "Размер")).btn(t_or("#AppProperties_Dlc_ViewInStore", "Ещё в магазине")));
+            f.push(F::new(5, Fid::DlcStore, t_or("#AppProperties_Dlc_Name", i18n::tr_ref("properties.name")) + " / " + &t_or("#AppProperties_Dlc_SizeDisk", i18n::tr_ref("properties.size"))).btn(t_or("#AppProperties_Dlc_ViewInStore", i18n::tr_ref("properties.view_more_in_store"))));
             for x in d["vecDLC"].as_array().cloned().unwrap_or_default() {
                 let id = x["unAppID"].as_u64().unwrap_or(0) as u32;
                 let st = t_or(&format!("#AppProperties_Dlc_State_{}", s_of(&x, "strState")), "");
@@ -786,24 +804,24 @@ fn build(s: &St, tab: Tab) -> Vec<F> {
         }
         Tab::Recording => {
             let mode = match d["rec_mode"].as_i64().unwrap_or(2) {
-                0 => t_or("#AppProperties_GameRecording_GlobalStatus_Background", "Запись в фоновом режиме"),
-                1 => t_or("#AppProperties_GameRecording_GlobalStatus_Manual", "Запись по нажатию кнопки").replace("%1$s", ""),
-                _ => t_or("#AppProperties_GameRecording_GlobalStatus_Never", "Запись игр отключена"),
+                0 => t_or("#AppProperties_GameRecording_GlobalStatus_Background", i18n::tr_ref("properties.background_recording")),
+                1 => t_or("#AppProperties_GameRecording_GlobalStatus_Manual", i18n::tr_ref("properties.recording_at_the_push_of_a_button")).replace("%1$s", ""),
+                _ => t_or("#AppProperties_GameRecording_GlobalStatus_Never", i18n::tr_ref("properties.game_recording_down")),
             };
-            f.push(F::new(5, Fid::RecGlobal, t_or("#AppProperties_GameRecording_GlobalStatus", "Запись игр") + ": " + &mode).btn(t_or("#AppProperties_GameRecording_GlobalStatus_Button", "Управление функцией записи игр")));
-            f.push(F::new(3, Fid::RecEnable, t_or("#AppProperties_GameRecording_Enabled_Label", "Запись этой игры")).desc(t_or("#AppProperties_GameRecording_Enabled_Description", "")).val(t_or("#AppProperties_GameRecording_Enabled", "Включена")));
+            f.push(F::new(5, Fid::RecGlobal, t_or("#AppProperties_GameRecording_GlobalStatus", i18n::tr_ref("properties.game_recording_2")) + ": " + &mode).btn(t_or("#AppProperties_GameRecording_GlobalStatus_Button", i18n::tr_ref("properties.manage_game_recording"))));
+            f.push(F::new(3, Fid::RecEnable, t_or("#AppProperties_GameRecording_Enabled_Label", i18n::tr_ref("properties.a_record_of_this_game"))).desc(t_or("#AppProperties_GameRecording_Enabled_Description", "")).val(t_or("#AppProperties_GameRecording_Enabled", i18n::tr_ref("properties.enabled"))));
         }
         Tab::Privacy => {
-            f.push(F::new(2, Fid::Hidden, t_or("#AppProperties_Privacy_MarkAppHidden", "Скрыть в библиотеке")).desc(t_or("#AppProperties_Privacy_MarkAppHidden_Description", "")).on(b_of(d, "hidden")));
+            f.push(F::new(2, Fid::Hidden, t_or("#AppProperties_Privacy_MarkAppHidden", i18n::tr_ref("properties.hide_in_library"))).desc(t_or("#AppProperties_Privacy_MarkAppHidden_Description", "")).on(b_of(d, "hidden")));
             if !s.shortcut {
-                f.push(F::new(2, Fid::Private, t_or("#AppProperties_Privacy_MarkAppPrivate", "Сделать приватной")).desc(t_or("#AppProperties_Privacy_MarkAppPrivate_Description", "")).on(b_of(d, "private")).dis(true));
+                f.push(F::new(2, Fid::Private, t_or("#AppProperties_Privacy_MarkAppPrivate", i18n::tr_ref("properties.mark_as_private"))).desc(t_or("#AppProperties_Privacy_MarkAppPrivate_Description", "")).on(b_of(d, "private")).dis(true));
             }
         }
         Tab::Custom => {
-            hdr(&mut f, "#AppProperties_Customization_ArtworkSection", "Изображения");
-            f.push(F::new(5, Fid::ArtChange, t_or("#AppProperties_Customization_ArtworkSection", "Изображения")).btn(t_or("#GameAction_ChangeArt", "Сменить картинку...")));
-            hdr(&mut f, "#AppProperties_Customization_MiscSection", "Разное");
-            f.push(F::new(7, Fid::SortAs, t_or("#AppProperties_Customization_SortOrder", "Отдельное название для сортировки")).desc(t_or("#AppProperties_Customization_SortOrder_Description", "")).val(s_of(d, "sort_as")));
+            hdr(&mut f, "#AppProperties_Customization_ArtworkSection", i18n::tr_ref("properties.artwork"));
+            f.push(F::new(5, Fid::ArtChange, t_or("#AppProperties_Customization_ArtworkSection", i18n::tr_ref("properties.artwork"))).btn(t_or("#GameAction_ChangeArt", i18n::tr_ref("properties.change_the_picture"))));
+            hdr(&mut f, "#AppProperties_Customization_MiscSection", i18n::tr_ref("properties.miscellaneous"));
+            f.push(F::new(7, Fid::SortAs, t_or("#AppProperties_Customization_SortOrder", i18n::tr_ref("properties.custom_sort_name"))).desc(t_or("#AppProperties_Customization_SortOrder_Description", "")).val(s_of(d, "sort_as")));
         }
     }
     f
@@ -996,7 +1014,7 @@ fn list_dir(dir: &PathBuf, pick_dir: bool) -> (Vec<String>, Vec<(PathBuf, bool)>
     let mut items = vec![];
     let mut ents = vec![];
     if pick_dir {
-        items.push("[ ] ".to_string() + &t_or("#Button_OK", "Выбрать эту папку"));
+        items.push("[ ] ".to_string() + &t_or("#Button_OK", i18n::tr_ref("properties.select_this_folder")));
         ents.push((dir.clone(), true));
         items.pop();
         items.push(format!("OK - {}", dir.display()));
@@ -1189,7 +1207,7 @@ fn activate(a: &mut App) {
                     Fid::SExe | Fid::SDir => {
                         let cur = f.value.clone();
                         let dirp = f.id == Fid::SDir;
-                        open_files(a, f.id, start_dir(&cur), dirp, if dirp { t_or("#AppProperties_Shortcut_ChooseStartDirectoryDialogTitle", "Выбрать директорию запуска") } else { t_or("#AppProperties_Shortcut_TargetExecutable", "Расположение") });
+                        open_files(a, f.id, start_dir(&cur), dirp, if dirp { t_or("#AppProperties_Shortcut_ChooseStartDirectoryDialogTitle", i18n::tr_ref("properties.choose_start_directory")) } else { t_or("#AppProperties_Shortcut_TargetExecutable", i18n::tr_ref("properties.target")) });
                     }
                     Fid::BetaCode => {
                         let code = st().fields.get(st().fidx as usize).map(|x| x.value.clone()).unwrap_or_default();
@@ -1202,8 +1220,8 @@ fn activate(a: &mut App) {
                             }
                             setters::read(if crate::actions::dryrun() { "false".into() } else { js }, move |a, v| {
                                 let m = match v.as_str() {
-                                    Some(n) => format!("{} {n}", t_or("#AppProperties_Beta_AccessCodeSuccess", "Бета-версия разблокирована!")),
-                                    None => t_or("#AppProperties_Beta_AccessCodeInvalid", "Неверный код доступа к бете"),
+                                    Some(n) => format!("{} {n}", t_or("#AppProperties_Beta_AccessCodeSuccess", i18n::tr_ref("properties.success_beta_unlocked"))),
+                                    None => t_or("#AppProperties_Beta_AccessCodeInvalid", i18n::tr_ref("properties.beta_access_code_invalid")),
                                 };
                                 a.toast(&m);
                                 refresh(id);
@@ -1224,18 +1242,18 @@ fn activate(a: &mut App) {
         Fid::Backup => {
             write(a, "backup", format!("SteamClient.URL.ExecuteSteamURL('steam://backup/{id}')"), None);
         }
-        Fid::Restore => open_files(a, Fid::Restore, start_dir(""), true, t_or("#AppProperties_LocalFilesRestore", "Восстановить из резервной копии")),
+        Fid::Restore => open_files(a, Fid::Restore, start_dir(""), true, t_or("#AppProperties_LocalFilesRestore", i18n::tr_ref("properties.restore_from_a_backup_copy"))),
         Fid::Verify => {
             let name = st().name.clone();
-            confirm(a, t_or("#AppProperties_LocalFilesVerify_game", "Проверить целостность файлов игры"), name, t_or("#Button_OK", "OK"), Box::new(move |a| {
+            confirm(a, t_or("#AppProperties_LocalFilesVerify_game", i18n::tr_ref("properties.verify_integrity_of_game_files")), name, t_or("#Button_OK", "OK"), Box::new(move |a| {
                 write(a, "verify", format!("SteamClient.Apps.VerifyApp({id})"), None);
-                st().status = Some(t_or("#AppProperties_LocalFilesVerify_VerifyingFiles", "Проверка целостности файлов..."));
+                st().status = Some(t_or("#AppProperties_LocalFilesVerify_VerifyingFiles", i18n::tr_ref("properties.verifying_integrity_of_files")));
                 rebuild(a, false);
             }));
         }
         Fid::SIcon => {
             let dir = PathBuf::from(std::env::var("HOME").unwrap_or_else(|_| "/".into()));
-            open_files(a, Fid::SIcon, dir, false, t_or("#AppProperties_Shortcut_ChooseIconDialogTitle", "Выбрать иконку"));
+            open_files(a, Fid::SIcon, dir, false, t_or("#AppProperties_Shortcut_ChooseIconDialogTitle", i18n::tr_ref("properties.choose_icon")));
         }
         Fid::CtrlConfig => {
             a.act(Act::Controller(id));
@@ -1263,7 +1281,7 @@ fn prompt_field(a: &mut App, f: &F, d: &Value) {
         Fid::SExe | Fid::SDir => f.value.clone(),
         _ => f.value.clone(),
     };
-    let title = if f.caption.is_empty() { if f.label.is_empty() { t_or("#AppProperties_LaunchOptionsSection", "Параметры запуска") } else { f.label.clone() } } else { f.caption.clone() };
+    let title = if f.caption.is_empty() { if f.label.is_empty() { t_or("#AppProperties_LaunchOptionsSection", i18n::tr_ref("properties.launch_options")) } else { f.label.clone() } } else { f.caption.clone() };
     let _ = d;
     prompt(a, title, init, Box::new(move |a, text| match fid {
         Fid::LaunchOpts => write(a, "launch-options", apps("SetAppLaunchOptions", id, &js_str(&text)), Some(("strLaunchOptions", json!(text)))),
@@ -1302,7 +1320,7 @@ pub fn prompt(a: &mut App, title: String, initial: String, cb: TextCb) {
 pub fn confirm(a: &mut App, title: String, text: String, ok: String, cb: OkCb) {
     {
         let mut s = st();
-        s.dlg = Some(Dlg { title, text, btns: vec![t_or("#GameAction_Cancel", "Отмена"), ok], idx: 0, cb: Some(cb) });
+        s.dlg = Some(Dlg { title, text, btns: vec![t_or("#GameAction_Cancel", i18n::tr_ref("properties.cancel")), ok], idx: 0, cb: Some(cb) });
     }
     sync(a);
 }
@@ -1367,7 +1385,7 @@ pub fn hints() -> Vec<HintRow> {
         return vec![("a", "#ActionButtonLabelSelect", 1, "Enter", Action::A), b];
     }
     if s.prompt.is_some() {
-        return vec![("a", "Ввод", 1, "Enter", Action::A), ("x", "Стереть", 1, "F3", Action::X), ("y", "Пробел", 1, "F4", Action::Y), ("menu", "Готово", 2, "F9", Action::Menu), b];
+        return vec![("a", i18n::tr_ref("properties.input"), 1, "Enter", Action::A), ("x", i18n::tr_ref("properties.erase"), 1, "F3", Action::X), ("y", i18n::tr_ref("properties.space"), 1, "F4", Action::Y), ("menu", i18n::tr_ref("properties.done"), 2, "F9", Action::Menu), b];
     }
     vec![("a", "#ActionButtonLabelSelect", 1, "Enter", Action::A), b]
 }

@@ -16,6 +16,7 @@ export struct AnimItem {
 }
 
 export global AnimPageState {
+    in property <string> label-standard-steam-animation;
     in property <[AnimItem]> items;
     in property <int> focus: -1;
     in property <bool> active;
@@ -147,7 +148,7 @@ export component AnimPage inherits Rectangle {
         // 11: hero: preview + what plays
         if r.kind == 11: Rectangle {
             Preview { x: 0px; y: 0px; width: 336px; height: 210px; img: AnimPageState.preview-owner == i && AnimPageState.has-preview && !AnimPageState.preview-in-modal ? AnimPageState.preview : r.img;
-                has-img: (AnimPageState.preview-owner == i && AnimPageState.has-preview && !AnimPageState.preview-in-modal) || r.has-img; empty: "Стандартная анимация Steam"; }
+                has-img: (AnimPageState.preview-owner == i && AnimPageState.has-preview && !AnimPageState.preview-in-modal) || r.has-img; empty: AnimPageState.label-standard-steam-animation; }
             Text { x: 360px; y: 4px; width: parent.width - 360px; height: 20px; text: r.value; color: #8b929a; font-size: 14.4px; font-weight: 700; letter-spacing: 1px; vertical-alignment: center; overflow: elide; }
             Text { x: 360px; y: 28px; width: parent.width - 360px; height: 64px; text: r.label; color: #ffffff; font-size: 24px; font-weight: 700; wrap: word-wrap; vertical-alignment: top; overflow: elide; }
             Text { x: 360px; y: 96px; width: parent.width - 360px; height: 114px; text: r.desc; color: #8b929a; font-size: 16.8px; wrap: word-wrap; vertical-alignment: top; overflow: elide; }

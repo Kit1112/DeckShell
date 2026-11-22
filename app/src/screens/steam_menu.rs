@@ -1,5 +1,6 @@
 //! Steam main menu (STEAM button): Home, Library, Store, Friends, Media, Downloads, Settings, Power.
 //! A on an item = history.push(route) + close menu (handlers.json "steam menu"); Power opens sleep/restart/shutdown.
+use steam_assets::i18n;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -62,9 +63,9 @@ enum GameMenuAction { Resume, Details, Exit }
 // Supported subset of sp.js:402460–402540, in its native order. Do not add
 // Guides/Notes/Recording as fake buttons or route them to unrelated screens.
 const GAME_MENU: [(GameMenuAction, &str, &str); 3] = [
-    (GameMenuAction::Resume, "#AppOverlay_Resume", "Продолжить игру"),
-    (GameMenuAction::Details, "#AppOverlay_GameDetails", "Информация об игре"),
-    (GameMenuAction::Exit, "#AppOverlay_ExitGame", "Выйти из игры"),
+    (GameMenuAction::Resume, "#AppOverlay_Resume", "steam_menu.resume_game"),
+    (GameMenuAction::Details, "#AppOverlay_GameDetails", "steam_menu.view_game_details"),
+    (GameMenuAction::Exit, "#AppOverlay_ExitGame", "steam_menu.exit_game"),
 ];
 
 fn game_nav(focus: usize, action: Action) -> GameNav {
@@ -181,14 +182,14 @@ impl App {
             }
         }
         v.extend([
-            (t_or("#MainTabsHome", "Главная"), "home", MenuAct::Home),
-            (t_or("#MainTabsLibrary", "Библиотека"), "library", MenuAct::Library),
-            (t_or("#MainTabsStore", "Магазин"), "store", MenuAct::Store),
-            (t_or("#MainTabsChat", "Друзья и чат"), "friends", MenuAct::Friends),
-            (t_or("#MainTabsMedia", "Медиа"), "media", MenuAct::Media),
-            (t_or("#MainTabsDownload", "Загрузки"), "downloads", MenuAct::Downloads),
-            (t_or("#MainTabsSettings", "Настройки"), "settings", MenuAct::Settings),
-            (t_or("#Power", "Выключение"), "power", MenuAct::Power),
+            (t_or("#MainTabsHome", i18n::tr_ref("steam_menu.home")), "home", MenuAct::Home),
+            (t_or("#MainTabsLibrary", i18n::tr_ref("steam_menu.library")), "library", MenuAct::Library),
+            (t_or("#MainTabsStore", i18n::tr_ref("steam_menu.store")), "store", MenuAct::Store),
+            (t_or("#MainTabsChat", i18n::tr_ref("steam_menu.friends_chat")), "friends", MenuAct::Friends),
+            (t_or("#MainTabsMedia", i18n::tr_ref("steam_menu.media")), "media", MenuAct::Media),
+            (t_or("#MainTabsDownload", i18n::tr_ref("steam_menu.downloads")), "downloads", MenuAct::Downloads),
+            (t_or("#MainTabsSettings", i18n::tr_ref("steam_menu.settings")), "settings", MenuAct::Settings),
+            (t_or("#Power", i18n::tr_ref("steam_menu.power")), "power", MenuAct::Power),
         ]);
         let route = self.router.current().clone();
         let mut items: Vec<MenuItem> = Vec::with_capacity(v.len());
@@ -243,7 +244,7 @@ impl App {
         st.set_game_has_logo(logo.is_some());
         st.set_game_logo(logo.unwrap_or_default());
         st.set_game_focus(if self.sm.game_column && running { self.sm.game_focus as i32 } else { -1 });
-        st.set_game_items(ModelRc::new(VecModel::from(GAME_MENU.iter().map(|(_, token, fallback)| t_or(token, fallback).into()).collect::<Vec<_>>())));
+        st.set_game_items(ModelRc::new(VecModel::from(GAME_MENU.iter().map(|(_, token, fallback)| t_or(token, i18n::tr_ref(fallback)).into()).collect::<Vec<_>>())));
     }
 
     fn menu_game_activate(&mut self, i: usize) {
@@ -353,15 +354,15 @@ impl App {
     /// Confirmation dialog of a destructive power item (Steam ConfirmModal: title = the item's name, OK / cancel).
     pub(crate) fn menu_confirm_show(&mut self, act: MenuAct) {
         if act == MenuAct::StockSteam && !self.live.running.is_empty() {
-            self.toast(&t_or("#DeckShell_StockSteamRunning", "Сначала завершите игру: возврат к стандартному Steam перезапустит клиент"));
+            self.toast(&t_or("#DeckShell_StockSteamRunning", i18n::tr_ref("steam_menu.finish_the_game_first_a_return_to")));
             return;
         }
         let (tok, fb) = match act {
-            MenuAct::ExitRunning(_) => ("#GameAction_ConfirmExitGameTitle", "Выйти из игры?"),
-            MenuAct::Shutdown => ("#Quit_Shutdown", "Выключить"),
-            MenuAct::Restart => ("#Quit_Restart", "Перезагрузка"),
-            MenuAct::StockSteam => ("#DeckShell_StockSteam", "Вернуть стандартный Steam"),
-            _ => ("#SwitchToDesktop", "На рабочий стол"),
+            MenuAct::ExitRunning(_) => ("#GameAction_ConfirmExitGameTitle", i18n::tr_ref("steam_menu.exit_game_2")),
+            MenuAct::Shutdown => ("#Quit_Shutdown", i18n::tr_ref("steam_menu.no_turn_it_off")),
+            MenuAct::Restart => ("#Quit_Restart", i18n::tr_ref("steam_menu.restart_system")),
+            MenuAct::StockSteam => ("#DeckShell_StockSteam", i18n::tr_ref("steam_menu.bring_back_the_standard_steam")),
+            _ => ("#SwitchToDesktop", i18n::tr_ref("steam_menu.on_the_desktop")),
         };
         self.sm.confirm = Some(act);
         self.sm.confirm_focus = 0;
@@ -371,12 +372,12 @@ impl App {
         let exit = matches!(act, MenuAct::ExitRunning(_));
         st.set_confirm_exit(exit);
         st.set_confirm_description(if exit {
-            t_or("#AppOverlay_UnsavedDataWarning", "Несохранённые данные могут быть утеряны.").into()
+            t_or("#AppOverlay_UnsavedDataWarning", i18n::tr_ref("steam_menu.unsaved_game_data_may_be_lost")).into()
         } else if act == MenuAct::StockSteam {
-            t_or("#DeckShell_StockSteamDescription", "DeckShell закроется, клиент Steam перезапустится со стандартным интерфейсом. Игры и сохранения не удаляются.").into()
+            t_or("#DeckShell_StockSteamDescription", i18n::tr_ref("steam_menu.deckshell_will_shut_down_the_steam_client")).into()
         } else { "".into() });
-        st.set_confirm_ok(if exit { t_or("#Button_Confirm", "Подтвердить").into() } else { t_or("#Button_OK", "ОК").into() });
-        st.set_confirm_cancel(t_or("#Button_Cancel", "Отмена").into());
+        st.set_confirm_ok(if exit { t_or("#Button_Confirm", i18n::tr_ref("steam_menu.confirm")).into() } else { t_or("#Button_OK", i18n::tr_ref("steam_menu.ok")).into() });
+        st.set_confirm_cancel(t_or("#Button_Cancel", i18n::tr_ref("steam_menu.cancel")).into());
         st.set_confirm_focus(0);
         st.set_confirm_open(true);
         crate::sound::play(crate::sound::Snd::ShowModal);
@@ -399,7 +400,7 @@ impl App {
         if i != 0 { return; }
         // Recheck after the dialog: a game could have started while it was open.
         if act == MenuAct::StockSteam && !self.live.running.is_empty() {
-            self.toast(&t_or("#DeckShell_StockSteamRunning", "Сначала завершите игру: возврат к стандартному Steam перезапустит клиент"));
+            self.toast(&t_or("#DeckShell_StockSteamRunning", i18n::tr_ref("steam_menu.finish_the_game_first_a_return_to")));
             return;
         }
         match act {
@@ -516,7 +517,7 @@ impl App {
             // /steamweb is an in-Steam web page; DeckShell has no web view, so the store is handed to Steam's own window
             MenuAct::Store => {
                 self.act(Act::Open(SteamPage::Store));
-                self.toast(&format!("{}: {}", t_or("#DeckShell_OpenedInSteam", "Открыто в Steam"), t("#MainTabsStore")));
+                self.toast(&format!("{}: {}", t_or("#DeckShell_OpenedInSteam", i18n::tr_ref("steam_menu.open_to_steam")), t("#MainTabsStore")));
             }
             // Steam opens Friends with an expanded conversation area from the main menu.
             MenuAct::Friends => {
@@ -721,7 +722,7 @@ mod composition_tests {
         assert_eq!(sub[790 * 1280 + 600], Rgb8Pixel { r: 0, g: 0, b: 0, a: 255 });
         state.set_open(false);
         let qam = ui.global::<crate::QamState>();
-        qam.set_title("Быстрые настройки".into());
+        qam.set_title(i18n::tr_ref("steam_menu.quick_settings").into());
         qam.set_open(true);
         render(); time.set(3000); slint::platform::update_timers_and_animations();
         let quick = render();

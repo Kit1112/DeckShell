@@ -1,6 +1,7 @@
 //! Смена аккаунта с перезапуском Steam в фоне (задача 430): мост между автоматом `steam_bridge::account_restart`
 //! и интерфейсом. Пока идёт перезапуск, поверх DeckShell стоит обложка с котиком (`launch_splash::begin_hold`),
 //! подпись под котиком отражает фазу. Всё вызывается из рабочего потока окна входа.
+use steam_assets::i18n::{tr_args, tr_ref};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -14,7 +15,7 @@ use crate::screens::defer;
 pub fn caption(p: Phase) -> String {
     match p {
         Phase::RollingBack => p.message().to_string(),
-        _ => format!("{}\nB — отмена", p.message()),
+        _ => tr_args("account_flow.cancel_hint", &[("progress", p.message())]),
     }
 }
 
@@ -22,9 +23,9 @@ pub fn caption(p: Phase) -> String {
 pub fn settle(outcome: Outcome) -> Result<(), String> {
     match outcome {
         Outcome::Done => Ok(()),
-        Outcome::Cancelled => Err("Смена аккаунта отменена. Прежний аккаунт сохранён.".into()),
+        Outcome::Cancelled => Err(tr_ref("account_flow.cancelled").into()),
         Outcome::Failed { message, back_on_previous } => Err(if back_on_previous {
-            format!("{message} Аккаунт не изменён.")
+            tr_args("account_flow.unchanged", &[("message", &message)])
         } else {
             message
         }),
@@ -45,7 +46,7 @@ fn reload_after_restart(host: &mut SystemHost<'_>, target: &str) -> bool {
             if !profile_queued {
                 profile_queued = crate::backend::refresh_profile(&b, Some(target));
                 if profile_queued {
-                    host.note("профиль после Done: имя и SteamID подтверждены, обновление шапки отправлено");
+                    host.note(tr_ref("account_flow.header_refreshed"));
                 }
             }
             library_reloaded = crate::backend::reload_account(&b);
@@ -54,7 +55,7 @@ fn reload_after_restart(host: &mut SystemHost<'_>, target: &str) -> bool {
         std::thread::sleep(Duration::from_secs(1));
     }
     if !profile_queued {
-        host.note("профиль после Done: данные ещё недоступны, мост повторит запрос в фоне");
+        host.note(tr_ref("account_flow.header_pending"));
     }
     library_reloaded
 }
@@ -72,7 +73,7 @@ fn spawn_watchdog(done: Arc<AtomicBool>, cancel_flag: bool, limit: Duration) -> 
             std::thread::sleep(Duration::from_millis(200));
         }
         if !done.swap(true, Ordering::SeqCst) {
-            eprintln!("[account-switch] СТОРОЖ: поток смены не закончился за {} с: снимаю котика (cancel={cancel_flag})", limit.as_secs());
+            eprintln!("{}", tr_args("account_flow.watchdog", &[("seconds", &limit.as_secs().to_string()), ("cancel_flag", &cancel_flag.to_string())]));
             defer(|_| launch_splash::end_hold("account switch watchdog"));
         }
     })
@@ -86,8 +87,8 @@ pub fn recover_on_start() {
     if !account_restart::flow_path(&dir).exists() { return; }
     std::thread::spawn(move || {
         match account_restart::recover_interrupted(&steam_assets::steam_root(), &dir) {
-            Some(r) => eprintln!("[account-switch] подхват при старте: {r:?}"),
-            None => eprintln!("[account-switch] подхват при старте: нечего подхватывать"),
+            Some(r) => eprintln!("{}", tr_args("account_flow.startup_recovery", &[("result", &format!("{:?}", r))])),
+            None => eprintln!("{}", tr_ref("account_flow.no_startup_recovery")),
         }
         // котик мог остаться от прежней обложки только в этом процессе; на старте его нет — но гарантируем
         defer(|_| launch_splash::end_hold("account switch recovered"));
@@ -106,14 +107,15 @@ pub fn finish_kind(outcome_done: bool, reloaded: bool) -> Finish {
 /// (true = запущен). Экран снимается всегда, в том же вызове: зависнуть в нём нечему.
 pub fn finish_on_ui(kind: Finish, play: impl FnOnce() -> bool, end: impl FnOnce(&str)) {
     let started = kind == Finish::ResumeClip && play();
-    eprintln!("[account-switch] завершение: клип выхода из сна {}", if started { "запущен" } else { "не нужен/недоступен" });
+    let status = if started { tr_ref("account_flow.clip_started") } else { tr_ref("account_flow.clip_unavailable") };
+    eprintln!("{}", tr_args("account_flow.wake_clip", &[("status", status)]));
     end(if started { "account switch finished: resume clip" } else { "account switch finished" });
 }
 
 /// Рабочий поток. Показывает котика, гоняет автомат, убирает котика. Возвращает итог для окна входа.
 pub fn run(cancel: &AtomicBool, id: &str, target: &str, previous: Option<&str>) -> Result<(), String> {
     let Some(previous) = previous.filter(|p| !p.is_empty()) else {
-        return Err("Не удалось определить текущий аккаунт Steam: без него нельзя вернуться назад. Steam не перезапускался.".into());
+        return Err(tr_ref("account_flow.current_unknown").into());
     };
     let home = std::path::PathBuf::from(std::env::var_os("HOME").unwrap_or_default());
     let files = Files::default_paths(&steam_assets::steam_root(), &home, &state_dir(), crate::app::now_secs());
@@ -125,7 +127,7 @@ pub fn run(cancel: &AtomicBool, id: &str, target: &str, previous: Option<&str>) 
     let was_done = matches!(outcome, Outcome::Done);
     let reloaded = !was_done || reload_after_restart(&mut host, target);
     let result = if reloaded { settle(outcome) } else {
-        Err("Вход выполнен, но новая библиотека пока недоступна. Закройте экран и проверьте соединение.".into())
+        Err(tr_ref("account_flow.library_pending").into())
     };
     done.store(true, Ordering::SeqCst);
     let kind = finish_kind(was_done, reloaded);
@@ -136,20 +138,21 @@ pub fn run(cancel: &AtomicBool, id: &str, target: &str, previous: Option<&str>) 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::screens::expected_text;
 
     #[test]
-    fn every_outcome_has_a_russian_message_and_no_hang() {
+    fn every_outcome_has_a_localized_message_and_no_hang() {
         assert!(settle(Outcome::Done).is_ok());
-        assert!(settle(Outcome::Cancelled).unwrap_err().contains("отменена"));
+        assert!(settle(Outcome::Cancelled).unwrap_err().contains(expected_text("отменена", "canceled")));
         let m = settle(Outcome::Failed { message: "Steam не закрылся.".into(), back_on_previous: true }).unwrap_err();
-        assert!(m.contains("не изменён"));
+        assert!(m.contains(expected_text("не изменён", "unchanged")));
         let m = settle(Outcome::Failed { message: "Нет связи.".into(), back_on_previous: false }).unwrap_err();
         assert_eq!(m, "Нет связи.");
     }
     #[test]
     fn caption_offers_cancel_except_while_rolling_back() {
-        assert!(caption(Phase::ShuttingDown).contains("B — отмена"));
-        assert!(!caption(Phase::RollingBack).contains("отмена"));
+        assert!(caption(Phase::ShuttingDown).contains(expected_text("B — отмена", "B — Cancel")));
+        assert!(!caption(Phase::RollingBack).contains(expected_text("отмена", "Cancel")));
     }
     #[test]
     fn watchdog_removes_the_cover_state_when_the_flow_hangs_and_stays_quiet_when_it_finishes() {
@@ -195,7 +198,7 @@ mod tests {
     #[test]
     fn unknown_current_account_refuses_before_touching_steam() {
         let cancel = AtomicBool::new(false);
-        assert!(run(&cancel, "x", "t", None).unwrap_err().contains("не перезапускался"));
+        assert!(run(&cancel, "x", "t", None).unwrap_err().contains(expected_text("не перезапускался", "Steam was left running")));
         assert!(run(&cancel, "x", "t", Some("")).is_err());
     }
 }

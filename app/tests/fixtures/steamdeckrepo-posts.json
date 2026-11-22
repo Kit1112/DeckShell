@@ -1,0 +1,197 @@
+{
+ "posts": [
+  {
+   "id": "BootA",
+   "slug": "boota",
+   "title": "Starfield Intro",
+   "content": "A synthetic catalog entry for parser and search tests.",
+   "user": {
+    "id": 1,
+    "steam_name": "Fixture Creator A",
+    "steam_avatar": "https://example.invalid/avatars/1.png"
+   },
+   "thumbnail": "https://example.invalid/fixtures/boota.png",
+   "video": "https://example.invalid/fixtures/boota.webm",
+   "video_duration": 10,
+   "video_preview": "https://example.invalid/fixtures/boota.mp4",
+   "created_at": "2022-10-06T16:34:50.000000Z",
+   "updated_at": "2022-10-06T16:34:50.000000Z",
+   "url": "https://example.invalid/post/BootA/boota",
+   "likes": 230,
+   "downloads": 35674,
+   "type": "boot_video",
+   "devices": [
+    "steam_deck"
+   ]
+  },
+  {
+   "id": "BootB",
+   "slug": "bootb",
+   "title": "Retro Console",
+   "content": "A synthetic catalog entry for parser and search tests.",
+   "user": {
+    "id": 2,
+    "steam_name": "Fixture Creator B",
+    "steam_avatar": "https://example.invalid/avatars/2.png"
+   },
+   "thumbnail": "https://example.invalid/fixtures/bootb.png",
+   "video": "https://example.invalid/fixtures/bootb.webm",
+   "video_duration": 17,
+   "video_preview": "https://example.invalid/fixtures/bootb.mp4",
+   "created_at": "2022-10-11T21:25:37.000000Z",
+   "updated_at": "2022-10-11T21:25:37.000000Z",
+   "url": "https://example.invalid/post/BootB/bootb",
+   "likes": 262,
+   "downloads": 60373,
+   "type": "boot_video",
+   "devices": [
+    "steam_deck"
+   ]
+  },
+  {
+   "id": "BootC",
+   "slug": "bootc",
+   "title": "90s Terminal Intro",
+   "content": "A synthetic catalog entry for parser and search tests.",
+   "user": {
+    "id": 3,
+    "steam_name": "Fixture Creator C",
+    "steam_avatar": "https://example.invalid/avatars/3.png"
+   },
+   "thumbnail": "https://example.invalid/fixtures/bootc.png",
+   "video": "https://example.invalid/fixtures/bootc.webm",
+   "video_duration": 5,
+   "video_preview": "https://example.invalid/fixtures/bootc.mp4",
+   "created_at": "2022-10-12T20:18:21.000000Z",
+   "updated_at": "2022-10-12T20:18:21.000000Z",
+   "url": "https://example.invalid/post/BootC/bootc",
+   "likes": 198,
+   "downloads": 46690,
+   "type": "boot_video",
+   "devices": [
+    "steam_deck"
+   ]
+  },
+  {
+   "id": "Sleep",
+   "slug": "sleep",
+   "title": "Minimal Sleep",
+   "content": null,
+   "user": {
+    "id": 4,
+    "steam_name": "Fixture Creator D",
+    "steam_avatar": "https://example.invalid/avatars/4.png"
+   },
+   "thumbnail": "https://example.invalid/fixtures/sleep.png",
+   "video": "https://example.invalid/fixtures/sleep.webm",
+   "video_duration": 1,
+   "video_preview": "https://example.invalid/fixtures/sleep.mp4",
+   "created_at": "2022-10-19T15:18:12.000000Z",
+   "updated_at": "2023-02-01T10:00:00.000000Z",
+   "url": "https://example.invalid/post/Sleep/sleep",
+   "likes": 50,
+   "downloads": 9000,
+   "type": "suspend_video",
+   "devices": [
+    "steam_deck"
+   ]
+  },
+  {
+   "id": "RuZ01",
+   "slug": "ruz01",
+   "title": "Заставка Ромашка",
+   "content": "Тестовая кириллица",
+   "user": {
+    "id": 5,
+    "steam_name": "Тестер",
+    "steam_avatar": ""
+   },
+   "thumbnail": "https://example.invalid/fixtures/ruz01.png",
+   "video": "https://example.invalid/fixtures/ruz01.webm",
+   "video_duration": 10,
+   "video_preview": "https://example.invalid/fixtures/ruz01.mp4",
+   "created_at": "2024-05-01T00:00:00.000000Z",
+   "updated_at": "2024-05-01T00:00:00.000000Z",
+   "url": "https://example.invalid/post/RuZ01/ruz01",
+   "likes": 3,
+   "downloads": 40,
+   "type": "boot_video",
+   "devices": [
+    "steam_deck"
+   ]
+  },
+  {
+   "id": "Mach1",
+   "slug": "mach1",
+   "title": "Machine Only Intro",
+   "content": "",
+   "user": {
+    "id": 1,
+    "steam_name": "Fixture Creator A",
+    "steam_avatar": "https://example.invalid/avatars/1.png"
+   },
+   "thumbnail": "https://example.invalid/fixtures/mach1.png",
+   "video": "https://example.invalid/fixtures/mach1.webm",
+   "video_duration": 10,
+   "video_preview": "https://example.invalid/fixtures/mach1.mp4",
+   "created_at": "2026-10-01T00:00:00.000000Z",
+   "updated_at": "2026-10-01T00:00:00.000000Z",
+   "url": "https://example.invalid/post/Mach1/mach1",
+   "likes": 1,
+   "downloads": 10,
+   "type": "boot_video",
+   "devices": [
+    "steam_machine"
+   ]
+  },
+  {
+   "id": "Oth01",
+   "slug": "oth01",
+   "title": "Not a video",
+   "content": "A synthetic catalog entry for parser and search tests.",
+   "user": {
+    "id": 1,
+    "steam_name": "Fixture Creator A",
+    "steam_avatar": "https://example.invalid/avatars/1.png"
+   },
+   "thumbnail": "https://example.invalid/fixtures/oth01.png",
+   "video": "https://example.invalid/fixtures/oth01.webm",
+   "video_duration": 10,
+   "video_preview": "https://example.invalid/fixtures/oth01.mp4",
+   "created_at": "2022-10-06T16:34:50.000000Z",
+   "updated_at": "2022-10-06T16:34:50.000000Z",
+   "url": "https://example.invalid/post/Oth01/oth01",
+   "likes": 230,
+   "downloads": 35674,
+   "type": "theme",
+   "devices": [
+    "steam_deck"
+   ]
+  },
+  {
+   "id": "BootA",
+   "slug": "boota",
+   "title": "Duplicate of BootA",
+   "content": "A synthetic catalog entry for parser and search tests.",
+   "user": {
+    "id": 1,
+    "steam_name": "Fixture Creator A",
+    "steam_avatar": "https://example.invalid/avatars/1.png"
+   },
+   "thumbnail": "https://example.invalid/fixtures/boota.png",
+   "video": "https://example.invalid/fixtures/boota.webm",
+   "video_duration": 10,
+   "video_preview": "https://example.invalid/fixtures/boota.mp4",
+   "created_at": "2022-10-06T16:34:50.000000Z",
+   "updated_at": "2022-10-06T16:34:50.000000Z",
+   "url": "https://example.invalid/post/BootA/boota",
+   "likes": 230,
+   "downloads": 35674,
+   "type": "boot_video",
+   "devices": [
+    "steam_deck"
+   ]
+  }
+ ],
+ "last_cached_at": 1794952819
+}

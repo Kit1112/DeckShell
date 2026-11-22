@@ -1,4 +1,5 @@
 //! Saved-account login, without starting or navigating Steam UI. No credential material crosses CDP.
+use steam_assets::i18n::{tr, tr_args, tr_ref};
 use crate::{Bridge, Error, Result};
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -67,26 +68,29 @@ fn deny_dryrun() -> Result<()> {
 impl Progress {
     pub fn message(&self) -> String {
         match self.phase.as_str() {
-            "complete" => "Вход выполнен. Загрузка главного экрана…".into(),
-            "restart_required" => "Смена активного аккаунта без перезапуска Steam пока не поддерживается.".into(),
-            "unavailable" => "Steam уже выполняет вход или завершает работу. Дождитесь окончания операции.".into(),
-            "password" => "Нужен пароль. Вход с паролем пока недоступен.".into(),
-            "pin" => "Нужен PIN сохранённого аккаунта. Ввод PIN пока недоступен.".into(),
-            "missing" => "Аккаунта больше нет в сохранённых данных Steam.".into(),
-            "cancelled" => "Запрос входа отменён. Предыдущий вход не восстанавливается автоматически.".into(),
-            "unknown" => "Steam не подтвердил результат. Повторный вход не отправлен.".into(),
+            "complete" => tr_ref("account_switch.complete").into(),
+            "restart_required" => tr_ref("account_switch.restart_required").into(),
+            "unavailable" => tr_ref("account_switch.unavailable").into(),
+            "password" => tr_ref("account_switch.password_required").into(),
+            "pin" => tr_ref("account_switch.pin_required").into(),
+            "missing" => tr_ref("account_switch.missing").into(),
+            "cancelled" => tr_ref("account_switch.cancelled").into(),
+            "unknown" => tr_ref("account_switch.unknown").into(),
             "rejected" => match self.auth_result {
-                Some(63 | 65 | 85 | 88) => "Нужен Steam Guard. Подтверждение пока недоступно.".into(),
-                Some(3 | 16 | 20 | 48) => "Нет соединения со Steam. Проверьте сеть.".into(),
-                Some(5 | 15 | 18 | 86) => "Сохранённые данные не подходят: нужен пароль.".into(),
-                Some(84) => "Слишком много попыток входа. Попробуйте позже.".into(),
-                code => format!("Steam отклонил вход (код {}).", code.map(|v| v.to_string()).unwrap_or_else(|| "неизвестен".into())),
+                Some(63 | 65 | 85 | 88) => tr_ref("account_switch.steam_guard_required").into(),
+                Some(3 | 16 | 20 | 48) => tr_ref("account_switch.disconnected").into(),
+                Some(5 | 15 | 18 | 86) => tr_ref("account_switch.saved_data_rejected").into(),
+                Some(84) => tr_ref("account_switch.rate_limited").into(),
+                code => {
+                    let code = code.map(|v| v.to_string()).unwrap_or_else(|| tr("account_switch.unknown_code"));
+                    tr_args("account_switch.rejected", &[("code", &code)])
+                }
             },
             _ => match self.state {
-                Some(2) => "Ожидание сети…".into(), Some(3) => "Ожидание сервера Steam…".into(),
-                Some(4) => format!("Загрузка библиотеки… {}%", (self.percentage.unwrap_or(0.0).clamp(0.0, 1.0) * 100.0).round()),
-                Some(6) => "Steam завершает работу…".into(),
-                _ => format!("Вход в Steam… (состояние {}, код {})", self.state.unwrap_or(0), self.result.unwrap_or(0)),
+                Some(2) => tr_ref("account_switch.waiting_network").into(), Some(3) => tr_ref("account_switch.waiting_server").into(),
+                Some(4) => tr_args("account_switch.loading_library", &[("percent", &((self.percentage.unwrap_or(0.0).clamp(0.0, 1.0) * 100.0).round()).to_string())]),
+                Some(6) => tr_ref("account_switch.shutting_down").into(),
+                _ => tr_args("account_switch.signing_in", &[("state", &(self.state.unwrap_or(0)).to_string()), ("code", &(self.result.unwrap_or(0)).to_string())]),
             }
         }
     }
@@ -128,8 +132,8 @@ mod tests {
     fn guard_network_password_and_unknown_are_distinct() {
         let progress = |code| Progress { phase:"rejected".into(), auth_result:code, state:Some(1), result:Some(1), percentage:None, account_name:None };
         assert!(progress(Some(63)).message().contains("Steam Guard"));
-        assert!(progress(Some(16)).message().contains("соединения"));
-        assert!(progress(Some(5)).message().contains("пароль"));
-        assert!(progress(None).message().contains("неизвестен"));
+        assert!(progress(Some(16)).message().contains(crate::expected_text("соединения", "connect")));
+        assert!(progress(Some(5)).message().contains(crate::expected_text("пароль", "password")));
+        assert!(progress(None).message().contains(crate::expected_text("неизвестен", "unknown")));
     }
 }

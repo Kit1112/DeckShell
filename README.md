@@ -17,7 +17,7 @@ the STEAM menu, the Quick Access Menu and the Settings pages. It is reversible, 
 
 > ⚠️ **This is an early, experimental project (v0.1.0, pre-release).** Large parts are incomplete, many places contain
 > **stubs / placeholders**, and it has only been tested on one Steam Deck (LCD/OLED not distinguished, SteamOS 3.x stable,
-> Russian UI language). Expect bugs. Read [Status](#status) and [Safety and recovery](#safety-and-recovery) before installing.
+> Russian UI language; English added in v0.1.1 and only lightly tested on a real Deck). Expect bugs. Read [Status](#status) and [Safety and recovery](#safety-and-recovery) before installing.
 
 ## Highlights — what already works (and works *much* better than in stock Steam)
 
@@ -29,6 +29,17 @@ the STEAM menu, the Quick Access Menu and the Settings pages. It is reversible, 
   - 🖼️ **SteamGridDB** — custom capsules, heroes, logos and icons straight from SteamGridDB. *You need your own free SteamGridDB API key* (create it on steamgriddb.com → Preferences → API, then put it into `~/.config/deckshell/sgdb.json` as `{"api_key": "YOUR_KEY"}`, or set `DECKSHELL_SGDB_KEY`; without a key only the offline cache works).
 - **No lag with animated (video/WebM) SteamGridDB artwork** — animated capsules and heroes play smoothly instead of stuttering the whole UI.
 - Reversible, off by default, one-command install and rollback.
+
+## Languages — English and Russian built in, add yours with your AI agent 🌍
+
+DeckShell picks its language **automatically from your Steam language**: Steam set to Russian → Russian, anything else → English. No setting needed
+(override for testing: `DECKSHELL_LANG=en` / `ru`, or one line in `~/.config/deckshell/lang`).
+
+Want your language? Ask your AI coding agent (Claude Code, Codex, Gemini CLI, …). Clone the repo, open the agent in it and paste:
+
+> Add **<LANGUAGE>** to DeckShell (locale code **<code>**, Steam language name **<steam name, e.g. german>**). Read `docs/LANGUAGES.md` first. Copy `locales/en.json` to `locales/<code>.json`, translate every value (keep keys and `{placeholders}`), register the locale as described in the doc, run `DECKSHELL_DRYRUN=1 cargo test --workspace`, and open a pull request. Do not touch anything else.
+
+Details and the full prompt: [docs/LANGUAGES.md](docs/LANGUAGES.md). Translations are very welcome as pull requests.
 
 ## Install (one command)
 
@@ -82,7 +93,7 @@ seen working on the author's Deck*, not "bug-free". **Many screens contain stubs
 - HTTP proxy settings (Settings → Internet) — UI done, the exact Steam call format is unconfirmed
 - Display, Sound and some other Settings pages — present, less tested
 - Recording / clip capture integration, "send to phone", controller IMU/gyro wizard — implemented, lightly tested
-- Languages: UI strings come from the Steam client's own localization; only **Russian** has been looked at closely, English is expected to work, others untested
+- Languages: **Russian** (most tested) and **English** (v0.1.1: full UI coverage, checked by tests and on PC, less on a real Deck); other languages fall back to English until someone adds them (see above)
 
 ### Not implemented / known gaps
 - Pixel-perfect parity with stock Steam: close in many screens, **not identical** (see [what we compare against](#how-it-is-built))
@@ -159,6 +170,13 @@ Steam остаётся «движком»: подменяется только �
   - 🖼️ **SteamGridDB** — свои капсулы, обложки, логотипы и иконки прямо из SteamGridDB. *Нужен ваш собственный бесплатный API-ключ SteamGridDB* (создаётся на steamgriddb.com → Preferences → API, затем впишите его в `~/.config/deckshell/sgdb.json` как `{"api_key": "ВАШ_КЛЮЧ"}` или задайте `DECKSHELL_SGDB_KEY`; без ключа работает только офлайн-кэш).
 - **Не лагает с анимированными (видео/WebM) элементами SteamGridDB** — анимированные капсулы и обложки играют плавно, не тормозя весь интерфейс.
 
+### Языки — английский и русский встроены, свой язык можно добавить с ИИ-агентом 🌍
+
+DeckShell выбирает язык **автоматически по языку вашего Steam**: Steam на русском → русский, любой другой → английский. Настраивать ничего не нужно
+(для проверки: `DECKSHELL_LANG=en` / `ru` или одна строка в `~/.config/deckshell/lang`).
+
+Нужен ваш язык? Попросите своего ИИ-агента (Claude Code, Codex, Gemini CLI и др.): склонируйте репозиторий, откройте в нём агента и вставьте промпт из [docs/LANGUAGES.md](docs/LANGUAGES.md) (там же русская сводка): *«Добавь в DeckShell язык <язык> (код <code>, имя языка Steam <steam name>). Прочитай docs/LANGUAGES.md, скопируй locales/en.json в locales/<code>.json, переведи значения (ключи и {плейсхолдеры} не менять), зарегистрируй язык, прогони `DECKSHELL_DRYRUN=1 cargo test --workspace` и оформи pull request»*. Переводы — очень приветствуются.
+
 ### Установка (одной командой)
 
 На Деке, в Desktop Mode (Konsole) или по SSH, от обычного пользователя `deck`:
@@ -190,7 +208,7 @@ echo stock  > ~/.config/deckshell/mode      # ВЫКЛ (обратно штат�
 
 **Работает (реализовано, хотя бы частично проверено на Деке):** главная и библиотека, страница игры и запуск, установка игры через штатный мастер Steam; меню STEAM и навигация геймпадом/клавиатурой; быстрое меню (производительность/TDP, друзья — базово); настройки: **Интернет/Wi-Fi, Хранилище, Bluetooth, Питание, Контроллер** (список устройств, редактор кнопок и джойстиков, браузер сообществ-раскладок), Клавиатура, нативная страница **«Анимации»** (без плагина Decky); страница загрузок, медиа/клипы, экранная клавиатура (с эмодзи), плитки выбора аккаунта; обратимая установка со стоковым фолбэком.
 
-**Частично / не проверено:** смена аккаунта с **QR-входом**, Steam Guard и вход по паролю — проверено только на ПК на моках, на Деке не подтверждено; страница HTTP-прокси — интерфейс есть, точный вызов Steam не подтверждён; страницы «Экран», «Звук» и др. — есть, проверены слабее; запись/клипы, «отправить на телефон», мастер гироскопа — реализованы, проверены слабо; языки — строки берутся из локализации самого Steam, подробно смотрели только **русский**, английский должен работать, остальные не проверялись.
+**Частично / не проверено:** смена аккаунта с **QR-входом**, Steam Guard и вход по паролю — проверено только на ПК на моках, на Деке не подтверждено; страница HTTP-прокси — интерфейс есть, точный вызов Steam не подтверждён; страницы «Экран», «Звук» и др. — есть, проверены слабее; запись/клипы, «отправить на телефон», мастер гироскопа — реализованы, проверены слабо; языки — **русский** (проверен больше всего) и **английский** (в v0.1.1 полное покрытие интерфейса, проверен тестами и на ПК, на настоящей Деке меньше); остальные языки пока дают английский.
 
 **Не сделано / известные пробелы:** пиксель-в-пиксель совпадение со стоком (во многих экранах близко, но **не идентично**); эмуляция мыши на L2/R2, вкладки библиотеки для конкретных устройств, публикация/экспорт раскладок, удаление плитки аккаунта; выбор друга открывает чат десктопного Steam, а не встроенный; магазин, сообщество, Desktop Mode (это только оболочка Gaming Mode); **заглушки и плейсхолдеры есть во многих местах** — если что-то выглядит настоящим, но ничего не делает, скорее всего это оно. Сообщайте.
 

@@ -2,6 +2,7 @@
 //! (docs/steam-bluetooth-page-contract-2026-11-18.md §8): an adapter state plus a list of devices with the fields of
 //! `CMsgBluetoothManagerDeviceDetails`. `Bluez` talks to BlueZ through `busctl` (like the rest of this crate); `MockBluetooth`
 //! is the in-memory radio used by tests, `DECKSHELL_DRYRUN` and `DECKSHELL_MOCK` — nothing real can change through it.
+use steam_assets::i18n::{tr, tr_ref};
 use std::sync::Mutex;
 
 use super::{busctl_ok, get_prop, prop_bool, prop_str, prop_u32, split_type, tree, Bus, BLUEZ};
@@ -170,7 +171,7 @@ impl Bluez {
     fn call(path: &str, iface: &str, method: &str) -> Result<(), String> {
         busctl_ok(Bus::System, &["call", BLUEZ, path, iface, method]).map_err(|e| e.to_string())
     }
-    fn dev_path(id: u32) -> Result<String, String> { path_of(id).ok_or_else(|| "устройство не найдено".to_string()) }
+    fn dev_path(id: u32) -> Result<String, String> { path_of(id).ok_or_else(|| tr("bluetooth.device_missing")) }
 }
 
 impl BluetoothBackend for Bluez {
@@ -187,7 +188,7 @@ impl BluetoothBackend for Bluez {
     }
     fn set_enabled(&self, on: bool) -> Result<(), String> { crate::set_bluetooth_enabled(on).map_err(|e| e.to_string()) }
     fn set_discovering(&self, on: bool) -> Result<(), String> {
-        let a = adapter().ok_or("нет адаптера")?;
+        let a = adapter().ok_or(tr_ref("bluetooth.adapter_missing"))?;
         if on { scan_start() } else {
             scan_stop();
             // a scan started by someone else (or a stale session) is stopped explicitly; "not in progress" is not an error
@@ -200,7 +201,7 @@ impl BluetoothBackend for Bluez {
     fn connect(&self, id: u32) -> Result<(), String> { Bluez::call(&Bluez::dev_path(id)?, "org.bluez.Device1", "Connect") }
     fn disconnect(&self, id: u32) -> Result<(), String> { Bluez::call(&Bluez::dev_path(id)?, "org.bluez.Device1", "Disconnect") }
     fn forget(&self, id: u32) -> Result<(), String> {
-        let (a, p) = (adapter().ok_or("нет адаптера")?, Bluez::dev_path(id)?);
+        let (a, p) = (adapter().ok_or(tr_ref("bluetooth.adapter_missing"))?, Bluez::dev_path(id)?);
         busctl_ok(Bus::System, &["call", BLUEZ, &a, "org.bluez.Adapter1", "RemoveDevice", "o", &p]).map_err(|e| e.to_string())
     }
     fn set_trusted(&self, id: u32, on: bool) -> Result<(), String> {
@@ -231,12 +232,12 @@ impl MockBluetooth {
             battery, rssi, ..Default::default()
         };
         MockBluetooth::new(vec![
-            d(1, etype::GAMEPAD, "Беспроводной геймпад", true, true, Some(80), -48),
-            d(2, etype::HEADPHONES, "Наушники", true, false, None, -60),
-            d(3, etype::KEYBOARD, "Клавиатура", false, false, None, -52),
-            d(4, etype::SPEAKER, "Колонка", false, false, None, -70),
+            d(1, etype::GAMEPAD, tr_ref("bluetooth.gamepad"), true, true, Some(80), -48),
+            d(2, etype::HEADPHONES, tr_ref("bluetooth.headset"), true, false, None, -60),
+            d(3, etype::KEYBOARD, tr_ref("bluetooth.keyboard"), false, false, None, -52),
+            d(4, etype::SPEAKER, tr_ref("bluetooth.speaker"), false, false, None, -70),
             Device { hide_hint: true, ..d(5, etype::UNKNOWN, "", false, false, None, -80) },
-            d(6, etype::PHONE, "Телефон", false, false, None, -66),
+            d(6, etype::PHONE, tr_ref("bluetooth.phone"), false, false, None, -66),
         ])
     }
     pub fn set_hold_pairing(&self, on: bool) { self.m.lock().unwrap().hold_pairing = on; }
@@ -285,7 +286,7 @@ impl BluetoothBackend for MockBluetooth {
         let mut m = self.m.lock().unwrap();
         m.log.push(format!("pair {id}"));
         let hold = m.hold_pairing;
-        let d = m.s.devices.iter_mut().find(|d| d.id == id).ok_or("устройство не найдено")?;
+        let d = m.s.devices.iter_mut().find(|d| d.id == id).ok_or(tr_ref("bluetooth.device_missing"))?;
         if hold { d.pairing = true; } else { d.paired = true; d.connected = true; d.trusted = true; d.pairing = false; }
         Ok(())
     }
@@ -298,14 +299,14 @@ impl BluetoothBackend for MockBluetooth {
     fn connect(&self, id: u32) -> Result<(), String> {
         let mut m = self.m.lock().unwrap();
         m.log.push(format!("connect {id}"));
-        let d = m.s.devices.iter_mut().find(|d| d.id == id).ok_or("устройство не найдено")?;
+        let d = m.s.devices.iter_mut().find(|d| d.id == id).ok_or(tr_ref("bluetooth.device_missing"))?;
         d.connected = true;
         Ok(())
     }
     fn disconnect(&self, id: u32) -> Result<(), String> {
         let mut m = self.m.lock().unwrap();
         m.log.push(format!("disconnect {id}"));
-        let d = m.s.devices.iter_mut().find(|d| d.id == id).ok_or("устройство не найдено")?;
+        let d = m.s.devices.iter_mut().find(|d| d.id == id).ok_or(tr_ref("bluetooth.device_missing"))?;
         d.connected = false;
         Ok(())
     }

@@ -4,6 +4,7 @@
 //! network. All side effects go through [`WifiBackend`]: [`Nmcli`] drives NetworkManager on the Deck, [`MockWifi`]
 //! is an in-memory network used by tests, `DECKSHELL_DRYRUN` and `DECKSHELL_MOCK` (a test must never be able to
 //! drop the owner's real connection).
+use steam_assets::i18n::tr_ref;
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
@@ -32,7 +33,7 @@ impl Security {
     /// Stock steamui cannot offer 802.1X in the custom-network form; neither can we.
     pub fn supported(self) -> bool { self != Security::Enterprise }
     pub fn label(self) -> &'static str {
-        match self { Security::Open => "Нет", Security::Wep => "WEP", Security::Wpa => "WPA", Security::Wpa2 => "WPA2", Security::Wpa3 => "WPA3", Security::Enterprise => "WPA Enterprise" }
+        match self { Security::Open => tr_ref("wifi.security_none"), Security::Wep => "WEP", Security::Wpa => "WPA", Security::Wpa2 => "WPA2", Security::Wpa3 => "WPA3", Security::Enterprise => "WPA Enterprise" }
     }
 }
 
@@ -75,7 +76,10 @@ impl StaticIp {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum IpError { Missing(&'static str), Invalid(&'static str) }
+pub enum IpError { Missing(IpField), Invalid(IpField) }
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum IpField { Address, Netmask, Gateway, PrimaryDns, SecondaryDns }
 
 pub fn parse_ipv4(s: &str) -> Option<[u8; 4]> {
     let mut out = [0u8; 4];
@@ -97,11 +101,11 @@ pub fn prefix_len(mask: &str) -> Option<u8> {
 
 /// Manual addressing needs address + mask; gateway and DNS are optional but must be valid when typed.
 pub fn validate_static(ip: &StaticIp) -> Result<(), IpError> {
-    if ip.ip.trim().is_empty() { return Err(IpError::Missing("IP")); }
-    if parse_ipv4(&ip.ip).is_none() { return Err(IpError::Invalid("IP")); }
-    if ip.netmask.trim().is_empty() { return Err(IpError::Missing("Маска сети")); }
-    if prefix_len(&ip.netmask).is_none() { return Err(IpError::Invalid("Маска сети")); }
-    for (v, n) in [(&ip.gateway, "Шлюз"), (&ip.dns1, "Первичный DNS"), (&ip.dns2, "Вторичный DNS")] {
+    if ip.ip.trim().is_empty() { return Err(IpError::Missing(IpField::Address)); }
+    if parse_ipv4(&ip.ip).is_none() { return Err(IpError::Invalid(IpField::Address)); }
+    if ip.netmask.trim().is_empty() { return Err(IpError::Missing(IpField::Netmask)); }
+    if prefix_len(&ip.netmask).is_none() { return Err(IpError::Invalid(IpField::Netmask)); }
+    for (v, n) in [(&ip.gateway, IpField::Gateway), (&ip.dns1, IpField::PrimaryDns), (&ip.dns2, IpField::SecondaryDns)] {
         if !v.trim().is_empty() && parse_ipv4(v).is_none() { return Err(IpError::Invalid(n)); }
     }
     Ok(())
@@ -569,9 +573,9 @@ mod tests {
         let ok = StaticIp { ip: "192.168.0.5".into(), netmask: "255.255.255.0".into(), gateway: "192.168.0.1".into(), dns1: "9.9.9.9".into(), dns2: "".into() };
         assert_eq!(validate_static(&ok), Ok(()));
         assert!(StaticIp::default().is_empty());
-        assert_eq!(validate_static(&StaticIp { ip: "".into(), ..ok.clone() }), Err(IpError::Missing("IP")));
-        assert_eq!(validate_static(&StaticIp { netmask: "255.0.255.0".into(), ..ok.clone() }), Err(IpError::Invalid("Маска сети")));
-        assert_eq!(validate_static(&StaticIp { dns2: "x".into(), ..ok.clone() }), Err(IpError::Invalid("Вторичный DNS")));
+        assert_eq!(validate_static(&StaticIp { ip: "".into(), ..ok.clone() }), Err(IpError::Missing(IpField::Address)));
+        assert_eq!(validate_static(&StaticIp { netmask: "255.0.255.0".into(), ..ok.clone() }), Err(IpError::Invalid(IpField::Netmask)));
+        assert_eq!(validate_static(&StaticIp { dns2: "x".into(), ..ok.clone() }), Err(IpError::Invalid(IpField::SecondaryDns)));
         assert_eq!(validate_static(&StaticIp { gateway: "".into(), ..ok }), Ok(()), "gateway is optional");
     }
 

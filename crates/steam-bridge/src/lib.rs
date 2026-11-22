@@ -213,7 +213,7 @@ impl Bridge {
     /// True acknowledges dispatch only; never replay after an ambiguous reply.
     pub fn uninstall(&self, appid: u32) -> Result<bool> {
         // Strict result: generic act() treats a missing/non-boolean result as true.
-        Ok(self.eval_json_once(&js::ACTION_UNINSTALL.replace("{APPID}", &appid.to_string()))? == Value::Bool(true))
+        Ok(self.eval_json_once(&js::action_uninstall(appid))? == Value::Bool(true))
     }
     pub fn uninstall_installed(&self, appid: u32) -> Result<Option<bool>> {
         Ok(self.eval_json(&js::UNINSTALL_STATE.replace("{APPID}", &appid.to_string()))?.as_bool())
@@ -410,6 +410,11 @@ pub fn diff_fingerprint(old: &Value, new: &Value) -> Vec<BridgeEvent> {
         v.push(BridgeEvent::RunningAppChanged(ids));
     }
     v
+}
+
+#[cfg(test)]
+fn expected_text<'a>(russian: &'a str, english: &'a str) -> &'a str {
+    if steam_assets::i18n::current().code() == "ru" { russian } else { english }
 }
 
 #[cfg(test)]

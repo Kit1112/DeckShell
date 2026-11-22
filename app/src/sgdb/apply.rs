@@ -4,6 +4,7 @@
 //! Logo position: SteamClient.Apps.SetCustomLogoPositionForApp(appid, JSON {nVersion:1, logoPosition}) (= appDetailsStore.SaveCustomLogoPosition).
 //! Icons of Steam apps: the plugin "poisons" appcache/librarycache/<appid>/<icon_hash>.jpg through a temp file; same here.
 //! `DECKSHELL_DRYRUN=1` logs every call and changes nothing (undo snapshots included).
+use steam_assets::i18n::{tr_args, tr_ref};
 use std::fs;
 use std::io::Write;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -96,7 +97,7 @@ pub fn set_art(b: Option<&Bridge>, appid: u32, t: AType, file: &Path) -> Result<
         eprintln!("[deckshell] DRYRUN sgdb SteamClient.Apps.SetCustomArtworkForApp({appid}, <base64 {} bytes>, \"png\", {})", data.len(), t.e_asset());
         return Ok(());
     }
-    let b = b.ok_or("Steam недоступен (нет моста)")?;
+    let b = b.ok_or(tr_ref("sgdb.steam_unavailable"))?;
     b.eval_json(&js_set(appid, t, &base64(&data))).map(|_| ()).map_err(|e| e.to_string())
 }
 
@@ -105,7 +106,7 @@ pub fn clear_art(b: Option<&Bridge>, appid: u32, t: AType) -> Result<(), String>
         eprintln!("[deckshell] DRYRUN sgdb SteamClient.Apps.ClearCustomArtworkForApp({appid}, {})", t.e_asset());
         return Ok(());
     }
-    let b = b.ok_or("Steam недоступен (нет моста)")?;
+    let b = b.ok_or(tr_ref("sgdb.steam_unavailable"))?;
     b.eval_json(&format!("(async()=>{{await SteamClient.Apps.ClearCustomArtworkForApp({appid},{});await new Promise(r=>setTimeout(r,500));return true}})()", t.e_asset())).map(|_| ()).map_err(|e| e.to_string())
 }
 
@@ -117,7 +118,7 @@ pub fn set_logo_position(b: Option<&Bridge>, appid: u32, pin: usize, w: f32, h: 
         eprintln!("[deckshell] DRYRUN sgdb SteamClient.Apps.SetCustomLogoPositionForApp({appid}, {json})");
         return Ok(());
     }
-    let b = b.ok_or("Steam недоступен (нет моста)")?;
+    let b = b.ok_or(tr_ref("sgdb.steam_unavailable"))?;
     b.eval_json(&format!("SteamClient.Apps.SetCustomLogoPositionForApp({appid},{}).then(()=>true)", serde_json::Value::String(json))).map(|_| ()).map_err(|e| e.to_string())
 }
 
@@ -126,7 +127,7 @@ pub fn clear_logo_position(b: Option<&Bridge>, appid: u32) -> Result<(), String>
         eprintln!("[deckshell] DRYRUN sgdb SteamClient.Apps.ClearCustomLogoPositionForApp({appid})");
         return Ok(());
     }
-    let b = b.ok_or("Steam недоступен (нет моста)")?;
+    let b = b.ok_or(tr_ref("sgdb.steam_unavailable"))?;
     b.eval_json(&format!("SteamClient.Apps.ClearCustomLogoPositionForApp({appid}).then(()=>true)")).map(|_| ()).map_err(|e| e.to_string())
 }
 
@@ -144,12 +145,12 @@ pub fn set_steam_icon(b: Option<&Bridge>, root: &Path, appid: u32, file: &Path) 
     let hash = if dry() && b.is_none() {
         "<icon_hash>".to_string()
     } else {
-        b.ok_or("Steam недоступен (нет моста)")?
+        b.ok_or(tr_ref("sgdb.steam_unavailable"))?
             .eval_json(&format!("appStore.GetAppOverviewByAppID({appid}).icon_hash"))
             .map_err(|e| e.to_string())?
             .as_str()
             .filter(|s| !s.is_empty() && s.chars().all(|c| c.is_ascii_alphanumeric()))
-            .ok_or("у приложения нет icon_hash")?
+            .ok_or(tr_ref("sgdb.icon_hash_missing"))?
             .to_string()
     };
     let dir = root.join("appcache/librarycache").join(appid.to_string());
@@ -166,7 +167,7 @@ pub fn set_steam_icon(b: Option<&Bridge>, root: &Path, appid: u32, file: &Path) 
 // Stage both copies before replacing either file. In particular, `file` may be `bak`.
 fn stage_icon(path: &Path, data: &[u8]) -> Result<PathBuf, String> {
     static NEXT: AtomicU64 = AtomicU64::new(0);
-    let parent = path.parent().ok_or("некорректный путь иконки")?;
+    let parent = path.parent().ok_or(tr_ref("sgdb.invalid_icon_path"))?;
     fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     loop {
         let tmp = parent.join(format!(".deckshell-icon-{}-{}", std::process::id(), NEXT.fetch_add(1, Ordering::Relaxed)));
@@ -187,10 +188,10 @@ fn stage_icon(path: &Path, data: &[u8]) -> Result<PathBuf, String> {
 pub(super) fn replace_icon(dest: &Path, file: &Path, bak: &Path, none: &Path) -> Result<(), String> {
     // An absent cache icon cannot be restored by the existing icon Reset operation.
     // Refuse the change instead of recording an undo that cannot be performed.
-    let previous = fs::read(dest).map_err(|e| format!("не удалось сохранить прежнюю иконку {}: {e}", dest.display()))?;
+    let previous = fs::read(dest).map_err(|e| tr_args("sgdb.icon_backup_failed", &[("path", &dest.display().to_string()), ("e", &e.to_string())]))?;
     let incoming = fs::read(file).map_err(|e| format!("{}: {e}", file.display()))?;
     if incoming.is_empty() || incoming == previous {
-        return Err("иконка не изменилась".into());
+        return Err(tr_ref("sgdb.icon_unchanged").into());
     }
     let snapshot = stage_icon(bak, &previous)?;
     let staged = match stage_icon(dest, &incoming) {
@@ -203,10 +204,10 @@ pub(super) fn replace_icon(dest: &Path, file: &Path, bak: &Path, none: &Path) ->
         return Err(e.to_string());
     }
     // If this fails, keep the staged snapshot: it is the only copy of the previous icon.
-    fs::rename(&snapshot, bak).map_err(|e| format!("не удалось сохранить Undo; копия сохранена в {}: {e}", snapshot.display()))?;
+    fs::rename(&snapshot, bak).map_err(|e| tr_args("sgdb.undo_backup_failed", &[("path", &snapshot.display().to_string()), ("e", &e.to_string())]))?;
     let _ = fs::remove_file(none);
-    let actual = fs::read(dest).map_err(|e| format!("не удалось проверить иконку: {e}"))?;
-    if actual != incoming { return Err("запись иконки не подтверждена".into()); }
+    let actual = fs::read(dest).map_err(|e| tr_args("sgdb.icon_check_failed", &[("e", &e.to_string())]))?;
+    if actual != incoming { return Err(tr_ref("sgdb.icon_write_unconfirmed").into()); }
     Ok(())
 }
 

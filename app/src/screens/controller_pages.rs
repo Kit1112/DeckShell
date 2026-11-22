@@ -3,6 +3,7 @@
 //! 1 left trackpad, 2 right trackpad, 3 left stick, 6/7 left/right trigger, 10 gyro, 12 right stick, 13 D-pad.
 //! Rows follow the stock captures `editor-dpad/15b`, `editor-triggers/17`, `editor-trackpads/19`, `editor-joysticks/18`,
 //! `editor-gyro/20`, `editor-virtual-menu/21`, `editor-action-sets/22`. Nothing is written from here.
+use steam_assets::i18n::{tr_args, tr_ref};
 use super::controller_live::{msg, number, string, BindingRow};
 use super::controller_sticks as sticks;
 use crate::assets::t_or;
@@ -50,7 +51,7 @@ pub struct Item {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Id { None, Mode, Calibrate, AddVirtualMenu, AddActionSet, GlobalSettings, ActionSet, Analog }
 
-pub const SECTION_TITLES: [&str; 8] = ["Кнопки", "Крестовина", "Триггеры", "Джойстики", "Трекпады", "Гироскопы", "Виртуальное меню", "Наборы действий"];
+pub const SECTION_TITLES: [&str; 8] = ["controller.buttons", "controller.dpad", "controller.triggers", "controller.joysticks", "controller.trackpads", "controller.gyro", "controller.virtual_menus", "controller.action_sets"];
 
 fn item(kind: Kind, label: &str, value: &str) -> Item {
     Item { kind, label: label.into(), name: label.into(), value: value.into(), glyph: "", binding: None, stick: None, source: None, input: None, input_source: None, gear: false, dim: false, width: 0., x: None, id: Id::None }
@@ -62,20 +63,20 @@ fn header(label: &str) -> Item { item(Kind::Header, label, "") }
 /// Group.mode → (token, fallback) of the stock `B` table (`SourceMode_*`).
 pub fn mode_label(mode: i64) -> String {
     let (token, fallback) = match mode {
-        0 => ("None", "Не выбрано"), 1 => ("Dpad", "Крестовина"), 2 => ("Buttons", "Кнопки"), 3 => ("FourButtons", "Блок кнопок"),
-        4 => ("AbsoluteMouse", "Абсолютная мышь"), 5 => ("RelativeMouse", "Относительная мышь"), 6 => ("JoystickMove", "Джойстик"),
-        7 => ("JoystickMouse", "Джойстик-мышь"), 8 => ("JoystickCamera", "Джойстик-камера"), 9 => ("ScrollWheel", "Колесо прокрутки"),
-        10 => ("Trigger", "Триггер"), 11 => ("TouchMenu", "Сенсорное меню"), 12 => ("MouseJoystick", "Как джойстик"),
-        13 => ("MouseRegion", "Область действия мыши"), 14 => ("RadialMenu", "Радиальное меню"), 15 => ("SingleButton", "Одна кнопка"),
-        16 => ("Switches", "Переключатели"), 17 => ("FlickStick", "Flick Stick"),
-        18 => ("2DScrollwheel", "Свайп в сторону"), 19 => ("Hotbar", "Панель быстрого доступа"),
-        20 => ("Disabled", "Не выбрано"), 22 => ("Gyro_To_Mouse_Title", "Гироскоп как мышь"),
-        23 => ("Gyro_To_JoystickCamera_Title", "Гироскоп как джойстик: камера"),
-        24 => ("Gyro_To_JoystickDeflection_Title", "Гироскоп как джойстик: отклонение"),
-        25 => ("GyroToCameraAngles_Title", "Гироскоп: углы камеры"),
-        26 => ("JoystickToCameraAngles_Title", "Джойстик: углы камеры"),
-        27 => ("FlickStickToCameraAngles_Title", "Флик-стик: углы камеры"),
-        28 => ("TrackPadToCameraAngles_Title", "Трекпад: углы камеры"), _ => return format!("Режим {mode}"),
+        0 => ("None", tr_ref("controller.none")), 1 => ("Dpad", tr_ref("controller.dpad")), 2 => ("Buttons", tr_ref("controller.buttons")), 3 => ("FourButtons", tr_ref("controller.button_pad")),
+        4 => ("AbsoluteMouse", tr_ref("controller.absolute_mouse")), 5 => ("RelativeMouse", tr_ref("controller.relative_mouse")), 6 => ("JoystickMove", tr_ref("controller.output_joystick")),
+        7 => ("JoystickMouse", tr_ref("controller.joystick_mouse")), 8 => ("JoystickCamera", tr_ref("controller.joystick_camera")), 9 => ("ScrollWheel", tr_ref("controller.scroll_wheel")),
+        10 => ("Trigger", tr_ref("controller.trigger")), 11 => ("TouchMenu", tr_ref("controller.touch_menu")), 12 => ("MouseJoystick", tr_ref("controller.as_joystick")),
+        13 => ("MouseRegion", tr_ref("controller.mouse_region")), 14 => ("RadialMenu", tr_ref("controller.radial_menu")), 15 => ("SingleButton", tr_ref("controller.single_button")),
+        16 => ("Switches", tr_ref("controller.switches")), 17 => ("FlickStick", "Flick Stick"),
+        18 => ("2DScrollwheel", tr_ref("controller.directional_swipe")), 19 => ("Hotbar", tr_ref("controller.hotbar_menu")),
+        20 => ("Disabled", tr_ref("controller.none")), 22 => ("Gyro_To_Mouse_Title", tr_ref("controller.gyro_to_mouse")),
+        23 => ("Gyro_To_JoystickCamera_Title", tr_ref("controller.gyro_to_joystick_camera")),
+        24 => ("Gyro_To_JoystickDeflection_Title", tr_ref("controller.gyro_to_joystick_deflection")),
+        25 => ("GyroToCameraAngles_Title", tr_ref("controller.gyro_to_camera_angles")),
+        26 => ("JoystickToCameraAngles_Title", tr_ref("controller.joystick_to_camera_angles")),
+        27 => ("FlickStickToCameraAngles_Title", tr_ref("controller.flick_stick_to_camera_angles")),
+        28 => ("TrackPadToCameraAngles_Title", tr_ref("controller.trackpad_to_camera_angles")), _ => return tr_args("controller.mode_mode", &[("mode", &mode.to_string())]),
     };
     t_or(&format!("#ControllerConfigurator_SourceMode_{token}"), fallback)
 }
@@ -84,8 +85,8 @@ fn mode_token(mode: i64) -> &'static str {
 }
 fn input_label(mode: i64, input: i64) -> String {
     let (suffix, fallback) = match (mode, input) {
-        (10, 13) => ("Click", "Полное нажатие на триггер"), (10, 15) => ("Edge", "Неполное нажатие на триггер"),
-        (_, 13) => ("Click", "Нажатие"), (_, 50) => ("Touch", "Касание"), (_, 15) => ("Edge", "Внешнее кольцо"), _ => return String::new(),
+        (10, 13) => ("Click", tr_ref("controller.full_pull")), (10, 15) => ("Edge", tr_ref("controller.soft_pull")),
+        (_, 13) => ("Click", tr_ref("controller.click")), (_, 50) => ("Touch", tr_ref("controller.touch")), (_, 15) => ("Edge", tr_ref("controller.outer_ring_command")), _ => return String::new(),
     };
     t_or(&format!("#ControllerConfigurator_SourceMode_{}_{suffix}", mode_token(mode)), fallback)
 }
@@ -115,14 +116,12 @@ fn input_row(raw: &[u8], rows: &[BindingRow], key: i64, mode: i64, input: i64, g
     it.binding = binding_for(raw, rows, key, input);
     match it.binding {
         Some(i) => it.value = super::controller_editor::command_label(&rows[i].binding),
-        None => { it.value = t_or("#ControllerConfigurator_AddCommand", "Добавить команду"); it.dim = true; }
+        None => { it.value = t_or("#ControllerConfigurator_AddCommand", tr_ref("controller.add_command")); it.dim = true; }
     }
     it
 }
 fn function_row(source: i64, mode: Option<i64>, gear: bool) -> Item {
-    // The stock token is "Функции: %1$s"; the capture shows only «Функции» (the mode is the button value).
-    let label = t_or("#ControllerConfigurator_SourceMode_Group_Behavior", "Функции");
-    let label = label.split(':').next().unwrap_or("Функции").trim().to_string();
+    let label = t_or("#ControllerConfigurator_SourceMode_Group_BehaviorField", tr_ref("controller.behavior"));
     let mut it = item(Kind::Function, &label, &super::controller_quick::mode_name(source, mode.unwrap_or(0)));
     it.gear = gear;
     it.source = Some(source);
@@ -132,8 +131,8 @@ fn function_row(source: i64, mode: Option<i64>, gear: bool) -> Item {
 }
 pub(super) fn source_title(key: i64) -> String {
     let (token, fallback) = match key {
-        1 => ("LeftTrackpad", "Левый трекпад"), 2 => ("RightTrackpad", "Правый трекпад"), 3 => ("Joystick", "Левый джойстик"), 4 => ("FaceButtons", "Лицевые кнопки"), 6 => ("LeftTrigger", "Левый триггер"),
-        7 => ("RightTrigger", "Правый триггер"), 10 => ("Gyro", "Гироскоп"), 12 => ("RightJoystick", "Правый джойстик"), 13 => ("DPad", "Крестовина"), _ => ("", "Источник"),
+        1 => ("LeftTrackpad", tr_ref("controller.left_trackpad_2")), 2 => ("RightTrackpad", tr_ref("controller.right_trackpad_2")), 3 => ("Joystick", tr_ref("controller.left_joystick_2")), 4 => ("FaceButtons", tr_ref("controller.face_buttons_2")), 6 => ("LeftTrigger", tr_ref("controller.left_trigger")),
+        7 => ("RightTrigger", tr_ref("controller.right_trigger")), 10 => ("Gyro", tr_ref("controller.gyro_3")), 12 => ("RightJoystick", tr_ref("controller.right_joystick_2")), 13 => ("DPad", tr_ref("controller.dpad")), _ => ("", tr_ref("controller.source")),
     };
     t_or(&format!("#ControllerConfigurator_Source_{token}"), fallback)
 }
@@ -145,9 +144,9 @@ fn dpad_rows(raw: &[u8], rows: &[BindingRow], key: i64, out: &mut Vec<Item>) {
     let g = dpad_glyphs(key);
     for (input, glyph) in [(1, g[0]), (5, g[1]), (7, g[2]), (3, g[3])] {
         let mut it = input_row(raw, rows, key, 1, input, glyph, Some(String::new()));
-        it.name = match input { 1 => "Крестовина вверх", 5 => "Крестовина вниз", 7 => "Крестовина влево", _ => "Крестовина вправо" }.into();
+        it.name = match input { 1 => tr_ref("controller.dpad_up"), 5 => tr_ref("controller.dpad_down"), 7 => tr_ref("controller.dpad_left"), _ => tr_ref("controller.dpad_right") }.into();
         // Stock names the direction on the (empty) command button instead of a left label.
-        if it.binding.is_none() { it.value = match input { 1 => "Крестовина вверх", 5 => "Крестовина вниз", 7 => "Крестовина влево", _ => "Крестовина вправо" }.into(); it.dim = false; }
+        if it.binding.is_none() { it.value = match input { 1 => tr_ref("controller.dpad_up"), 5 => tr_ref("controller.dpad_down"), 7 => tr_ref("controller.dpad_left"), _ => tr_ref("controller.dpad_right") }.into(); it.dim = false; }
         out.push(it);
     }
 }
@@ -166,10 +165,10 @@ pub fn items_for_set(layout: &[u8], rows: &[BindingRow], section: usize, set_ind
             let find = |input: i64| string(raw, 1).ok().and_then(|set| rows.iter().position(|r| r.target.action_set_key == set
                 && r.target.action_set_layer_key.is_none() && r.target.input_key == input && r.target.activator_index == 0 && r.target.binding_index == 0));
             let groups: [(&str, &str, &[(i64, &str, &str)]); 4] = [
-                ("#ControllerConfigurator_FaceButtons", "Лицевые кнопки", &[(12, "A", "shared_button_a"), (10, "B", "shared_button_b"), (11, "X", "shared_button_x"), (9, "Y", "shared_button_y")]),
-                ("#ControllerConfigurator_Bumpers", "Бамперы", &[(53, "Левый бампер", "sd_l1"), (54, "Правый бампер", "sd_r1")]),
-                ("#ControllerConfigurator_ExtraButtons", "Дополнительные кнопки", &[(55, "L4", "sd_l4"), (56, "R4", "sd_r4"), (57, "L5", "sd_l5"), (58, "R5", "sd_r5")]),
-                ("#ControllerConfigurator_MenuButtons", "Кнопки меню", &[(51, "Выбрать", "sd_button_view"), (52, "Начать", "sd_button_menu")]),
+                ("#ControllerConfigurator_FaceButtons", tr_ref("controller.face_buttons_2"), &[(12, "A", "shared_button_a"), (10, "B", "shared_button_b"), (11, "X", "shared_button_x"), (9, "Y", "shared_button_y")]),
+                ("#ControllerConfigurator_Bumpers", tr_ref("controller.bumpers"), &[(53, tr_ref("controller.left_bumper"), "sd_l1"), (54, tr_ref("controller.right_bumper"), "sd_r1")]),
+                ("#ControllerConfigurator_ExtraButtons", tr_ref("controller.extended_buttons"), &[(55, "L4", "sd_l4"), (56, "R4", "sd_r4"), (57, "L5", "sd_l5"), (58, "R5", "sd_r5")]),
+                ("#ControllerConfigurator_MenuButtons", tr_ref("controller.menu_buttons"), &[(51, tr_ref("controller.select"), "sd_button_view"), (52, tr_ref("controller.start"), "sd_button_menu")]),
             ];
             for (n, (token, fallback, inputs)) in groups.into_iter().enumerate() {
                 out.push(header(&t_or(token, fallback)));
@@ -184,7 +183,7 @@ pub fn items_for_set(layout: &[u8], rows: &[BindingRow], section: usize, set_ind
                     it.binding = find(input);
                     match it.binding {
                         Some(i) => it.value = super::controller_editor::command_label(&rows[i].binding),
-                        None => { it.value = t_or("#ControllerConfigurator_AddCommand", "Добавить команду"); it.dim = true; }
+                        None => { it.value = t_or("#ControllerConfigurator_AddCommand", tr_ref("controller.add_command")); it.dim = true; }
                     }
                     out.push(it);
                 }
@@ -195,13 +194,13 @@ pub fn items_for_set(layout: &[u8], rows: &[BindingRow], section: usize, set_ind
             out.push(function_row(13, source_mode(raw, 13).map(|m| m.0), true));
             dpad_rows(raw, rows, 13, &mut out);
         }
-        2 => for (key, glyph_full, glyph_soft, side) in [(7, "sd_r2", "sd_r2_half", "Правый триггер"), (6, "sd_l2", "sd_l2_half", "Левый триггер")] {
+        2 => for (key, glyph_full, glyph_soft, side) in [(7, "sd_r2", "sd_r2_half", tr_ref("controller.right_trigger")), (6, "sd_l2", "sd_l2_half", tr_ref("controller.left_trigger"))] {
             let mode = source_mode(raw, key).map(|m| m.0);
             out.push(header(&source_title(key)));
             out.push(function_row(key, mode, true));
             out.push(input_row(raw, rows, key, 10, 13, glyph_full, None));
             out.push(input_row(raw, rows, key, 10, 15, glyph_soft, None));
-            let mut analog = item(Kind::Param, &t_or("#ControllerConfigurator_SourceMode_Trigger_Analog", "Аналоговое нажатие триггера"), &t_or(&format!("#ControllerConfigurator_Source_{}", if key == 7 { "RightTrigger" } else { "LeftTrigger" }), side));
+            let mut analog = item(Kind::Param, &t_or("#ControllerConfigurator_SourceMode_Trigger_Analog", tr_ref("controller.analog_output_trigger")), &t_or(&format!("#ControllerConfigurator_Source_{}", if key == 7 { "RightTrigger" } else { "LeftTrigger" }), side));
             analog.id = Id::Analog;
             analog.width = 375.;
             out.push(analog);
@@ -226,7 +225,7 @@ pub fn items_for_set(layout: &[u8], rows: &[BindingRow], section: usize, set_ind
                     it.binding = rows.iter().position(|r| r.target.action_set_key == stick.target.action_set_key && r.target.action_set_layer_key == stick.target.action_set_layer_key
                         && r.target.source_binding_key == key && r.target.input_key == input && r.target.activator_index == 0 && r.target.binding_index == 0);
                     if let Some(b) = it.binding { it.value = super::controller_editor::command_label(&rows[b].binding); it.dim = false; }
-                    else { it.value = t_or("#ControllerConfigurator_AddCommand", "Добавить команду"); it.dim = true; }
+                    else { it.value = t_or("#ControllerConfigurator_AddCommand", tr_ref("controller.add_command")); it.dim = true; }
                     out.push(it);
                 }
             }
@@ -243,13 +242,13 @@ pub fn items_for_set(layout: &[u8], rows: &[BindingRow], section: usize, set_ind
             out.push(header(&source_title(10)));
             let mode = source_mode(raw, 10).map(|m| m.0);
             out.push(function_row(10, mode, mode.is_some_and(|value| !matches!(value, 0 | 20))));
-            let mut calibrate = item(Kind::Button, &t_or("#Settings_ControllerCalibration_CalibrateIMU", "Калибровка гироскопа"), &t_or("#Settings_ControllerCalibration_Calibrate", "Калибровать"));
+            let mut calibrate = item(Kind::Button, &t_or("#Settings_ControllerCalibration_CalibrateIMU", tr_ref("controller.gyro_calibration")), &t_or("#Settings_ControllerCalibration_Calibrate", tr_ref("controller.calibrate")));
             calibrate.id = Id::Calibrate;
             calibrate.width = 240.;
             out.push(calibrate);
         }
         6 => {
-            let mut add = item(Kind::Button, "", &t_or("#ControllerConfigurator_AddVirtualMenu", "Добавить виртуальное меню"));
+            let mut add = item(Kind::Button, "", &t_or("#ControllerConfigurator_AddVirtualMenu", tr_ref("controller.add_virtual_menu")));
             add.id = Id::AddVirtualMenu;
             add.width = 406.;
             out.push(add);
@@ -262,9 +261,9 @@ pub fn items_for_set(layout: &[u8], rows: &[BindingRow], section: usize, set_ind
                 it.id = Id::ActionSet;
                 out.push(it);
             }
-            let mut add = item(Kind::Button, "", &t_or("#ControllerConfigurator_AddActionSet", "Добавить набор действий"));
+            let mut add = item(Kind::Button, "", &t_or("#ControllerConfigurator_AddActionSet", tr_ref("controller.add_action_set")));
             add.id = Id::AddActionSet; add.width = 410.; add.x = Some(0.);
-            let mut global = item(Kind::Button, "", &t_or("#ControllerConfigurator_GlobalSettings", "Глобальные настройки набора"));
+            let mut global = item(Kind::Button, "", &t_or("#ControllerConfigurator_GlobalSettings", tr_ref("controller.global_set_options")));
             global.id = Id::GlobalSettings; global.width = 409.; global.x = Some(440.);
             out.push(add);
             out.push(global);
@@ -347,48 +346,49 @@ mod tests {
         let r = rows(&raw).unwrap();
         let dpad = items(&raw, &r, 1);
         assert_eq!(dpad.iter().map(|i| i.kind).collect::<Vec<_>>(), [Kind::Header, Kind::Function, Kind::Input, Kind::Input, Kind::Input, Kind::Input]);
-        assert_eq!(dpad[1].value, "Крестовина");
+        assert_eq!(dpad[1].value, tr_ref("controller.dpad"));
         let triggers = items(&raw, &r, 2);
-        assert_eq!(triggers.iter().filter(|i| i.kind == Kind::Header).map(|i| i.label.as_str()).collect::<Vec<_>>(), ["Правый триггер", "Левый триггер"]);
-        assert_eq!(triggers[2].label, "Полное нажатие на триггер");
-        assert_eq!(triggers[3].label, "Неполное нажатие на триггер");
+        assert_eq!(triggers.iter().filter(|i| i.kind == Kind::Header).map(|i| i.label.as_str()).collect::<Vec<_>>(), [tr_ref("controller.right_trigger"), tr_ref("controller.left_trigger")]);
+        assert_eq!(triggers[2].label, tr_ref("controller.full_pull"));
+        assert_eq!(triggers[3].label, tr_ref("controller.soft_pull"));
         let pads = items(&raw, &r, 4);
-        assert_eq!(pads[0].label, "Правый трекпад");
-        assert_eq!(pads[1].value, "Джойстик");
-        let left = pads.iter().position(|i| i.label == "Левый трекпад").unwrap();
-        assert_eq!(pads[left + 1].value, "Крестовина");
+        assert_eq!(pads[0].label, tr_ref("controller.right_trackpad_2"));
+        assert_eq!(pads[1].value, tr_ref("controller.output_joystick"));
+        let left = pads.iter().position(|i| i.label == tr_ref("controller.left_trackpad_2")).unwrap();
+        assert_eq!(pads[left + 1].value, tr_ref("controller.dpad"));
         assert_eq!(pads[left + 2..left + 6].iter().filter(|i| i.kind == Kind::Input).count(), 4);
         let gyro = items(&raw, &r, 5);
-        assert_eq!(gyro[1].value, "Не выбрано");
+        assert_eq!(gyro[1].value, tr_ref("controller.none"));
         assert!(!gyro[1].gear);
-        assert_eq!(gyro[2].value, "Калибровать");
+        assert_eq!(gyro[2].value, tr_ref("controller.calibrate"));
     }
     #[test]
     fn stick_page_lists_right_stick_first_with_click_touch_and_ring() {
         let Some(raw) = real() else { return };
         let r = rows(&raw).unwrap();
         let sticks = items(&raw, &r, 3);
-        assert_eq!(sticks.iter().filter(|i| i.kind == Kind::Header).map(|i| i.label.as_str()).collect::<Vec<_>>(), ["Правый джойстик", "Левый джойстик"]);
-        assert_eq!(sticks[2].label, "Нажатие");
-        assert_eq!(sticks[3].label, "Касание");
-        assert_eq!(sticks[4].label, "Внешнее кольцо");
-        assert!(sticks[3].dim && sticks[3].value == "Добавить команду");
+        assert_eq!(sticks.iter().filter(|i| i.kind == Kind::Header).map(|i| i.label.as_str()).collect::<Vec<_>>(), [tr_ref("controller.right_joystick_2"), tr_ref("controller.left_joystick_2")]);
+        assert_eq!(sticks[2].label, tr_ref("controller.click"));
+        assert_eq!(sticks[3].label, tr_ref("controller.touch"));
+        assert_eq!(sticks[4].label, tr_ref("controller.outer_ring_command"));
+        assert!(sticks[3].dim && sticks[3].value == tr_ref("controller.add_command"));
     }
     #[test]
     fn action_sets_and_virtual_menu_pages_have_stock_buttons() {
         let raw = [];
         let vm = items(&raw, &[], 6);
         assert_eq!(vm.len(), 1);
-        assert_eq!(vm[0].value, "Добавить виртуальное меню");
+        assert_eq!(vm[0].value, tr_ref("controller.add_virtual_menu"));
         assert_eq!(items(&raw, &[], 7).len(), 2);
     }
     #[test]
     fn stock_row_heights_follow_wrapping() {
-        let mut one = item(Kind::Input, "", "Крестовина вниз");
+        let ru = steam_assets::i18n::by_code("ru").unwrap();
+        let mut one = item(Kind::Input, "", &ru.tr("controller.dpad_down"));
         one.glyph = "shared_dpad_down";
-        let mut two = item(Kind::Input, "", "Крестовина вверх");
+        let mut two = item(Kind::Input, "", &ru.tr("controller.dpad_up"));
         two.glyph = "shared_dpad_up";
-        let mut empty = item(Kind::Input, "Полное нажатие на триггер", "Добавить команду");
+        let mut empty = item(Kind::Input, &ru.tr("controller.full_pull"), &ru.tr("controller.add_command"));
         empty.glyph = "sd_r2";
         let (p, _) = place(&[one, two, empty]);
         assert_eq!(p[0].h, 96., "{:?}", p[0]);
@@ -398,19 +398,20 @@ mod tests {
     }
     #[test]
     fn function_label_has_no_format_placeholder_and_labels_wrap_like_the_stock_capture() {
-        assert_eq!(function_row(7, Some(10), true).label, "Функции");
-        let mut full = item(Kind::Input, "Полное нажатие на триггер", "Добавить команду"); full.glyph = "sd_r2";
-        let mut half = item(Kind::Input, "Неполное нажатие на триггер", "Добавить команду"); half.glyph = "sd_r2_half";
-        let analog = item(Kind::Param, "Аналоговое нажатие триггера", "Правый триггер");
+        assert_eq!(function_row(7, Some(10), true).label, tr_ref("controller.behavior"));
+        let ru = steam_assets::i18n::by_code("ru").unwrap();
+        let mut full = item(Kind::Input, &ru.tr("controller.full_pull"), &ru.tr("controller.add_command")); full.glyph = "sd_r2";
+        let mut half = item(Kind::Input, &ru.tr("controller.soft_pull"), &ru.tr("controller.add_command")); half.glyph = "sd_r2_half";
+        let analog = item(Kind::Param, &ru.tr("controller.analog_output_trigger"), &ru.tr("controller.right_trigger"));
         let (p, _) = place(&[full, half, analog]);
-        assert_eq!(p[0].label, "Полное нажатие на триггер");
-        assert_eq!(p[1].label, "Неполное нажатие на\nтриггер");
-        assert_eq!(p[2].label, "Аналоговое нажатие триггера");
+        assert_eq!(p[0].label, ru.tr("controller.full_pull"));
+        assert_eq!(p[1].label, ru.tr("controller.soft_pull_of"));
+        assert_eq!(p[2].label, ru.tr("controller.analog_output_trigger"));
     }
     #[test]
     fn stock_group_spacing_matches_the_dom() {
         // editor-triggers/17: header, «Функции», two rows, «Аналоговое», next header 36 device px after the previous panel.
-        let items = vec![header("Правый триггер"), function_row(7, Some(10), true), { let mut i = item(Kind::Input, "Полное нажатие на триггер", "Добавить команду"); i.glyph = "sd_r2"; i }, { let mut i = item(Kind::Input, "Неполное нажатие на триггер", "Добавить команду"); i.glyph = "sd_r2_half"; i }, item(Kind::Param, "Аналоговое нажатие триггера", "Правый триггер"), header("Левый триггер")];
+        let items = vec![header(tr_ref("controller.right_trigger")), function_row(7, Some(10), true), { let mut i = item(Kind::Input, tr_ref("controller.full_pull"), tr_ref("controller.add_command")); i.glyph = "sd_r2"; i }, { let mut i = item(Kind::Input, tr_ref("controller.soft_pull"), tr_ref("controller.add_command")); i.glyph = "sd_r2_half"; i }, item(Kind::Param, tr_ref("controller.analog_output_trigger"), tr_ref("controller.right_trigger")), header(tr_ref("controller.left_trigger"))];
         let (p, _) = place(&items);
         assert_eq!((p[1].y, p[1].h), (54., 96.));
         assert_eq!(p[2].y, 54. + 96. + 9.);

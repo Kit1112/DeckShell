@@ -2,6 +2,7 @@
 //! (use it for ALL testing: never launch / install / uninstall / power for real while developing).
 //! Primary executor is steam-bridge (same SteamClient calls as the native handlers in docs/cdp/behavior/handlers.json);
 //! when the bridge is down the steam:// URL / deck-system fallbacks of `DataSource` are used.
+use steam_assets::i18n::{tr, tr_args, tr_ref};
 use std::sync::{Arc, Mutex, OnceLock};
 
 use steam_bridge::Bridge;
@@ -162,7 +163,7 @@ pub fn set_brightness(ds: &Arc<DataSource>, value: f32) {
     let ds = ds.clone();
     std::thread::spawn(move || {
         let (value, generation, result) = drain_level_queue(queue, |value| {
-            let result = if dryrun() { Err("пробный режим".to_string()) } else { ds.set_brightness(value).map_err(|e| e.to_string()) };
+            let result = if dryrun() { Err(tr("actions.dry_run")) } else { ds.set_brightness(value).map_err(|e| e.to_string()) };
             crate::diag::log("level.write", serde_json::json!({"brightness": true, "value": value, "path": "steam", "ok": result.is_ok()}));
             result
         });
@@ -192,9 +193,9 @@ pub fn set_volume(ds: &Arc<DataSource>, value: f32) {
     std::thread::spawn(move || {
         let (_, generation, result) = drain_level_queue(queue, |value| {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                if dryrun() { return Err("пробный режим".to_string()); }
+                if dryrun() { return Err(tr("actions.dry_run")); }
                 write_volume(&ds, value)
-            })).unwrap_or_else(|_| Err("ошибка системного вызова".to_string()))
+            })).unwrap_or_else(|_| Err(tr("actions.system_call_failed")))
         });
         let observed = ds.volume();
         crate::screens::defer(move |app| {
@@ -425,17 +426,17 @@ fn uninstall_confirmed(id: u32) {
     {
         let mut pending = UNINSTALL_PENDING.lock().unwrap();
         if pending.contains(&id) {
-            crate::screens::defer(|a| a.toast("Удаление уже запрошено; дождитесь обновления Steam."));
+            crate::screens::defer(|a| a.toast(tr_ref("actions.uninstall_pending")));
             return;
         }
         pending.push(id);
     }
-    let result = bridge().ok_or_else(|| "Steam bridge недоступен; запрос не отправлен.".to_string())
+    let result = bridge().ok_or_else(|| tr("actions.uninstall_bridge_unavailable"))
         .and_then(|b| crate::uninstall_flow::observe(&mut b.clone(), id));
     UNINSTALL_PENDING.lock().unwrap().retain(|&p| p != id);
     let message = match result {
-        Ok(()) => "Steam подтвердил: игра удалена с устройства.".to_string(),
-        Err(e) => format!("Удаление: {e}"),
+        Ok(()) => tr("actions.uninstall_confirmed"),
+        Err(e) => tr_args("actions.uninstall_error", &[("e", &e.to_string())]),
     };
     eprintln!("[deckshell] uninstall {id}: {message}");
     crate::screens::defer(move |a| a.toast(&message));

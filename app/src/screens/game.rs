@@ -5,6 +5,7 @@
 //!   controller btn -> controller configurator (no Act yet: falls back to Properties)       gear / START -> context menu
 //!   Down from the bar -> tab pills (page scrolls), Down again -> content, Up -> back; L1/R1 or Left/Right switch tabs; B from tabs -> bar
 //! Plugin elements (read-only): HLTB bar = Decky `hltb-for-deck` IndexedDB cache (via the bridge), player badge = Steam public API (curl).
+use steam_assets::i18n;
 use std::time::{Duration, Instant};
 
 use chrono::{Datelike, TimeZone};
@@ -73,10 +74,10 @@ pub struct State {
 }
 
 const TABS: [(&str, &str); 4] = [
-    ("#menu_activity", "Активность"),
-    ("#appdetails_tab_yourstuff", "Личное"),
-    ("#menu_community", "Сообщество"),
-    ("#appdetails_gameinfo", "Об игре"),
+    ("#menu_activity", "game.activity"),
+    ("#appdetails_tab_yourstuff", "game.your_stuff"),
+    ("#menu_community", "game.community"),
+    ("#appdetails_gameinfo", "game.game_info"),
 ];
 
 fn row_h(kind: i32) -> f32 {
@@ -90,6 +91,7 @@ fn row_h(kind: i32) -> f32 {
 
 pub fn wire(ui: &AppWindow) {
     let g = ui.global::<GameState>();
+    g.set_label_scroll_to_top(i18n::tr("game.scroll_to_top").into());
     g.on_button(|i| super::defer(move |a| a.game_button(i)));
     g.on_tab_clicked(|i| super::defer(move |a| {
         a.gm.zone = a.gm.zone.max(1);
@@ -124,7 +126,7 @@ pub fn wire(ui: &AppWindow) {
 
 pub fn init_strings(ui: &AppWindow) {
     let g = ui.global::<GameState>();
-    let labels: Vec<SharedString> = TABS.iter().map(|(tok, fb)| t_or(tok, fb).into()).collect();
+    let labels: Vec<SharedString> = TABS.iter().map(|(tok, fb)| t_or(tok, i18n::tr_ref(fb)).into()).collect();
     let toks: Vec<SharedString> = TABS.iter().map(|(tok, _)| (*tok).into()).collect();
     g.set_tabs(ModelRc::new(VecModel::from(labels)));
     g.set_tab_tokens(ModelRc::new(VecModel::from(toks)));
@@ -138,16 +140,16 @@ pub enum Primary {
     Update,
 }
 
-const MONTHS: [&str; 12] = ["янв.", "февр.", "марта", "апр.", "мая", "июня", "июля", "авг.", "сент.", "окт.", "нояб.", "дек."];
+const MONTHS: [&str; 12] = ["game.jan", "game.feb", "game.mar", "game.apr", "game.may", "game.jun", "game.jul", "game.aug", "game.sep", "game.oct", "game.nov", "game.dec"];
 
 /// "Сегодня" / "13 мая 2024 г." like Steam's last-played block.
 fn fmt_date(t: u64) -> String {
     let days = now_secs().saturating_sub(t) / 86_400;
     if days == 0 {
-        return "Сегодня".into();
+        return i18n::tr_ref("game.today").into();
     }
     match chrono::Local.timestamp_opt(t as i64, 0).single() {
-        Some(d) => format!("{} {} {} г.", d.day(), MONTHS[d.month0() as usize], d.year()),
+        Some(d) => i18n::tr_args("game.last_played_date", &[("day", &(d.day()).to_string()), ("month", i18n::tr_ref(MONTHS[d.month0() as usize])), ("year", &(d.year()).to_string())]),
         None => "-".into(),
     }
 }
@@ -205,7 +207,7 @@ impl App {
 
     pub(crate) fn primary_label_pub(&self, gi: usize) -> String {
         if !self.is_running(self.games()[gi].app_id) && self.install_download_pending(self.games()[gi].app_id) {
-            "Загрузка…".into()
+            i18n::tr_ref("game.uploading").into()
         } else {
             self.primary_label(self.primary_kind(gi))
         }
@@ -213,10 +215,10 @@ impl App {
 
     fn primary_label(&self, p: Primary) -> String {
         match p {
-            Primary::Play => t_or("#sale_playnow", &t_or("#GameAction_Play", "Играть")),
-            Primary::Resume => t_or("#GameAction_ResumeGameInProgress", "Возобновить"),
-            Primary::Install => t_or("#GameAction_Install", "Установить"),
-            Primary::Update => t_or("#GameAction_Update", "Обновить"),
+            Primary::Play => t_or("#sale_playnow", &t_or("#GameAction_Play", i18n::tr_ref("game.play"))),
+            Primary::Resume => t_or("#GameAction_ResumeGameInProgress", i18n::tr_ref("game.resume")),
+            Primary::Install => t_or("#GameAction_Install", i18n::tr_ref("game.install")),
+            Primary::Update => t_or("#GameAction_Update", i18n::tr_ref("game.update")),
         }
     }
 
@@ -299,34 +301,34 @@ impl App {
         let kv = |r: &mut Vec<_>, k: String, v: String| r.push((2, k, v, String::new(), None));
         match self.gm.tab {
             0 => {
-                r.push((0, TABS[0].1.into(), String::new(), String::new(), None));
-                kv(&mut r, t_or("#AppDetails_SectionTitle_LastPlayed", "Последний запуск"), played);
+                r.push((0, i18n::tr(TABS[0].1), String::new(), String::new(), None));
+                kv(&mut r, t_or("#AppDetails_SectionTitle_LastPlayed", i18n::tr_ref("game.last_played")), played);
                 if steam {
-                    r.push((3, t_or("#AppActivity_ViewLatestNews", "Посмотреть последние новости"), String::new(), "#appactivity_viewlatestnews".into(), Some(RowAct::News)));
+                    r.push((3, t_or("#AppActivity_ViewLatestNews", i18n::tr_ref("game.view_the_latest_news")), String::new(), "#appactivity_viewlatestnews".into(), Some(RowAct::News)));
                 }
             }
             1 => {
-                r.push((0, TABS[1].1.into(), String::new(), String::new(), None));
-                kv(&mut r, t_or("#AppDetails_SectionTitle_PlayTime", "Вы играли"), fmt_playtime(g.playtime_minutes));
-                kv(&mut r, t_or("#AppDetails_SectionTitle_LastPlayed", "Последний запуск"), played);
+                r.push((0, i18n::tr(TABS[1].1), String::new(), String::new(), None));
+                kv(&mut r, t_or("#AppDetails_SectionTitle_PlayTime", i18n::tr_ref("game.play_time")), fmt_playtime(g.playtime_minutes));
+                kv(&mut r, t_or("#AppDetails_SectionTitle_LastPlayed", i18n::tr_ref("game.last_played")), played);
                 if steam {
-                    r.push((3, t_or("#AppDetails_ViewAchievements", "Достижения"), String::new(), "#appdetails_achievements".into(), Some(RowAct::Achievements)));
+                    r.push((3, t_or("#AppDetails_ViewAchievements", i18n::tr_ref("game.achievements")), String::new(), "#appdetails_achievements".into(), Some(RowAct::Achievements)));
                 }
             }
             2 => {
-                r.push((0, TABS[2].1.into(), String::new(), String::new(), None));
+                r.push((0, i18n::tr(TABS[2].1), String::new(), String::new(), None));
                 if steam {
-                    r.push((3, t_or("#AppDetails_StorePage", "Страница в магазине"), String::new(), "#appdetails_storepage".into(), Some(RowAct::Store)));
+                    r.push((3, t_or("#AppDetails_StorePage", i18n::tr_ref("game.store_page")), String::new(), "#appdetails_storepage".into(), Some(RowAct::Store)));
                 } else {
-                    r.push((1, t_or("#AppDetails_NoCommunity", "Нет данных сообщества"), String::new(), String::new(), None));
+                    r.push((1, t_or("#AppDetails_NoCommunity", i18n::tr_ref("game.no_community_data")), String::new(), String::new(), None));
                 }
             }
             _ => {
-                r.push((0, TABS[3].1.into(), String::new(), String::new(), None));
-                kv(&mut r, t_or("#AppDetails_Name", "Название"), g.name.clone());
+                r.push((0, i18n::tr(TABS[3].1), String::new(), String::new(), None));
+                kv(&mut r, t_or("#AppDetails_Name", i18n::tr_ref("game.title")), g.name.clone());
                 kv(&mut r, "AppID".into(), g.app_id.to_string());
-                kv(&mut r, t_or("#AppDetails_SectionTitle_DiskSpaceRequired", "Размер на диске"), fmt_size(g.size_on_disk));
-                r.push((3, t_or("#Menu_Properties", "Свойства..."), String::new(), "#appdetails_properties".into(), Some(RowAct::Properties)));
+                kv(&mut r, t_or("#AppDetails_SectionTitle_DiskSpaceRequired", i18n::tr_ref("game.size_on_the_disc")), fmt_size(g.size_on_disk));
+                r.push((3, t_or("#Menu_Properties", i18n::tr_ref("game.properties")), String::new(), "#appdetails_properties".into(), Some(RowAct::Properties)));
             }
         }
         self.gm.rows = r;
@@ -536,12 +538,12 @@ impl App {
                     "(async()=>{{try{{const db=await new Promise((res,rej)=>{{const r=indexedDB.open('hltb-for-deck');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}});const v=await new Promise(r=>{{const q=db.transaction('keyvaluepairs').objectStore('keyvaluepairs').get('{id}');q.onsuccess=()=>r(q.result);q.onerror=()=>r(null)}});db.close();return v||null}}catch(e){{return null}}}})()"
                 );
                 let Ok(v) = b.eval_json(&js) else { return };
-                let rows: Vec<(String, String)> = [("mainStat", "Основной сюжет"), ("mainPlusStat", "Сюжет + доп. задания"), ("completeStat", "Полное прохождение"), ("allStylesStat", "Все стили")]
+                let rows: Vec<(String, String)> = [("mainStat", i18n::tr_ref("game.main_story")), ("mainPlusStat", i18n::tr_ref("game.plot_additional_assignments")), ("completeStat", i18n::tr_ref("game.complete_passage")), ("allStylesStat", i18n::tr_ref("game.all_styles"))]
                     .iter()
                     .filter(|_| v["showStats"].as_bool().unwrap_or(true))
                     .filter_map(|(k, l)| {
                         let s = v[*k].as_str()?.trim().to_string();
-                        (!s.is_empty() && s != "--" && s != "0").then(|| (format!("{} ч.", s.replace('.', ",")), (*l).to_string()))
+                        (!s.is_empty() && s != "--" && s != "0").then(|| (i18n::tr_args("game.hrs", &[("replace", &(crate::app::comma(s.to_owned())).to_string())]), (*l).to_string()))
                     })
                     .collect();
                 let _ = slint::invoke_from_event_loop(move || {

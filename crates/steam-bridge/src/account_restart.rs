@@ -12,6 +12,7 @@
 //!
 //! Автомат ([`run`]) не знает ни о файлах, ни о процессах: всё это даёт [`Host`]. Поэтому его гоняют
 //! на моке Steam с виртуальными часами.
+use steam_assets::i18n::{tr, tr_args, tr_ref};
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -52,12 +53,12 @@ impl Phase {
     /// Подпись под котиком.
     pub fn message(self) -> &'static str {
         match self {
-            Phase::Preparing => "Подготовка к смене аккаунта…",
-            Phase::ShuttingDown => "Steam закрывается…",
-            Phase::Rewriting => "Сохраняем выбор аккаунта…",
-            Phase::Starting => "Steam запускается…",
-            Phase::SigningIn => "Вход в выбранный аккаунт…",
-            Phase::RollingBack => "Возвращаем прежний аккаунт…",
+            Phase::Preparing => tr_ref("account_restart.preparing"),
+            Phase::ShuttingDown => tr_ref("account_restart.shutting_down"),
+            Phase::Rewriting => tr_ref("account_restart.selecting"),
+            Phase::Starting => tr_ref("account_restart.starting"),
+            Phase::SigningIn => tr_ref("account_restart.signing_in"),
+            Phase::RollingBack => tr_ref("account_restart.rolling_back"),
         }
     }
 }
@@ -132,11 +133,11 @@ fn wait_down(h: &mut impl Host, end: Duration) -> bool {
     let start = h.elapsed();
     while h.steam_running() {
         let now = h.elapsed();
-        if now.saturating_sub(start) >= SHUTDOWN_TIMEOUT || now >= end { h.note("ожидание закрытия Steam: предел"); return false; }
+        if now.saturating_sub(start) >= SHUTDOWN_TIMEOUT || now >= end { h.note(tr_ref("account_restart.shutdown_timeout_log")); return false; }
         h.sleep(POLL);
     }
     let took = h.elapsed().saturating_sub(start).as_secs_f32();
-    h.note(&format!("Steam закрыт за {took:.1} с"));
+    h.note(&tr_args("account_restart.shutdown_elapsed", &[("time", &format!("{:.1}", took))]));
     true
 }
 
@@ -152,18 +153,17 @@ fn wait_ready(h: &mut impl Host, want: &str, nudge: bool, end: Duration) -> Wait
     let mut kicked = false;
     let mut nudged = !nudge;
     let mut last: Option<Probe> = None;
-    h.note(&format!("ожидание готовности Steam под «{want}» (предел {} с, общий остаток {} с)",
-        START_TIMEOUT.as_secs(), end.saturating_sub(start).as_secs()));
+    h.note(&tr_args("account_restart.waiting_log", &[("want", want), ("limit", &START_TIMEOUT.as_secs().to_string()), ("remaining", &end.saturating_sub(start).as_secs().to_string())]));
     loop {
-        if h.cancelled() { h.note("отмена (B) во время ожидания"); return Wait::Cancelled; }
+        if h.cancelled() { h.note(tr_ref("account_restart.cancelled_wait_log")); return Wait::Cancelled; }
         let now = h.elapsed();
         if now.saturating_sub(start) >= START_TIMEOUT || now >= end {
-            h.note(&format!("тайм-аут ожидания через {:.1} с (общий предел: {})", now.saturating_sub(start).as_secs_f32(), now >= end));
+            h.note(&tr_args("account_restart.wait_timeout_log", &[("elapsed", &format!("{:.1}", now.saturating_sub(start).as_secs_f32())), ("limit", &(now >= end).to_string())]));
             return Wait::Timeout;
         }
         let probe = h.probe();
         if last.as_ref() != Some(&probe) {
-            h.note(&format!("Steam: {probe:?} (+{:.1} с)", now.saturating_sub(start).as_secs_f32()));
+            h.note(&tr_args("account_restart.probe_log", &[("probe", &format!("{:?}", probe)), ("elapsed", &format!("{:.1}", now.saturating_sub(start).as_secs_f32()))]));
             last = Some(probe.clone());
         }
         match probe {
@@ -171,13 +171,13 @@ fn wait_ready(h: &mut impl Host, want: &str, nudge: bool, end: Duration) -> Wait
                 down_since = None;
                 let name = account.filter(|a| !a.trim().is_empty());
                 match name {
-                    Some(a) if same_account(&a, want) => { h.note(&format!("готов под целью «{a}»")); return Wait::Ready; }
-                    Some(a) => { h.note(&format!("готов под другим аккаунтом «{a}», цель «{want}»")); return Wait::Other(Some(a)); }
+                    Some(a) if same_account(&a, want) => { h.note(&tr_args("account_restart.target_ready", &[("a", &a)])); return Wait::Ready; }
+                    Some(a) => { h.note(&tr_args("account_restart.wrong_account_ready", &[("a", &a), ("want", want)])); return Wait::Other(Some(a)); }
                     None => {
                         // состояние 5, но имя ещё не отдано: подождать, а не объявлять «другой аккаунт»
                         let since = *no_name_since.get_or_insert(now);
                         if now.saturating_sub(since) >= NAME_GRACE {
-                            h.note("готов, но имя аккаунта так и не получено");
+                            h.note(tr_ref("account_restart.no_ready_name"));
                             return Wait::Other(None);
                         }
                     }
@@ -188,7 +188,7 @@ fn wait_ready(h: &mut impl Host, want: &str, nudge: bool, end: Duration) -> Wait
                 let since = *login_screen_since.get_or_insert(now);
                 if !nudged && now.saturating_sub(since) >= LOGIN_SCREEN_NUDGE {
                     nudged = true;
-                    h.note(&format!("экран входа {} с: просим вход из кэша «{want}»", LOGIN_SCREEN_NUDGE.as_secs()));
+                    h.note(&tr_args("account_restart.cached_login", &[("seconds", &LOGIN_SCREEN_NUDGE.as_secs().to_string()), ("want", want)]));
                     h.nudge_login(want);
                 }
             }
@@ -197,9 +197,10 @@ fn wait_ready(h: &mut impl Host, want: &str, nudge: bool, end: Duration) -> Wait
                 let since = *down_since.get_or_insert(now);
                 if !kicked && now.saturating_sub(since) >= START_KICK && !h.steam_running() {
                     kicked = true;
-                    h.note(&format!("процесса Steam нет {} с после снятия hold: запускаем сами", START_KICK.as_secs()));
+                    h.note(&tr_args("account_restart.launch_fallback", &[("seconds", &START_KICK.as_secs().to_string())]));
                     let ok = h.start_steam();
-                    h.note(&format!("запуск Steam: {}", if ok { "выполнен" } else { "не удался" }));
+                    let status = if ok { tr_ref("account_restart.launch_ok") } else { tr_ref("account_restart.launch_failed") };
+                    h.note(&tr_args("account_restart.launch_result", &[("status", status)]));
                 }
             }
             _ => { login_screen_since = None; no_name_since = None; down_since = None; }
@@ -210,28 +211,28 @@ fn wait_ready(h: &mut impl Host, want: &str, nudge: bool, end: Duration) -> Wait
 
 /// Закрывает Steam под hold. `false` — не закрылся (hold снят, файлы не тронуты).
 fn shutdown(h: &mut impl Host, end: Duration) -> bool {
-    h.note("hold=вкл, steam -shutdown");
+    h.note(tr_ref("account_restart.shutdown_log"));
     h.hold(true);
     h.request_shutdown();
     if wait_down(h, end) { return true; }
-    h.note("Steam не закрылся: hold снят");
+    h.note(tr_ref("account_restart.shutdown_failed_log"));
     h.hold(false);
     false
 }
 
 /// Откат после закрытия Steam: файлы из бэкапа, перезапуск, ожидание прежнего аккаунта.
 fn roll_back(h: &mut impl Host, previous: &str, reason: String, end: Duration) -> Outcome {
-    h.note(&format!("откат: {reason}"));
+    h.note(&tr_args("account_restart.rollback_log", &[("reason", &reason)]));
     h.phase(Phase::RollingBack);
     let files = h.restore();
-    h.note(&format!("файлы из бэкапа: {files:?}; hold=выкл"));
+    h.note(&tr_args("account_restart.backup_restored_log", &[("files", &format!("{:?}", files))]));
     h.hold(false);
     let w = wait_ready(h, previous, true, end);
     let back = matches!(w, Wait::Ready);
     let mut message = reason;
-    if let Err(e) = files { let _ = write!(message, " Файлы входа вернуть не удалось: {e}."); }
-    if matches!(w, Wait::Cancelled) { message.push_str(" Ожидание прервано отменой."); }
-    if !back { message.push_str(" Прежний аккаунт Steam пока не подтвердил: проверьте вход."); }
+    if let Err(e) = files { let _ = write!(message, "{}", tr_args("account_restart.restore_failed", &[("e", &e.to_string())])); }
+    if matches!(w, Wait::Cancelled) { message.push_str(tr_ref("account_restart.wait_cancelled")); }
+    if !back { message.push_str(tr_ref("account_restart.previous_unconfirmed")); }
     Outcome::Failed { message, back_on_previous: back }
 }
 
@@ -239,49 +240,49 @@ fn roll_back(h: &mut impl Host, previous: &str, reason: String, end: Duration) -
 pub fn run(h: &mut impl Host, target: &str, previous: &str) -> Outcome {
     h.begin(target, previous);
     let outcome = run_inner(h, target, previous);
-    h.note(&format!("итог: {outcome:?}"));
+    h.note(&tr_args("account_restart.outcome_log", &[("outcome", &format!("{:?}", outcome))]));
     h.finished(&outcome);
     outcome
 }
 
 fn run_inner(h: &mut impl Host, target: &str, previous: &str) -> Outcome {
     let end = h.elapsed() + TOTAL_LIMIT;
-    h.note(&format!("старт: цель=«{target}» прежний=«{previous}»"));
+    h.note(&tr_args("account_restart.start_log", &[("target", target), ("previous", previous)]));
     if same_account(target, previous) {
         // Выбран аккаунт, под которым Steam уже вошёл: перезапуск ничего не даст и только вылогинит.
-        h.note("цель совпадает с текущим аккаунтом: ничего не делаем");
+        h.note(tr_ref("account_restart.same_account_log"));
         return Outcome::Done;
     }
     h.phase(Phase::Preparing);
     if let Err(e) = h.prepare(target) {
-        h.note(&format!("подготовка отказала: {e}"));
+        h.note(&tr_args("account_restart.prepare_failed_log", &[("e", &e.to_string())]));
         return Outcome::Failed { message: e, back_on_previous: true };
     }
-    h.note("подготовка и бэкап выполнены");
-    if h.cancelled() { h.note("отмена до закрытия Steam"); return Outcome::Cancelled; }
+    h.note(tr_ref("account_restart.prepared_log"));
+    if h.cancelled() { h.note(tr_ref("account_restart.early_cancel_log")); return Outcome::Cancelled; }
 
     h.phase(Phase::ShuttingDown);
     if !shutdown(h, end) {
-        return Outcome::Failed { message: "Steam не закрылся за отведённое время. Аккаунт не менялся.".into(), back_on_previous: true };
+        return Outcome::Failed { message: tr_ref("account_restart.shutdown_timeout").into(), back_on_previous: true };
     }
     // Отмену, пришедшую во время закрытия, исполняем без правки файлов: Steam просто поднимется как был.
     if h.cancelled() {
-        h.note("отмена при закрытии: файлы не трогаем, hold снят");
+        h.note(tr_ref("account_restart.shutdown_cancel_log"));
         h.phase(Phase::RollingBack);
         h.hold(false);
         let back = matches!(wait_ready(h, previous, true, end), Wait::Ready);
         return if back { Outcome::Cancelled }
-            else { Outcome::Failed { message: "Отменено, но Steam пока не подтвердил прежний аккаунт.".into(), back_on_previous: false } };
+            else { Outcome::Failed { message: tr_ref("account_restart.cancelled_unconfirmed").into(), back_on_previous: false } };
     }
 
     h.phase(Phase::Rewriting);
     let rewritten = h.rewrite(target);
-    h.note(&format!("правка файлов входа: {rewritten:?}"));
+    h.note(&tr_args("account_restart.login_files_changed", &[("rewritten", &format!("{:?}", rewritten))]));
     if let Err(e) = rewritten {
-        return roll_back(h, previous, format!("Не удалось выбрать аккаунт: {e}."), end);
+        return roll_back(h, previous, tr_args("account_restart.selection_failed", &[("e", &e.to_string())]), end);
     }
     h.phase(Phase::Starting);
-    h.note("hold=выкл: сессия должна поднять Steam");
+    h.note(tr_ref("account_restart.release_hold_log"));
     h.hold(false);
 
     h.phase(Phase::SigningIn);
@@ -290,7 +291,7 @@ fn run_inner(h: &mut impl Host, target: &str, previous: &str) -> Outcome {
         Wait::Cancelled => {
             // Steam уже поднимается под целью: возвращаем прежнего ещё одним перезапуском.
             if !shutdown(h, end) {
-                return Outcome::Failed { message: "Отмена: Steam не закрылся для возврата прежнего аккаунта.".into(), back_on_previous: false };
+                return Outcome::Failed { message: tr_ref("account_restart.cancel_shutdown_failed").into(), back_on_previous: false };
             }
             match roll_back(h, previous, String::new(), end) {
                 Outcome::Failed { back_on_previous: true, .. } => Outcome::Cancelled,
@@ -299,17 +300,17 @@ fn run_inner(h: &mut impl Host, target: &str, previous: &str) -> Outcome {
         }
         Wait::Timeout => {
             if !shutdown(h, end) {
-                return Outcome::Failed { message: "Steam не вошёл в аккаунт и не закрылся для отката.".into(), back_on_previous: false };
+                return Outcome::Failed { message: tr_ref("account_restart.rollback_shutdown_failed").into(), back_on_previous: false };
             }
-            roll_back(h, previous, "Steam не вошёл в выбранный аккаунт вовремя. Возвращён прежний.".into(), end)
+            roll_back(h, previous, tr_ref("account_restart.login_timeout").into(), end)
         }
         Wait::Other(account) => {
             // Steam готов, но не под целью (автовход проигнорирован). Перезапуск не нужен: вернуть файлы.
             let files = h.restore();
-            h.note(&format!("другой аккаунт {account:?}: файлы из бэкапа {files:?}"));
+            h.note(&tr_args("account_restart.wrong_account_restore_log", &[("account", &format!("{:?}", account)), ("files", &format!("{:?}", files))]));
             let on_previous = account.as_deref().is_some_and(|a| same_account(a, previous));
-            let mut message = "Steam вошёл в другой аккаунт, а не в выбранный.".to_string();
-            if let Err(e) = files { let _ = write!(message, " Файлы входа вернуть не удалось: {e}."); }
+            let mut message = tr("account_restart.wrong_account");
+            if let Err(e) = files { let _ = write!(message, "{}", tr_args("account_restart.restore_failed", &[("e", &e.to_string())])); }
             Outcome::Failed { message, back_on_previous: on_previous }
         }
     }
@@ -357,7 +358,7 @@ pub enum Recovery {
 /// ответа (≤ `START_TIMEOUT`), вернуть файлы входа. Ничего не показывает на экране и не ждёт дольше предела.
 pub fn recover(h: &mut impl Host, flow: &FlowState) -> Recovery {
     let end = h.elapsed() + START_TIMEOUT;
-    h.note(&format!("подхват незавершённого потока: фаза={} цель=«{}» прежний=«{}» (pid {} прервался)", flow.phase, flow.target, flow.previous, flow.pid));
+    h.note(&tr_args("account_restart.recovery_log", &[("phase", &(flow.phase).to_string()), ("target", &flow.target), ("previous", &flow.previous), ("pid", &flow.pid.to_string())]));
     h.hold(false);
     let touched = Phase::files_touched(&flow.phase);
     let result = match wait_ready(h, &flow.target, false, end) {
@@ -367,9 +368,9 @@ pub fn recover(h: &mut impl Host, flow: &FlowState) -> Recovery {
     };
     if result != Recovery::Completed && touched {
         let r = h.restore();
-        h.note(&format!("файлы входа из бэкапа: {r:?}"));
+        h.note(&tr_args("account_restart.recovery_files_log", &[("result", &format!("{:?}", r))]));
     }
-    h.note(&format!("подхват завершён: {result:?}"));
+    h.note(&tr_args("account_restart.recovery_done_log", &[("result", &format!("{:?}", result))]));
     result
 }
 
@@ -425,7 +426,7 @@ pub fn select_in_loginusers(text: &str, target: &str) -> Result<String, String> 
         let t = lines[i].trim();
         let is_id = t.len() == 19 && t.starts_with('"') && t.ends_with('"') && t[1..18].chars().all(|c| c.is_ascii_digit());
         if is_id && lines.get(i + 1).is_some_and(|l| l.trim() == "{") {
-            let end = (i + 2..lines.len()).find(|&j| lines[j].trim() == "}").ok_or("loginusers.vdf повреждён: нет закрывающей скобки")?;
+            let end = (i + 2..lines.len()).find(|&j| lines[j].trim() == "}").ok_or(tr_ref("account_restart.loginusers_invalid"))?;
             let body = &lines[i + 2..end];
             let name = body.iter().find_map(|l| kv(l).filter(|(k, _)| *k == "AccountName").map(|(_, v)| v)).unwrap_or("");
             let is_target = same(name, target);
@@ -448,7 +449,7 @@ pub fn select_in_loginusers(text: &str, target: &str) -> Result<String, String> 
             i += 1;
         }
     }
-    if !found { return Err(format!("аккаунта «{target}» нет в loginusers.vdf")); }
+    if !found { return Err(tr_args("account_restart.loginusers_account_missing", &[("target", target)])); }
     let mut s = out.join("\n");
     if text.ends_with('\n') { s.push('\n'); }
     Ok(s)
@@ -460,9 +461,9 @@ pub fn select_in_registry(text: &str, target: &str) -> Result<String, String> {
     if let Some(l) = lines.iter_mut().find(|l| kv(l).is_some_and(|(k, _)| k == "AutoLoginUser")) {
         *l = with_value(l, target);
     } else {
-        let hk = lines.iter().position(|l| l.trim() == "\"HKCU\"").ok_or("registry.vdf: нет раздела HKCU")?;
-        let steam = (hk..lines.len()).find(|&j| lines[j].trim() == "\"Steam\"").ok_or("registry.vdf: нет раздела Steam")?;
-        if lines.get(steam + 1).map(|l| l.trim()) != Some("{") { return Err("registry.vdf повреждён".into()); }
+        let hk = lines.iter().position(|l| l.trim() == "\"HKCU\"").ok_or(tr_ref("account_restart.registry_hkcu_missing"))?;
+        let steam = (hk..lines.len()).find(|&j| lines[j].trim() == "\"Steam\"").ok_or(tr_ref("account_restart.registry_steam_missing"))?;
+        if lines.get(steam + 1).map(|l| l.trim()) != Some("{") { return Err(tr_ref("account_restart.registry_invalid").into()); }
         let indent: String = lines[steam + 1].chars().take_while(|c| c.is_whitespace()).collect();
         lines.insert(steam + 2, format!("{indent}\t\"AutoLoginUser\"\t\t\"{}\"", vdf_escape(target)));
     }
@@ -502,16 +503,16 @@ impl Files {
 
     /// Проверка и бэкап. Нужны оба файла и сохранённые данные цели.
     pub fn prepare(&self, target: &str) -> Result<(), String> {
-        let users = std::fs::read_to_string(&self.loginusers).map_err(|e| format!("не прочитан loginusers.vdf: {e}"))?;
-        std::fs::read_to_string(&self.registry).map_err(|e| format!("не прочитан registry.vdf: {e}"))?;
+        let users = std::fs::read_to_string(&self.loginusers).map_err(|e| tr_args("account_restart.loginusers_read_failed", &[("e", &e.to_string())]))?;
+        std::fs::read_to_string(&self.registry).map_err(|e| tr_args("account_restart.registry_read_failed", &[("e", &e.to_string())]))?;
         match saved_users(&users).into_iter().find(|(n, _)| same(n, target)) {
-            None => return Err(format!("аккаунта «{target}» нет в сохранённых данных Steam")),
-            Some((_, false)) => return Err("для этого аккаунта Steam не хранит пароль: нужен ввод пароля".into()),
+            None => return Err(tr_args("account_restart.saved_account_missing", &[("target", target)])),
+            Some((_, false)) => return Err(tr_ref("account_restart.password_not_saved").into()),
             Some(_) => {}
         }
-        std::fs::create_dir_all(&self.backup_dir).map_err(|e| format!("нет места для бэкапа: {e}"))?;
+        std::fs::create_dir_all(&self.backup_dir).map_err(|e| tr_args("account_restart.backup_no_space", &[("e", &e.to_string())]))?;
         for p in [&self.loginusers, &self.registry] {
-            std::fs::copy(p, self.backup_of(p)).map_err(|e| format!("бэкап не создан: {e}"))?;
+            std::fs::copy(p, self.backup_of(p)).map_err(|e| tr_args("account_restart.backup_failed", &[("e", &e.to_string())]))?;
         }
         Ok(())
     }
@@ -770,7 +771,7 @@ mod tests {
         assert_eq!(run(&mut m, "target", "previous"), Outcome::Done);
         assert_eq!(count(&m, "kick"), 1);
         assert!(m.t < Duration::from_secs(60), "{:?}", m.t);
-        assert!(m.notes.iter().any(|n| n.contains("запускаем сами")));
+        assert!(m.notes.iter().any(|n| n.contains(crate::expected_text("запускаем сами", "Launching Steam"))));
     }
     #[test]
     fn target_equal_to_current_account_does_nothing() {
@@ -823,7 +824,18 @@ mod tests {
     fn journal_names_every_decision() {
         let mut m = Mock::new("previous"); m.boot = Boot::NeedsNudge;
         run(&mut m, "target", "previous");
-        for want in ["старт", "подготовка", "hold=вкл", "Steam закрыт", "правка файлов", "ожидание готовности", "вход из кэша", "готов под целью", "итог"] {
+        for (russian, english) in [
+            ("старт", "Starting"),
+            ("подготовка", "Preparation"),
+            ("hold=вкл", "hold enabled"),
+            ("Steam закрыт", "Steam exited"),
+            ("правка файлов", "Login files updated"),
+            ("ожидание готовности", "Waiting for Steam"),
+            ("вход из кэша", "cached login"),
+            ("готов под целью", "Ready under target"),
+            ("итог", "Outcome"),
+        ] {
+            let want = crate::expected_text(russian, english);
             assert!(m.notes.iter().any(|n| n.contains(want)), "нет «{want}» в {:#?}", m.notes);
         }
     }
@@ -874,7 +886,7 @@ mod tests {
     }
 
     // ------------------------------------------------------------ файлы
-    const USERS: &str = "\"users\"\n{\n\t\"76561198960265729\"\n\t{\n\t\t\"AccountName\"\t\t\"alpha\"\n\t\t\"PersonaName\"\t\t\"A\"\n\t\t\"RememberPassword\"\t\t\"1\"\n\t\t\"AutoLogin\"\t\t\"1\"\n\t\t\"timestamp\"\t\t\"10\"\n\t}\n\t\"76561198000000002\"\n\t{\n\t\t\"AccountName\"\t\t\"Beta\"\n\t\t\"PersonaName\"\t\t\"B\"\n\t\t\"RememberPassword\"\t\t\"1\"\n\t\t\"AutoLogin\"\t\t\"0\"\n\t\t\"timestamp\"\t\t\"5\"\n\t}\n\t\"76561198000000003\"\n\t{\n\t\t\"AccountName\"\t\t\"gamma\"\n\t\t\"RememberPassword\"\t\t\"0\"\n\t}\n}\n";
+    const USERS: &str = "\"users\"\n{\n\t\"76561198000000001\"\n\t{\n\t\t\"AccountName\"\t\t\"alpha\"\n\t\t\"PersonaName\"\t\t\"A\"\n\t\t\"RememberPassword\"\t\t\"1\"\n\t\t\"AutoLogin\"\t\t\"1\"\n\t\t\"timestamp\"\t\t\"10\"\n\t}\n\t\"76561198000000002\"\n\t{\n\t\t\"AccountName\"\t\t\"Beta\"\n\t\t\"PersonaName\"\t\t\"B\"\n\t\t\"RememberPassword\"\t\t\"1\"\n\t\t\"AutoLogin\"\t\t\"0\"\n\t\t\"timestamp\"\t\t\"5\"\n\t}\n\t\"76561198000000003\"\n\t{\n\t\t\"AccountName\"\t\t\"gamma\"\n\t\t\"RememberPassword\"\t\t\"0\"\n\t}\n}\n";
     const REG: &str = "\"Registry\"\n{\n\t\"HKCU\"\n\t{\n\t\t\"Software\"\n\t\t{\n\t\t\t\"Valve\"\n\t\t\t{\n\t\t\t\t\"Steam\"\n\t\t\t\t{\n\t\t\t\t\t\"language\"\t\t\"russian\"\n\t\t\t\t\t\"AutoLoginUser\"\t\t\"alpha\"\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t}\n}\n";
 
     #[test]
@@ -919,7 +931,7 @@ mod tests {
         let f = Files { loginusers: d.join("config/loginusers.vdf"), registry: d.join("registry.vdf"), backup_dir: d.join("bk") };
         std::fs::write(&f.loginusers, USERS).unwrap();
         std::fs::write(&f.registry, REG).unwrap();
-        assert!(f.prepare("gamma").unwrap_err().contains("пароль"));
+        assert!(f.prepare("gamma").unwrap_err().contains(crate::expected_text("пароль", "password")));
         assert!(f.prepare("nobody").is_err());
         assert!(!f.backup_dir.exists(), "при отказе бэкап не создаётся");
         f.prepare("beta").unwrap();
@@ -1014,7 +1026,7 @@ impl Host for SystemHost<'_> {
     fn request_shutdown(&mut self) {
         // Over steam.pipe only: `steam -shutdown` STARTS a client when Steam has already gone, and that client is the
         // stock Gamepad UI (Deck 2026-11-18 14:03:34; docs/steam-ui-parallel-2026-11-20.md).
-        if let Err(e) = steam_control::request_shutdown() { self.note(&format!("shutdown не отправлен: {e}")); }
+        if let Err(e) = steam_control::request_shutdown() { self.note(&tr_args("account_restart.shutdown_send_failed", &[("e", &e.to_string())])); }
     }
     fn steam_running(&mut self) -> bool { steam_process_alive() }
     fn rewrite(&mut self, target: &str) -> Result<(), String> { self.files.rewrite(target) }
@@ -1034,7 +1046,7 @@ impl Host for SystemHost<'_> {
     /// Нажатие B исполняется один раз (флаг снимается); повторное нажатие в откате обрывает ожидание.
     fn cancelled(&mut self) -> bool { self.cancel.swap(false, std::sync::atomic::Ordering::SeqCst) }
     fn phase(&mut self, p: Phase) {
-        self.note(&format!("фаза: {p:?}"));
+        self.note(&tr_args("account_restart.phase_log", &[("phase", &format!("{:?}", p))]));
         if let Some(f) = self.flow.as_mut() { f.phase = p.key().into(); }
         self.save_flow();
         (self.on_phase)(p)
@@ -1080,10 +1092,10 @@ pub fn recover_interrupted(steam_root: &Path, state_dir: &Path) -> Option<Recove
     let text = std::fs::read_to_string(&path).ok()?;
     let flow: FlowState = match serde_json::from_str(&text) {
         Ok(f) => f,
-        Err(e) => { eprintln!("[account-switch] flow.json нечитаем ({e}): удалён"); let _ = std::fs::remove_file(&path); return None; }
+        Err(e) => { eprintln!("{}", tr_args("account_restart.flow_removed_log", &[("e", &e.to_string())])); let _ = std::fs::remove_file(&path); return None; }
     };
     if flow.pid != std::process::id() && Path::new(&format!("/proc/{}", flow.pid)).exists() {
-        eprintln!("[account-switch] поток pid {} ещё жив: не вмешиваемся", flow.pid);
+        eprintln!("{}", tr_args("account_restart.flow_running_log", &[("pid", &flow.pid.to_string())]));
         return None;
     }
     let home = std::path::PathBuf::from(std::env::var_os("HOME").unwrap_or_default());

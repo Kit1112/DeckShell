@@ -1,6 +1,6 @@
 {
   "schema": "rust-anything/bridge@1",
-  "root": "/home/kit/.local/state/dispatcher/worktrees/repo-cf5bc645/task-476/tools/rust-anything/battery",
+  "root": "tools/rust-anything/battery",
   "unit": "battery.mjs",
   "language": "ts",
   "kind": "wasm",

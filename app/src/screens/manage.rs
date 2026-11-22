@@ -5,6 +5,7 @@
 //! (Steam hides them in the gamepad menu). Writes: collectionStore.SetAppsAsFavorite / SetAppsAsHidden / collection.AddApps / RemoveApps,
 //! SteamClient.Apps.RemoveShortcut (+ removal from user collections after 500 ms like sp.js:498507), Act::Uninstall.
 //! All writes go through `setters::write` (DRYRUN-gated); the local view is patched at once.
+use steam_assets::i18n;
 use serde_json::Value;
 use steam_data::GameKind;
 
@@ -100,23 +101,23 @@ impl App {
         if m.with_primary {
             v.push(it(self.menu_primary_label(gi), MAct::Primary));
             if steam {
-                v.push(it(t_or("#AppDetails_StorePage", "Страница в магазине"), MAct::Store));
-                v.push(it(t_or("#AppDetails_ViewAchievements", "Достижения"), MAct::Achievements));
+                v.push(it(t_or("#AppDetails_StorePage", i18n::tr_ref("manage.store_page")), MAct::Store));
+                v.push(it(t_or("#AppDetails_ViewAchievements", i18n::tr_ref("manage.achievements")), MAct::Achievements));
             }
         }
         let fav = m.fav.unwrap_or_else(|| Self::is_favorite(g));
         v.push(it(
-            if fav { t_or("#GameAction_RemoveFromFavorites", "Убрать из избранного") } else { t_or("#GameAction_AddToFavorites", "Добавить в избранное") },
+            if fav { t_or("#GameAction_RemoveFromFavorites", i18n::tr_ref("manage.remove_from_favorites")) } else { t_or("#GameAction_AddToFavorites", i18n::tr_ref("manage.add_to_favorites")) },
             MAct::ToggleFav,
         ));
-        v.push(sub(t_or("#GameAction_AddToCollection", "Добавить в..."), Sub::AddTo));
+        v.push(sub(t_or("#GameAction_AddToCollection", i18n::tr_ref("manage.add_to")), Sub::AddTo));
         if m.colls.iter().any(|c| c.2) {
-            v.push(sub(t_or("#GameAction_RemoveFromCollection", "Убрать из..."), Sub::RemoveFrom));
+            v.push(sub(t_or("#GameAction_RemoveFromCollection", i18n::tr_ref("manage.remove_from")), Sub::RemoveFrom));
         }
-        v.push(sub(t_or("#Button_Manage", "Управление"), Sub::Manage));
-        v.push(it(t_or("#GameAction_ChangeArt", "Сменить картинку..."), MAct::Artwork));
-        v.push(it(t_or("#GameAction_GameProperties", "Свойства..."), MAct::Properties));
-        v.push(it(t_or("#GameAction_Cancel", "Отмена"), MAct::Cancel));
+        v.push(sub(t_or("#Button_Manage", i18n::tr_ref("manage.manage")), Sub::Manage));
+        v.push(it(t_or("#GameAction_ChangeArt", i18n::tr_ref("manage.change_the_picture")), MAct::Artwork));
+        v.push(it(t_or("#GameAction_GameProperties", i18n::tr_ref("manage.properties")), MAct::Properties));
+        v.push(it(t_or("#GameAction_Cancel", i18n::tr_ref("manage.cancel")), MAct::Cancel));
         v
     }
 
@@ -129,12 +130,12 @@ impl App {
                 if !m.loaded {
                     v.push(Item { label: "...".into(), act: MAct::Loading, sub: false, dis: true });
                 }
-                v.push(it(t_or("#GameAction_AddToCollectionOption_NewCollection", "Создать коллекцию..."), MAct::NewCollection));
-                (t_or("#GameAction_AddToCollection", "Добавить в..."), v)
+                v.push(it(t_or("#GameAction_AddToCollectionOption_NewCollection", i18n::tr_ref("manage.new_collection")), MAct::NewCollection));
+                (t_or("#GameAction_AddToCollection", i18n::tr_ref("manage.add_to")), v)
             }
             Sub::RemoveFrom => {
                 let v = m.colls.iter().filter(|c| c.2).map(|c| it(c.1.to_uppercase(), MAct::RemoveFrom(c.0.clone()))).collect();
-                (t_or("#GameAction_RemoveFromCollection", "Убрать из..."), v)
+                (t_or("#GameAction_RemoveFromCollection", i18n::tr_ref("manage.remove_from")), v)
             }
             Sub::Manage => {
                 use super::manage_rules::{allowed, entries, Flags, ManageEntry as E, AT_GAME, AT_SHORTCUT};
@@ -161,22 +162,22 @@ impl App {
                 )
                     .into_iter()
                     .map(|e| match e {
-                        E::RemoveFromHidden => it(t_or("#GameAction_RemoveFromHidden", "Убрать из скрытого"), MAct::Hide(false)),
-                        E::AddToFamilyGames => it(t_or("#GameAction_AddToFamilyGames", "Добавить в игры для семьи"), MAct::Family(false)),
-                        E::RemoveFromFamilyGames => it(t_or("#GameAction_RemoveFromFamilyGames", "Убрать из игр для семьи"), MAct::Family(true)),
+                        E::RemoveFromHidden => it(t_or("#GameAction_RemoveFromHidden", i18n::tr_ref("manage.remove_from_hidden")), MAct::Hide(false)),
+                        E::AddToFamilyGames => it(t_or("#GameAction_AddToFamilyGames", i18n::tr_ref("manage.add_to_family_games")), MAct::Family(false)),
+                        E::RemoveFromFamilyGames => it(t_or("#GameAction_RemoveFromFamilyGames", i18n::tr_ref("manage.remove_from_family_games")), MAct::Family(true)),
                         E::MarkPrivate { unmark, disabled } => {
-                            let mut i = it(t_or(if unmark { "#GameAction_UnmarkAsPrivate" } else { "#GameAction_MarkAsPrivate" }, if unmark { "Показывать всем" } else { "Сделать приватной" }), MAct::Private(!unmark));
+                            let mut i = it(t_or(if unmark { "#GameAction_UnmarkAsPrivate" } else { "#GameAction_MarkAsPrivate" }, if unmark { i18n::tr_ref("manage.unmark_as_private") } else { i18n::tr_ref("manage.mark_as_private") }), MAct::Private(!unmark));
                             i.dis = disabled;
                             i
                         }
-                        E::RemoveLicense => it(t_or("#GameAction_RemoveGameLicense", "Удалить с аккаунта"), MAct::RemoveLicense),
-                        E::CdKeys => it(t_or("#GameAction_ViewCDKeys", "Ключи активации"), MAct::CdKeys),
-                        E::AddToHidden => it(t_or("#GameAction_AddToHidden", "Скрыть игру"), MAct::Hide(true)),
-                        E::RemoveShortcut => it(t_or("#GameAction_RemoveShortcut", "Удалить стороннюю игру из библиотеки"), MAct::RemoveShortcut),
-                        E::Uninstall => it(t_or("#GameAction_Uninstall", "Удалить с устройства"), MAct::Uninstall),
+                        E::RemoveLicense => it(t_or("#GameAction_RemoveGameLicense", i18n::tr_ref("manage.remove_from_account")), MAct::RemoveLicense),
+                        E::CdKeys => it(t_or("#GameAction_ViewCDKeys", i18n::tr_ref("manage.cd_keys")), MAct::CdKeys),
+                        E::AddToHidden => it(t_or("#GameAction_AddToHidden", i18n::tr_ref("manage.hide_this_game")), MAct::Hide(true)),
+                        E::RemoveShortcut => it(t_or("#GameAction_RemoveShortcut", i18n::tr_ref("manage.remove_non_steam_game_from_your_library")), MAct::RemoveShortcut),
+                        E::Uninstall => it(t_or("#GameAction_Uninstall", i18n::tr_ref("manage.uninstall")), MAct::Uninstall),
                     })
                     .collect();
-                (t_or("#Button_Manage", "Управление"), v)
+                (t_or("#Button_Manage", i18n::tr_ref("manage.manage")), v)
             }
         }
     }
@@ -374,7 +375,7 @@ impl App {
             }
             MAct::NewCollection => {
                 close(self);
-                let title = t_or("#GameAction_AddToCollectionOption_NewCollection", "Создать коллекцию...");
+                let title = t_or("#GameAction_AddToCollectionOption_NewCollection", i18n::tr_ref("manage.new_collection"));
                 crate::screens::properties::prompt(self, title, String::new(), Box::new(move |a, name| {
                     let name = name.trim().to_string();
                     if name.is_empty() {
@@ -388,7 +389,7 @@ impl App {
                 close(self);
                 setters::write("hide", format!("collectionStore.SetAppsAsHidden([{id}],{on})"));
                 let n = self.games()[gi].name.clone();
-                self.toast(&format!("{}: {n}", if on { t_or("#GameAction_AddToHidden", "Скрыть игру") } else { t_or("#GameAction_RemoveFromHidden", "Убрать из скрытого") }));
+                self.toast(&format!("{}: {n}", if on { t_or("#GameAction_AddToHidden", i18n::tr_ref("manage.hide_this_game")) } else { t_or("#GameAction_RemoveFromHidden", i18n::tr_ref("manage.remove_from_hidden")) }));
             }
             MAct::CdKeys => {
                 close(self);
@@ -409,7 +410,7 @@ impl App {
                 let name = self.games()[gi].name.clone();
                 crate::screens::properties::confirm(
                     self,
-                    t_or("#GameAction_RemoveShortcut", "Удалить стороннюю игру из библиотеки"),
+                    t_or("#GameAction_RemoveShortcut", i18n::tr_ref("manage.remove_non_steam_game_from_your_library")),
                     name,
                     t_or("#Button_OK", "OK"),
                     Box::new(move |a| {
@@ -434,13 +435,13 @@ impl App {
         let Some(&gi) = self.gidx.get(&id) else { return };
         let g = &self.games()[gi];
         if g.kind != GameKind::Steam || !g.installed || self.is_running(id) {
-            self.toast("Удаление недоступно. Закройте игру и проверьте состояние установки.");
+            self.toast(i18n::tr_ref("manage.uninstallable_close_the_game_and_check_installation"));
             return;
         }
-        let text = t_or("#UninstallDialog_Confirmation_Single", "Вы точно хотите удалить %1$s с этого устройства?").replace("%1$s", &g.name);
+        let text = t_or("#UninstallDialog_Confirmation_Single", i18n::tr_ref("manage.are_you_sure_you_want_to_remove")).replace("%1$s", &g.name);
         crate::screens::properties::confirm(self,
-            t_or("#UninstallDialog_Title", "Удаление"), text,
-            t_or("#UninstallDialog_Uninstall", "Удалить"),
+            t_or("#UninstallDialog_Title", i18n::tr_ref("manage.uninstall_2")), text,
+            t_or("#UninstallDialog_Uninstall", i18n::tr_ref("manage.uninstall_3")),
             Box::new(move |a| a.act(Act::Uninstall(id))));
     }
 
@@ -470,7 +471,7 @@ impl App {
                 g.collections.retain(|c| *c != name);
             }
         }
-        self.toast(&format!("{}: {}", if add { t_or("#GameAction_AddToCollection", "Добавить в...") } else { t_or("#GameAction_RemoveFromCollection", "Убрать из...") }, name));
+        self.toast(&format!("{}: {}", if add { t_or("#GameAction_AddToCollection", i18n::tr_ref("manage.add_to")) } else { t_or("#GameAction_RemoveFromCollection", i18n::tr_ref("manage.remove_from")) }, name));
     }
 }
 
@@ -481,16 +482,16 @@ impl App {
         setters::set_favorite(id, on);
         let lib = Arc::make_mut(&mut self.lib);
         let g = &mut lib.games[gi];
-        let is_fav = |c: &String| c.to_lowercase().contains("favorite") || c.to_lowercase().contains("избран");
+        let is_fav = |name: &String| super::library::is_favorite_collection(name);
         g.collections.retain(|c| !is_fav(c));
         if on {
-            g.collections.push(t_or("#GameList_Category_Favorites", "Избранное"));
+            g.collections.push(t_or("#GameList_Category_Favorites", i18n::tr_ref("manage.favorites")));
         }
         self.gm.mn.fav = Some(on);
         self.rebuild_view(Some(id));
         self.sync_lib();
         let n = self.games()[gi].name.clone();
-        self.toast(&format!("{}: {n}", if on { t_or("#GameAction_AddToFavorites", "Добавить в избранное") } else { t_or("#GameAction_RemoveFromFavorites", "Убрать из избранного") }));
+        self.toast(&format!("{}: {n}", if on { t_or("#GameAction_AddToFavorites", i18n::tr_ref("manage.add_to_favorites")) } else { t_or("#GameAction_RemoveFromFavorites", i18n::tr_ref("manage.remove_from_favorites")) }));
     }
 
     fn lib_games_mut(&mut self) -> &mut Vec<steam_data::Game> {

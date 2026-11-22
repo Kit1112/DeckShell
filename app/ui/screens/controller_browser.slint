@@ -1,3 +1,4 @@
+import { ControllerText } from "controller_text.slint";
 import { ControllerShoulderHint } from "controller_picker.slint";
 // Layout chooser workbench. Card measurements derive from Steam sp.css;
 // surrounding dialog geometry remains provisional until Gaming Mode capture.
@@ -74,7 +75,7 @@ export component ControllerConfigCardView inherits Rectangle {
         if data.time-glyph.width > 0: Image { width: 27px; height: 27px; source: root.focused ? data.time-glyph-focused : data.time-glyph; image-fit: contain; }
         if data.time-glyph.width > 0: Rectangle { width: 6px; }
         if data.playtime-number != "": Text { width: data.playtime-number-width; text: data.playtime-number; color: root.focused ? #23262e : #8b929a; font-size: 15px; letter-spacing: 0.75px; vertical-alignment: center; font-family: "Motiva Sans"; }
-        if data.playtime != "": Text { max-width: 170px; overflow: elide; text: data.playtime-number == "" ? data.playtime : "Ч. СЫГРАНО"; color: root.focused ? #23262e : #8b929a; font-size: 15px; letter-spacing: 0.75px; vertical-alignment: center; font-family: GStyle.loc-font; }
+        if data.playtime != "": Text { max-width: 170px; overflow: elide; text: data.playtime-number == "" ? data.playtime : ControllerText.hours-played; color: root.focused ? #23262e : #8b929a; font-size: 15px; letter-spacing: 0.75px; vertical-alignment: center; font-family: GStyle.loc-font; }
         if data.updated != "" && data.status != "": Rectangle { width: 30px; }
         if data.updated != "": Image { width: 27px; height: 27px; source: root.focused ? data.updated-glyph-focused : data.updated-glyph; image-fit: contain; }
         if data.updated != "": Rectangle { width: 6px; }
@@ -134,14 +135,14 @@ export component ControllerBrowserView inherits Rectangle {
             for card[i] in root.cards: ControllerConfigCardView { x: 0px; y: card.y; width: parent.width; data: card; focused: root.focused-card == i; clicked => { root.card-clicked(i); } }
         }
         if root.search-visible: Rectangle { x: 0px; y: 5px; width: parent.width; height: 60px; background: root.search-focused ? #ffffff : #20252b;
-            accessible-role: button; accessible-label: "Поиск";
-            Text { x: 24px; y: 0px; width: parent.width - 48px; height: parent.height; text: root.query == "" ? "Поиск" : root.query; color: root.search-focused ? #687482 : #dcdedf; font-size: 24px; font-italic: root.query == ""; vertical-alignment: center; overflow: elide; font-family: GStyle.loc-font; }
+            accessible-role: button; accessible-label: ControllerText.search-2;
+            Text { x: 24px; y: 0px; width: parent.width - 48px; height: parent.height; text: root.query == "" ? ControllerText.search-2 : root.query; color: root.search-focused ? #687482 : #dcdedf; font-size: 24px; font-italic: root.query == ""; vertical-alignment: center; overflow: elide; font-family: GStyle.loc-font; }
             TouchArea { clicked => { root.search-clicked(); } }
         }
     }
     if root.download-visible: Rectangle { x: parent.width - 42px; y: parent.height - 41px; width: 36px; height: 36px;
         border-radius: 18px; background: #000000; opacity: root.download-ready ? 1 : 0.65;
-        accessible-role: button; accessible-enabled: root.download-ready; accessible-label: "Загрузить раскладку";
+        accessible-role: button; accessible-enabled: root.download-ready; accessible-label: ControllerText.load-new-layout;
         Image { x: 8px; y: 8px; width: 20px; height: 20px; source: @image-url("../assets/controller/download.svg"); }
         TouchArea { enabled: root.download-ready; clicked => { root.download-clicked(); } }
     }

@@ -12,6 +12,7 @@ import { GStyle } from "../generated/style.slint";
 export struct GRow { kind: int, a: string, b: string, token: string, }   // kind: 0 section header, 1 sub-label, 2 key/value, 3 button
 
 export global GameState {
+    in property <string> label-scroll-to-top;
     in property <string> name;
     in property <image> logo;
     in property <bool> logo-has;
@@ -128,9 +129,9 @@ export component GameScreen inherits Rectangle {
     // "scroll to top" bar (generic_scrolltotop) while the page is scrolled
     Rectangle { x: 0px; y: root.scrolled ? 760.2px : 796.8px; width: root.width; height: 40.8px;
         animate y { duration: 300ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
-        accessible-role: button; accessible-label: "Прокрутить вверх"; accessible-description: "button|#generic_scrolltotop|touch,mouse";
+        accessible-role: button; accessible-label: GameState.label-scroll-to-top; accessible-description: "button|#generic_scrolltotop|touch,mouse";
         Rectangle { x: (parent.width - self.width) / 2; y: 12px; width: 244px; height: 30px; border-radius: 4px; background: #145ddae6; opacity: root.scrolled ? 1 : 0;
-            Text { text: "Прокрутить вверх"; color: GGameGeo.link; font-family: GStyle.loc-font; font-size: 14.4px; horizontal-alignment: center; vertical-alignment: center; } }
+            Text { text: GameState.label-scroll-to-top; color: GGameGeo.link; font-family: GStyle.loc-font; font-size: 14.4px; horizontal-alignment: center; vertical-alignment: center; } }
         TouchArea { enabled: root.scrolled; clicked => { GameState.scroll-top(); } }
     }
     // context menu (gear / START): BasicUIContextMenu 314x395 css centred, rows 48 css, bg #23262e, text #b8bcbf, focus = light row

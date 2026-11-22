@@ -1,4 +1,5 @@
 //! Режимы микрофона записи и независимый от UI сторож PipeWire/PulseAudio.
+use steam_assets::i18n;
 use std::{collections::BTreeMap, fs, io, path::PathBuf, process::{Command, Stdio}, sync::{Mutex, OnceLock}, time::{Duration, Instant, SystemTime}};
 use serde_json::{json, Value};
 
@@ -35,24 +36,24 @@ fn settings() -> &'static Mutex<Config> {
 }
 pub fn config() -> Config { settings().lock().unwrap().clone() }
 pub fn save(c: Config) -> io::Result<()> {
-    if !matches!(c.mode.as_str(), "always" | "hold" | "toggle") || !valid_button(&c.button) { return Err(io::Error::other("Некорректная привязка")); }
+    if !matches!(c.mode.as_str(), "always" | "hold" | "toggle") || !valid_button(&c.button) { return Err(io::Error::other(i18n::tr_ref("recording_mic.invalid_binding"))); }
     if !crate::actions::dryrun() { atomic_json(&config_path(), &c.value())?; }
     *settings().lock().unwrap() = c; Ok(())
 }
-pub fn mode_label(mode: &str) -> &'static str { match mode { "hold" => "По удержанию (push-to-talk)", "toggle" => "Переключатель (нажал — вкл/выкл)", _ => "Всегда активен" } }
+pub fn mode_label(mode: &str) -> &'static str { match mode { "hold" => i18n::tr_ref("recording_mic.hold"), "toggle" => i18n::tr_ref("recording_mic.toggle"), _ => i18n::tr_ref("recording_mic.always") } }
 pub fn button_label(b: &str) -> String {
     let name = b.strip_prefix("Deck:").or_else(|| b.strip_prefix("Pad:")).unwrap_or(b);
     match name {
-        "Up" | "DPadUp" => "Крестовина ↑", "Down" | "DPadDown" => "Крестовина ↓",
-        "Left" | "DPadLeft" => "Крестовина ←", "Right" | "DPadRight" => "Крестовина →",
-        "LeftPad" => "Левый трекпад", "RightPad" => "Правый трекпад",
-        "Menu" | "Start" => "Меню (≡)", "View" | "Select" => "Просмотр (⧉)",
-        "Steam" | "Mode" => "STEAM / системная кнопка", "Qam" => "Быстрое меню (…)",
-        "South" => "Нижняя кнопка (A / ✕)", "East" => "Правая кнопка (B / ○)",
-        "West" => "Левая кнопка (X / □)", "North" => "Верхняя кнопка (Y / △)",
+        "Up" | "DPadUp" => i18n::tr_ref("recording_mic.dpad_up"), "Down" | "DPadDown" => i18n::tr_ref("recording_mic.dpad_down"),
+        "Left" | "DPadLeft" => i18n::tr_ref("recording_mic.dpad_left"), "Right" | "DPadRight" => i18n::tr_ref("recording_mic.dpad_right"),
+        "LeftPad" => i18n::tr_ref("recording_mic.left_pad"), "RightPad" => i18n::tr_ref("recording_mic.right_pad"),
+        "Menu" | "Start" => i18n::tr_ref("recording_mic.menu"), "View" | "Select" => i18n::tr_ref("recording_mic.view"),
+        "Steam" | "Mode" => i18n::tr_ref("recording_mic.steam"), "Qam" => i18n::tr_ref("recording_mic.qam"),
+        "South" => i18n::tr_ref("recording_mic.south"), "East" => i18n::tr_ref("recording_mic.east"),
+        "West" => i18n::tr_ref("recording_mic.west"), "North" => i18n::tr_ref("recording_mic.north"),
         "LeftTrigger" => "L1", "RightTrigger" => "R1", "LeftTrigger2" => "L2", "RightTrigger2" => "R2",
         "LeftThumb" => "L3", "RightThumb" => "R3",
-        _ => return name.strip_prefix("Code").map(|code| format!("Кнопка контроллера ({code})")).unwrap_or_else(|| name.to_owned()),
+        _ => return name.strip_prefix("Code").map(|code| i18n::tr_args("recording_mic.button_code", &[("code", code)])).unwrap_or_else(|| name.to_owned()),
     }.to_owned()
 }
 
@@ -77,8 +78,8 @@ pub fn report(source: &str, down: Vec<String>, connected: bool) -> bool {
             s.capture = None;
             let _ = slint::invoke_from_event_loop(move || { crate::with_app(|a| {
                 let mut c = config(); c.button = button;
-                if save(c).is_ok() { a.toast("Кнопка микрофона сохранена"); a.push_settings(); }
-                else { a.toast("Не удалось сохранить кнопку микрофона"); }
+                if save(c).is_ok() { a.toast(i18n::tr_ref("recording_mic.saved")); a.push_settings(); }
+                else { a.toast(i18n::tr_ref("recording_mic.save_failed")); }
             }); });
         }
     }
@@ -118,7 +119,7 @@ fn lease_request(bytes: &[u8]) -> io::Result<Option<bool>> {
     match v.get("mute") {
         Some(Value::Null) => Ok(None),
         Some(Value::Bool(b)) => Ok(Some(*b)),
-        _ => Err(io::Error::other("Повреждена команда микрофона")),
+        _ => Err(io::Error::other(i18n::tr_ref("recording_mic.invalid_command"))),
     }
 }
 
@@ -164,11 +165,11 @@ pub fn start() {
             if child.is_none() && desired.is_some() && retry.elapsed() >= Duration::from_secs(3) {
                 retry = Instant::now();
                 if deck_system::guard::deny("systemd-run recording-mic guardian") { continue; }
-                child = std::env::current_exe().ok().and_then(|exe| Command::new("systemd-run").args(["--user", "--quiet", "--collect", "--wait", &format!("--unit=deckshell-recording-mic-{pid}"), "--property=Restart=on-failure", "--property=RestartSec=1"])
+                child = std::env::current_exe().ok().and_then(|exe| Command::new("systemd-run").args(["--user", "--quiet", "--collect", "--wait", &format!("--unit=deckshell-recording-mic-{pid}"), "--property=Restart=on-failure", "--property=RestartSec=1", &format!("--setenv=DECKSHELL_LANG={}", i18n::current().code())])
                     .arg(exe).arg("--recording-mic-guardian").arg(pid.to_string()).arg(&identity).arg(&lease)
                     .stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).spawn().ok());
             }
-            let message = fs::read_to_string(runtime_dir().join("status")).unwrap_or_else(|_| if desired.is_some() { "Ожидание управления микрофоном…".into() } else { String::new() });
+            let message = fs::read_to_string(runtime_dir().join("status")).unwrap_or_else(|_| if desired.is_some() { i18n::tr_ref("recording_mic.waiting").into() } else { String::new() });
             let changed = { let mut s = status().lock().unwrap(); let changed = *s != message; *s = message; changed };
             if changed { let _ = slint::invoke_from_event_loop(|| { crate::with_app(|a| a.push_settings()); }); }
             std::thread::sleep(Duration::from_millis(25));
@@ -179,21 +180,21 @@ fn pactl(args: &[&str]) -> io::Result<String> {
     if args.first().is_some_and(|a| a.starts_with("set-")) && deck_system::guard::deny(&format!("pactl {}", args.join(" "))) { return Ok(String::new()); }
     // Ограничение времени также действует при недоступном сервере звука.
     let out = Command::new("timeout").args(["2", "pactl"]).args(args).output()?;
-    if !out.status.success() { return Err(io::Error::other("PipeWire не подтвердил изменение микрофона")); }
+    if !out.status.success() { return Err(io::Error::other(i18n::tr_ref("recording_mic.pipewire_unconfirmed"))); }
     Ok(String::from_utf8_lossy(&out.stdout).trim().to_owned())
 }
 fn get_mute(source: &str) -> io::Result<bool> {
     let value = pactl(&["get-source-mute", source])?;
-    if value.ends_with("yes") { Ok(true) } else if value.ends_with("no") { Ok(false) } else { Err(io::Error::other("Неизвестный ответ mute")) }
+    if value.ends_with("yes") { Ok(true) } else if value.ends_with("no") { Ok(false) } else { Err(io::Error::other(i18n::tr_ref("recording_mic.mute_reply"))) }
 }
 fn set_mute(source: &str, muted: bool) -> io::Result<()> {
     pactl(&["set-source-mute", source, if muted { "1" } else { "0" }])?;
-    if get_mute(source)? != muted { return Err(io::Error::other("Mute не подтверждён")); } Ok(())
+    if get_mute(source)? != muted { return Err(io::Error::other(i18n::tr_ref("recording_mic.mute_unconfirmed"))); } Ok(())
 }
 /// Отдельная user-служба переживает SIGKILL/UI restart; журнал восстанавливается после сбоя самого сторожа.
 pub fn guardian(args: &[String]) -> io::Result<()> {
     use std::os::fd::AsRawFd;
-    if args.len() != 3 { return Err(io::Error::other("Некорректный запуск сторожа")); }
+    if args.len() != 3 { return Err(io::Error::other(i18n::tr_ref("recording_mic.invalid_guardian"))); }
     let pid: u32 = args[0].parse().map_err(io::Error::other)?;
     let dir = runtime_dir(); fs::create_dir_all(&dir)?;
     let lock = fs::OpenOptions::new().create(true).truncate(false).write(true).open(dir.join("lock"))?;
@@ -219,7 +220,7 @@ pub fn guardian(args: &[String]) -> io::Result<()> {
             let source = if source_checked.elapsed() >= Duration::from_secs(1) || saved.is_none() {
                 source_checked = Instant::now(); pactl(&["get-default-source"])?
             } else { saved.as_ref().unwrap().0.clone() };
-            if source.is_empty() || source.ends_with(".monitor") { return Err(io::Error::other("Системный микрофон не найден")); }
+            if source.is_empty() || source.ends_with(".monitor") { return Err(io::Error::other(i18n::tr_ref("recording_mic.source_not_found"))); }
             if saved.as_ref().is_some_and(|(old,_)| old != &source) {
                 let (old,mute) = saved.as_ref().unwrap(); set_mute(old,*mute)?; fs::remove_file(&journal)?; saved = None; applied = None;
             }
@@ -235,8 +236,8 @@ pub fn guardian(args: &[String]) -> io::Result<()> {
             Ok(())
         })();
         let message = match result {
-            Ok(()) => match request { Some(true) => "Микрофон закрыт", Some(false) => "Микрофон активен", None => "Исходное состояние микрофона восстановлено" }.to_owned(),
-            Err(e) => { applied = None; if let Some((source,_)) = &saved { let _ = set_mute(source,true); } format!("Ошибка управления микрофоном: {e}") },
+            Ok(()) => match request { Some(true) => i18n::tr_ref("recording_mic.muted"), Some(false) => i18n::tr_ref("recording_mic.active"), None => i18n::tr_ref("recording_mic.restored") }.to_owned(),
+            Err(e) => { applied = None; if let Some((source,_)) = &saved { let _ = set_mute(source,true); } i18n::tr_args("recording_mic.control_error", &[("error", &e.to_string())]) },
         };
         if message != last_message { let _ = fs::write(dir.join("status"), &message); last_message = message; }
         if !live && saved.is_none() { let _ = fs::remove_file(lease); return Ok(()); }

@@ -29,22 +29,25 @@ pub fn cache_dir() -> PathBuf {
 
 // ---------------------------------------------------------------- localization
 
-/// The user's Steam language (`russian`, `english`, ...), from registry.vdf; `english` if unknown.
+pub mod i18n;
+
+/// Steam bundle name for the effective DeckShell locale.
 pub fn language() -> String {
-    if let Ok(l) = std::env::var("DECKSHELL_LANG") {
-        return l;
-    }
-    for p in [home().join(".steam/registry.vdf"), steam_root().join("registry.vdf")] {
-        if let Ok(t) = std::fs::read_to_string(p) {
-            for line in t.lines() {
-                let parts: Vec<&str> = line.split('"').collect();
-                if parts.len() >= 4 && parts[1] == "language" && !parts[3].is_empty() {
-                    return parts[3].to_string();
-                }
-            }
-        }
-    }
-    "english".into()
+    i18n::current().steam_name().into()
+}
+
+fn registry_language(paths: &[PathBuf]) -> Option<String> {
+    paths.iter().find_map(|path| {
+        let text = std::fs::read_to_string(path).ok()?;
+        text.lines().find_map(|line| {
+            let mut fields = line.split('"');
+            fields.next()?;
+            let key = fields.next()?;
+            fields.next()?;
+            let value = fields.next()?.trim();
+            (key.eq_ignore_ascii_case("language") && !value.is_empty()).then(|| value.to_owned())
+        })
+    })
 }
 
 /// Decode the JS string passed to JSON.parse without executing the bundle.

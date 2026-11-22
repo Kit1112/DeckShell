@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+steam-assets = { path = "../steam-assets" }
 steam-control = { path = "../steam-control" }
 serde = { version = "1", features = ["derive"] }
 tungstenite = { version = "0.24", default-features = false, features = ["handshake"] }

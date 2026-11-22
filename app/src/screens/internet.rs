@@ -7,6 +7,7 @@
 //!
 //! Layout is computed here in window px (`page_rows`, `dialog_view`) so tests can lint it and walk the pad focus without
 //! Slint; `ui/screens/internet.slint` only paints the result.
+use steam_assets::i18n;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -32,6 +33,10 @@ pub const PAGE: &str = "internet";
 pub(crate) fn lt(token: &str, fallback: &str) -> String { t_or(token, fallback) }
 fn lf(token: &str, fallback: &str, arg: &str) -> String {
     if steam_assets::has_loc(token) { crate::assets::tf(token, &[arg]) } else { fallback.replace("%1$s", arg) }
+}
+
+fn security_label(security: Security) -> &'static str {
+    if security == Security::Open { i18n::tr_ref("internet.security_none") } else { security.label() }
 }
 
 // ---------------------------------------------------------------- geometry (px of the 1280×800 window, scroll 0)
@@ -129,8 +134,8 @@ pub fn page_rows(d: &PageData) -> Vec<Row> {
     // connectivity warning (stock `re`): caution row above the toggle
     if !d.offline {
         let text = match d.connectivity {
-            Some(Connectivity::Limited) | Some(Connectivity::None) if d.radio == Some(true) && !d.connected.is_empty() => Some(lt("#Settings_Internet_Connected_To_Network_But_Not_Internet", "У Steam Deck нет доступа в интернет.")),
-            Some(Connectivity::Portal) => Some(lt("#Settings_Internet_Captive_Portal_Detected", "Для выхода в интернет требуется дополнительная информация.")),
+            Some(Connectivity::Limited) | Some(Connectivity::None) if d.radio == Some(true) && !d.connected.is_empty() => Some(lt("#Settings_Internet_Connected_To_Network_But_Not_Internet", i18n::tr_ref("internet.steam_deck_can_t_reach_the_internet"))),
+            Some(Connectivity::Portal) => Some(lt("#Settings_Internet_Captive_Portal_Detected", i18n::tr_ref("internet.the_network_requires_additional_login_information"))),
             _ => None,
         };
         if let Some(label) = text {
@@ -138,39 +143,39 @@ pub fn page_rows(d: &PageData) -> Vec<Row> {
             y += ROW_H + GAP;
         }
     }
-    rows.push(Row { key: Some(Key::Toggle), kind: rk::TOGGLE, y, h: 68.0, label: lt("#Settings_Internet_Wifi_Enabled", "Включить Wi-Fi"), on: match d.radio { Some(true) => 1, Some(false) => 0, None => -1 }, ..Default::default() });
+    rows.push(Row { key: Some(Key::Toggle), kind: rk::TOGGLE, y, h: 68.0, label: lt("#Settings_Internet_Wifi_Enabled", i18n::tr_ref("internet.enable_wi_fi")), on: match d.radio { Some(true) => 1, Some(false) => 0, None => -1 }, ..Default::default() });
     y += 68.0;
     let on = d.radio == Some(true);
     if on && !d.connected.is_empty() {
-        section(&mut rows, &mut y, &lt("#Settings_Internet_Connected_Networks", "Подключённые сети"));
+        section(&mut rows, &mut y, &lt("#Settings_Internet_Connected_Networks", i18n::tr_ref("internet.connected_networks")));
         for n in &d.connected { ap_row(&mut rows, &mut y, n); }
         y -= GAP;
     }
-    section(&mut rows, &mut y, &lt("#Settings_Internet_Networks_Found", "Найденные сети"));
+    section(&mut rows, &mut y, &lt("#Settings_Internet_Networks_Found", i18n::tr_ref("internet.networks_found")));
     if d.found.is_empty() {
-        let label = if on { lt("#Settings_Internet_No_Other_Networks_Found", "Другие сети не найдены") } else { lt("#Settings_Internet_No_Other_Networks_Found_Wifi_Disabled", "Другие сети не найдены. Wi-Fi отключён.") };
+        let label = if on { lt("#Settings_Internet_No_Other_Networks_Found", i18n::tr_ref("internet.no_other_networks_found")) } else { lt("#Settings_Internet_No_Other_Networks_Found_Wifi_Disabled", i18n::tr_ref("internet.no_other_networks_found_wi_fi_disabled")) };
         rows.push(Row { kind: rk::DISABLED, y, h: ROW_H, label, ..Default::default() });
         y += ROW_H + GAP;
     }
     for n in &d.found { ap_row(&mut rows, &mut y, n); }
     if on {
-        rows.push(Row { key: Some(Key::Other), kind: rk::PLAIN, y, h: 65.0, label: lt("#Settings_Internet_Custom_Network_Button", "Другая сеть…"), ..Default::default() });
+        rows.push(Row { key: Some(Key::Other), kind: rk::PLAIN, y, h: 65.0, label: lt("#Settings_Internet_Custom_Network_Button", i18n::tr_ref("internet.other_network")), ..Default::default() });
         y += 65.0;
     } else {
         y -= GAP;
     }
-    section(&mut rows, &mut y, &lt("#Settings_Internet_Advanced_Settings", "Дополнительные настройки"));
+    section(&mut rows, &mut y, &lt("#Settings_Internet_Advanced_Settings", i18n::tr_ref("internet.advanced_settings")));
     if d.offline {
-        rows.push(Row { key: Some(Key::Offline), kind: rk::SETTING, y, h: 95.0, label: lt("#Settings_Internet_In_Offline_Mode", "Steam находится в автономном режиме."), btn: lt("#GoOnline", "Войти в сеть"), btn_w: 240.0, warn: true, ..Default::default() });
+        rows.push(Row { key: Some(Key::Offline), kind: rk::SETTING, y, h: 95.0, label: lt("#Settings_Internet_In_Offline_Mode", i18n::tr_ref("internet.steam_is_in_offline_mode")), btn: lt("#GoOnline", i18n::tr_ref("internet.go_online")), btn_w: 240.0, warn: true, ..Default::default() });
         y += 95.0 + GAP;
     } else {
-        let desc = if d.has_network { String::new() } else { lt("#UserManagement_OfflineMode_NoNetwork", "Нет подключения к сети") };
-        rows.push(Row { key: d.has_network.then_some(Key::Offline), kind: rk::SETTING, y, h: 125.0, label: lt("#Settings_Internet_Go_Offline", "Автономный режим"), desc, btn: lt("#GoOffline", "Перейти в автономный режим"), btn_w: 406.0, on: i32::from(!d.has_network), ..Default::default() });
+        let desc = if d.has_network { String::new() } else { lt("#UserManagement_OfflineMode_NoNetwork", i18n::tr_ref("internet.no_connection_to_the_network")) };
+        rows.push(Row { key: d.has_network.then_some(Key::Offline), kind: rk::SETTING, y, h: 125.0, label: lt("#Settings_Internet_Go_Offline", i18n::tr_ref("internet.offline_mode")), desc, btn: lt("#GoOffline", i18n::tr_ref("internet.enter_offline_mode")), btn_w: 406.0, on: i32::from(!d.has_network), ..Default::default() });
         y += 125.0 + GAP;
     }
-    rows.push(Row { key: Some(Key::Proxy), kind: rk::SETTING, y, h: 95.0, label: lt("#Settings_Internet_HTTPProxy", "HTTP-прокси"), btn: lt("#Settings_Internet_ConfigureProxy", "Настроить"), btn_w: 240.0, ..Default::default() });
+    rows.push(Row { key: Some(Key::Proxy), kind: rk::SETTING, y, h: 95.0, label: lt("#Settings_Internet_HTTPProxy", i18n::tr_ref("internet.http_proxy")), btn: lt("#Settings_Internet_ConfigureProxy", i18n::tr_ref("internet.configure")), btn_w: 240.0, ..Default::default() });
     y += 95.0 + GAP;
-    rows.push(Row { key: Some(Key::Delete), kind: rk::SETTING, y, h: 96.0, label: lt("#Settings_Internet_WebBrowserDataDelete", "Удалить данные браузера"), btn: lt("#Settings_Internet_WebBrowserDataDeleteButton", "Удалить"), btn_w: 240.0, ..Default::default() });
+    rows.push(Row { key: Some(Key::Delete), kind: rk::SETTING, y, h: 96.0, label: lt("#Settings_Internet_WebBrowserDataDelete", i18n::tr_ref("internet.delete_web_browser_data")), btn: lt("#Settings_Internet_WebBrowserDataDeleteButton", i18n::tr_ref("internet.delete")), btn_w: 240.0, ..Default::default() });
     rows
 }
 
@@ -218,9 +223,13 @@ impl Form {
     /// The request, or the field to focus and what is wrong with it.
     pub fn request(&self) -> Result<ConnectRequest, (F, String)> {
         let ip = if self.adv && !self.ip.is_empty() {
-            wifi::validate_static(&self.ip).map_err(|e| match e {
-                wifi::IpError::Missing(n) => (field_of(n), format!("Заполните поле «{n}»")),
-                wifi::IpError::Invalid(n) => (field_of(n), format!("Неверное значение в поле «{n}»")),
+            wifi::validate_static(&self.ip).map_err(|error| {
+                let (key, ip_field) = match error {
+                    wifi::IpError::Missing(name) => ("internet.fill_in", name),
+                    wifi::IpError::Invalid(name) => ("internet.invalid_value_for", name),
+                };
+                let (field, label) = ip_field_label(ip_field);
+                (field, i18n::tr_args(key, &[("field", label)]))
             })?;
             Some(self.ip.clone())
         } else { None };
@@ -228,8 +237,14 @@ impl Form {
     }
 }
 
-fn field_of(name: &str) -> F {
-    match name { "IP" => F::Ip, "Маска сети" => F::Mask, "Шлюз" => F::Gw, "Первичный DNS" => F::Dns1, _ => F::Dns2 }
+fn ip_field_label(field: wifi::IpField) -> (F, &'static str) {
+    match field {
+        wifi::IpField::Address => (F::Ip, "IP"),
+        wifi::IpField::Netmask => (F::Mask, i18n::tr_ref("internet.netmask")),
+        wifi::IpField::Gateway => (F::Gw, i18n::tr_ref("internet.gateway")),
+        wifi::IpField::PrimaryDns => (F::Dns1, i18n::tr_ref("internet.primary_dns")),
+        wifi::IpField::SecondaryDns => (F::Dns2, i18n::tr_ref("internet.secondary_dns")),
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -337,9 +352,9 @@ fn body_lines(text: &str) -> usize { text.chars().count().div_ceil(58).max(1) }
 fn mask(s: &str) -> String { "•".repeat(s.chars().count()) }
 
 fn state_label(info: &Info) -> String {
-    if info.connected { lt("#Internet_Network_State_Connected", "Подключено") }
-    else if !info.present && info.saved.is_some() { lt("#Internet_Network_State_NotFound", "Не найдено") }
-    else { lt("#Internet_Network_State_Disconnected", "Отключено") }
+    if info.connected { lt("#Internet_Network_State_Connected", i18n::tr_ref("internet.connected")) }
+    else if !info.present && info.saved.is_some() { lt("#Internet_Network_State_NotFound", i18n::tr_ref("internet.not_found")) }
+    else { lt("#Internet_Network_State_Disconnected", i18n::tr_ref("internet.disconnected")) }
 }
 
 /// Box placement and scrolling. `focus_row` is the row to keep visible; the first control shows the title, the last one the padding.
@@ -369,12 +384,12 @@ fn field_row(b: &mut B, label: &str, value: String, hint: &str, focus: bool, ite
 fn form_view(f: &Form, st_osk: bool, scroll: f32) -> DialogView {
     let mut b = B::new();
     let title = match (f.custom, f.failed) {
-        (true, true) => lt("#Settings_Internet_Reenter_Network_Credentials", "Введите данные вашей сети ещё раз"),
-        (true, false) => lt("#Settings_Internet_Enter_Network_Credentials", "Введите данные вашей сети"),
-        (false, true) => lf("#Settings_Internet_Reenter_The_Password_For_Network", "Повторно введите пароль для %1$s", &f.ssid),
-        (false, false) => lf("#Settings_Internet_Enter_The_Password_For_Network", "Введите пароль для %1$s", &f.ssid),
+        (true, true) => lt("#Settings_Internet_Reenter_Network_Credentials", i18n::tr_ref("internet.re_enter_your_network_information")),
+        (true, false) => lt("#Settings_Internet_Enter_Network_Credentials", i18n::tr_ref("internet.enter_your_network_information")),
+        (false, true) => lf("#Settings_Internet_Reenter_The_Password_For_Network", i18n::tr_ref("internet.re_enter_password_for"), &f.ssid),
+        (false, false) => lf("#Settings_Internet_Enter_The_Password_For_Network", i18n::tr_ref("internet.enter_password_for"), &f.ssid),
     };
-    let error = f.failed.then(|| lt("#Settings_Internet_Failed_To_Connect", "Не удалось подключиться"));
+    let error = f.failed.then(|| lt("#Settings_Internet_Failed_To_Connect", i18n::tr_ref("internet.failed_to_connect")));
     title_block(&mut b, &title, error.as_deref());
     let items = f.items();
     let mut focus_row = None;
@@ -382,21 +397,21 @@ fn form_view(f: &Form, st_osk: bool, scroll: f32) -> DialogView {
         let foc = f.focus == *it;
         let row0 = b.rows.len();
         match it {
-            F::Ssid => field_row(&mut b, &lt("#Settings_Internet_Enter_NetworkName", "Имя сети"), f.ssid.clone(), "", foc, i, None, false),
-            F::Security => b.push(DRow { kind: dk::DROPDOWN, h: DLG_ROW_H, label: lt("#Settings_Internet_Security_Type", "Протокол безопасности"), value: f.security.label().into(), focus: i32::from(foc), item: i as i32, ..Default::default() }, DLG_PITCH),
-            F::Pass => field_row(&mut b, &lt("#Settings_Internet_Enter_Password", "Пароль"), if f.show_pass { f.pass.clone() } else { mask(&f.pass) }, "", foc, i, Some(f.show_pass), false),
-            F::AdvShow => b.push(DRow { kind: dk::BUTTON_ROW, h: DLG_ROW_H, label: lt("#Settings_Internet_Connect_Advanced_Enable_Label", "Расширенные настройки…"), value: lt("#Settings_Internet_Connect_Advanced_Enable", "Показать"), w2: 240.0, focus: i32::from(foc), item: i as i32, ..Default::default() }, DLG_PITCH),
+            F::Ssid => field_row(&mut b, &lt("#Settings_Internet_Enter_NetworkName", i18n::tr_ref("internet.network_name")), f.ssid.clone(), "", foc, i, None, false),
+            F::Security => b.push(DRow { kind: dk::DROPDOWN, h: DLG_ROW_H, label: lt("#Settings_Internet_Security_Type", i18n::tr_ref("internet.security_type")), value: security_label(f.security).into(), focus: i32::from(foc), item: i as i32, ..Default::default() }, DLG_PITCH),
+            F::Pass => field_row(&mut b, &lt("#Settings_Internet_Enter_Password", i18n::tr_ref("internet.password")), if f.show_pass { f.pass.clone() } else { mask(&f.pass) }, "", foc, i, Some(f.show_pass), false),
+            F::AdvShow => b.push(DRow { kind: dk::BUTTON_ROW, h: DLG_ROW_H, label: lt("#Settings_Internet_Connect_Advanced_Enable_Label", i18n::tr_ref("internet.advanced_settings_2")), value: lt("#Settings_Internet_Connect_Advanced_Enable", i18n::tr_ref("internet.show")), w2: 240.0, focus: i32::from(foc), item: i as i32, ..Default::default() }, DLG_PITCH),
             F::Ip => field_row(&mut b, &lt("#Settings_Internet_IP", "IP"), f.ip.ip.clone(), " .  .  . ", foc, i, None, true),
-            F::Mask => field_row(&mut b, &lt("#Settings_Internet_Netmask", "Маска сети"), f.ip.netmask.clone(), " .  .  . ", foc, i, None, true),
-            F::Gw => field_row(&mut b, &lt("#Settings_Internet_Gateway", "Шлюз"), f.ip.gateway.clone(), " .  .  . ", foc, i, None, true),
-            F::Dns1 => field_row(&mut b, &lt("#Settings_Internet_Primary_DNS", "Первичный DNS"), f.ip.dns1.clone(), " .  .  . ", foc, i, None, true),
-            F::Dns2 => field_row(&mut b, &lt("#Settings_Internet_Secondary_DNS", "Вторичный DNS"), f.ip.dns2.clone(), " .  .  . ", foc, i, None, true),
-            F::Mac => b.push(DRow { kind: dk::INFO, h: 70.0, label: lt("#Settings_Internet_MAC_Address", "MAC-адрес"), value: f.mac.clone(), focus: i32::from(foc), item: i as i32, ..Default::default() }, 70.0),
+            F::Mask => field_row(&mut b, &lt("#Settings_Internet_Netmask", i18n::tr_ref("internet.netmask")), f.ip.netmask.clone(), " .  .  . ", foc, i, None, true),
+            F::Gw => field_row(&mut b, &lt("#Settings_Internet_Gateway", i18n::tr_ref("internet.gateway")), f.ip.gateway.clone(), " .  .  . ", foc, i, None, true),
+            F::Dns1 => field_row(&mut b, &lt("#Settings_Internet_Primary_DNS", i18n::tr_ref("internet.primary_dns")), f.ip.dns1.clone(), " .  .  . ", foc, i, None, true),
+            F::Dns2 => field_row(&mut b, &lt("#Settings_Internet_Secondary_DNS", i18n::tr_ref("internet.secondary_dns")), f.ip.dns2.clone(), " .  .  . ", foc, i, None, true),
+            F::Mac => b.push(DRow { kind: dk::INFO, h: 70.0, label: lt("#Settings_Internet_MAC_Address", i18n::tr_ref("internet.mac_address")), value: f.mac.clone(), focus: i32::from(foc), item: i as i32, ..Default::default() }, 70.0),
             F::Connect | F::Cancel => {
                 if *it == F::Connect {
                     let pf = if f.focus == F::Connect { 1 } else if f.focus == F::Cancel { 2 } else { 0 };
                     b.y = b.last_bottom + 24.0;
-                    b.push(DRow { kind: dk::PAIR, h: DLG_BTN_H, label: lt("#Button_Cancel", "Отмена"), value: lt("#Settings_Internet_Connect", "Подключиться"), on: i32::from(f.can_connect()), focus: pf, item: i as i32, ..Default::default() }, DLG_BTN_H);
+                    b.push(DRow { kind: dk::PAIR, h: DLG_BTN_H, label: lt("#Button_Cancel", i18n::tr_ref("internet.cancel")), value: lt("#Settings_Internet_Connect", i18n::tr_ref("internet.connect")), on: i32::from(f.can_connect()), focus: pf, item: i as i32, ..Default::default() }, DLG_BTN_H);
                 }
                 if foc { focus_row = Some(b.rows.len() - 1); }
                 continue;
@@ -410,10 +425,10 @@ fn form_view(f: &Form, st_osk: bool, scroll: f32) -> DialogView {
 
 fn pick_view(cur: usize, sel: usize) -> DialogView {
     let mut b = B::new();
-    title_block(&mut b, &lt("#Settings_Internet_Security_Type", "Протокол безопасности"), None);
+    title_block(&mut b, &lt("#Settings_Internet_Security_Type", i18n::tr_ref("internet.security_type")), None);
     b.y = 80.0;
     for (i, s) in wifi::CUSTOM_SECURITY.iter().enumerate() {
-        b.push(DRow { kind: dk::OPTION, h: 72.0, label: s.label().into(), focus: i32::from(i == sel), on: i32::from(i == cur), item: i as i32, ..Default::default() }, 72.0);
+        b.push(DRow { kind: dk::OPTION, h: 72.0, label: security_label(*s).into(), focus: i32::from(i == sel), on: i32::from(i == cur), item: i as i32, ..Default::default() }, 72.0);
     }
     let n = wifi::CUSTOM_SECURITY.len();
     finish(b, n, sel, None, false, 24.0, 0.0)
@@ -432,27 +447,27 @@ fn info_view(i: &Info, scroll: f32) -> DialogView {
         b.push(r, pitch);
     };
     let btn = |label: String| DRow { kind: dk::BUTTON_ROW, h: DLG_ROW_H, value: label, w2: CTRL_W, ..Default::default() };
-    if i.saved.is_some() { next(&mut b, btn(lt("#Settings_Internet_Forget", "Забыть")), DLG_PITCH, &mut items); }
-    if i.connectable { next(&mut b, btn(lt("#Settings_Internet_Connect", "Подключиться")), DLG_PITCH, &mut items); }
-    if i.connected { next(&mut b, btn(lt("#Settings_Internet_Disconnect", "Отключиться")), DLG_PITCH, &mut items); }
+    if i.saved.is_some() { next(&mut b, btn(lt("#Settings_Internet_Forget", i18n::tr_ref("internet.forget"))), DLG_PITCH, &mut items); }
+    if i.connectable { next(&mut b, btn(lt("#Settings_Internet_Connect", i18n::tr_ref("internet.connect"))), DLG_PITCH, &mut items); }
+    if i.connected { next(&mut b, btn(lt("#Settings_Internet_Disconnect", i18n::tr_ref("internet.disconnect"))), DLG_PITCH, &mut items); }
     let saved = i.saved.as_ref();
     let auto = saved.map(|p| i32::from(p.autoconnect)).unwrap_or(-1);
     // the toggle is focusable even when disabled (stock `disabled: !isSaved`)
-    next(&mut b, DRow { kind: dk::TOGGLE, h: 68.0, label: lt("#Settings_Internet_Autoconnect_Toggle", "Автоподключение к этой сети"), on: auto, ..Default::default() }, 78.0, &mut items);
-    b.push(DRow { kind: dk::INFO, h: ROW_H, label: lt("#Settings_Internet_Status", "Состояние"), value: state_label(i), item: -1, ..Default::default() }, 80.0);
+    next(&mut b, DRow { kind: dk::TOGGLE, h: 68.0, label: lt("#Settings_Internet_Autoconnect_Toggle", i18n::tr_ref("internet.autoconnect_with_this_network")), on: auto, ..Default::default() }, 78.0, &mut items);
+    b.push(DRow { kind: dk::INFO, h: ROW_H, label: lt("#Settings_Internet_Status", i18n::tr_ref("internet.status")), value: state_label(i), item: -1, ..Default::default() }, 80.0);
     let d = i.details.clone().unwrap_or_default();
-    b.push(DRow { kind: dk::INFO, h: ROW_H, label: lt("#Settings_Internet_MAC_Address", "MAC-адрес"), value: d.mac.clone(), item: -1, ..Default::default() }, 80.0);
+    b.push(DRow { kind: dk::INFO, h: ROW_H, label: lt("#Settings_Internet_MAC_Address", i18n::tr_ref("internet.mac_address")), value: d.mac.clone(), item: -1, ..Default::default() }, 80.0);
     if i.connected && !d.ipv4.is_empty() {
         b.y += 16.0;
-        b.push(DRow { kind: dk::SECTION, h: 54.0, label: lt("#Settings_Internet_IPv4_Address", "IPv4-адрес").to_uppercase(), item: -1, ..Default::default() }, 70.0);
-        next(&mut b, DRow { kind: dk::INFO, h: ROW_H, label: lt("#Settings_Internet_IP_Address_Assignment", "Назначение IP-адреса"), value: if d.dhcp { lt("#Settings_Internet_IP_Address_Assignment_Automatic", "Автоматически") } else { lt("#Settings_Internet_IP_Address_Assignment_Manual", "Вручную") }, ..Default::default() }, 80.0, &mut items);
+        b.push(DRow { kind: dk::SECTION, h: 54.0, label: lt("#Settings_Internet_IPv4_Address", i18n::tr_ref("internet.ipv4_address")).to_uppercase(), item: -1, ..Default::default() }, 70.0);
+        next(&mut b, DRow { kind: dk::INFO, h: ROW_H, label: lt("#Settings_Internet_IP_Address_Assignment", i18n::tr_ref("internet.ip_address_assignment")), value: if d.dhcp { lt("#Settings_Internet_IP_Address_Assignment_Automatic", i18n::tr_ref("internet.automatic")) } else { lt("#Settings_Internet_IP_Address_Assignment_Manual", i18n::tr_ref("internet.manual")) }, ..Default::default() }, 80.0, &mut items);
         for (ip, mask) in &d.ipv4 {
-            b.push(DRow { kind: dk::INFO, h: ROW_H, label: lt("#Settings_Internet_IP_Address", "IP-адрес"), value: ip.clone(), item: -1, ..Default::default() }, 80.0);
-            b.push(DRow { kind: dk::INFO, h: ROW_H, label: lt("#Settings_Internet_Subnet_Mask", "Маска подсети"), value: mask.clone(), item: -1, ..Default::default() }, 80.0);
+            b.push(DRow { kind: dk::INFO, h: ROW_H, label: lt("#Settings_Internet_IP_Address", i18n::tr_ref("internet.ip_address")), value: ip.clone(), item: -1, ..Default::default() }, 80.0);
+            b.push(DRow { kind: dk::INFO, h: ROW_H, label: lt("#Settings_Internet_Subnet_Mask", i18n::tr_ref("internet.subnet_mask")), value: mask.clone(), item: -1, ..Default::default() }, 80.0);
         }
-        if !d.gateway.is_empty() { b.push(DRow { kind: dk::INFO, h: ROW_H, label: lt("#Settings_Internet_Gateway", "Шлюз"), value: d.gateway.clone(), item: -1, ..Default::default() }, 80.0); }
+        if !d.gateway.is_empty() { b.push(DRow { kind: dk::INFO, h: ROW_H, label: lt("#Settings_Internet_Gateway", i18n::tr_ref("internet.gateway")), value: d.gateway.clone(), item: -1, ..Default::default() }, 80.0); }
         for (n, dns) in d.dns.iter().enumerate() {
-            let label = if n == 0 { lt("#Settings_Internet_Primary_DNS", "Первичный DNS") } else { lt("#Settings_Internet_Secondary_DNS", "Вторичный DNS") };
+            let label = if n == 0 { lt("#Settings_Internet_Primary_DNS", i18n::tr_ref("internet.primary_dns")) } else { lt("#Settings_Internet_Secondary_DNS", i18n::tr_ref("internet.secondary_dns")) };
             b.push(DRow { kind: dk::INFO, h: ROW_H, label, value: dns.clone(), item: -1, ..Default::default() }, 80.0);
         }
     }
@@ -465,12 +480,12 @@ fn info_view(i: &Info, scroll: f32) -> DialogView {
 fn progress_view(p: &Prog) -> DialogView {
     let mut b = B::new();
     let (l1, l2, f1, f2, text, text_err) = match p.stage {
-        Stage::Connecting => (1, 0, false, false, lf("#Settings_Internet_Connecting_To_Network", "Подключение к %1$s…", &p.ssid), false),
-        Stage::Checking => (2, 1, false, false, lt("#Settings_Internet_Connecting_To_Internet", "Подключение к интернету…"), false),
-        Stage::Success => (2, 2, false, false, lt("#Settings_Internet_Connection_Successful", "Подключение установлено!"), false),
-        Stage::Failed => (3, 0, true, false, lt("#Settings_Internet_Failed_To_Connect_To_Network", "Не удалось подключиться к сети."), true),
-        Stage::NoInternet => (2, 3, false, true, lt("#Settings_Internet_Failed_To_Connect_To_Internet", "Не удалось подключиться к интернету."), true),
-        Stage::Portal => (2, 3, false, true, lt("#Settings_Internet_Captive_Portal_Detected", "Для выхода в интернет требуется дополнительная информация."), false),
+        Stage::Connecting => (1, 0, false, false, lf("#Settings_Internet_Connecting_To_Network", i18n::tr_ref("internet.connecting_to"), &p.ssid), false),
+        Stage::Checking => (2, 1, false, false, lt("#Settings_Internet_Connecting_To_Internet", i18n::tr_ref("internet.connecting_to_the_internet")), false),
+        Stage::Success => (2, 2, false, false, lt("#Settings_Internet_Connection_Successful", i18n::tr_ref("internet.connection_successful")), false),
+        Stage::Failed => (3, 0, true, false, lt("#Settings_Internet_Failed_To_Connect_To_Network", i18n::tr_ref("internet.failed_to_connect_to_the_network")), true),
+        Stage::NoInternet => (2, 3, false, true, lt("#Settings_Internet_Failed_To_Connect_To_Internet", i18n::tr_ref("internet.failed_to_connect_to_the_internet")), true),
+        Stage::Portal => (2, 3, false, true, lt("#Settings_Internet_Captive_Portal_Detected", i18n::tr_ref("internet.the_network_requires_additional_login_information")), false),
     };
     b.push(DRow { kind: dk::ICONS, h: 150.0, a: l1, b: l2, on: i32::from(f1) | (i32::from(f2) << 1), item: -1, ..Default::default() }, 150.0);
     b.push(DRow { kind: dk::STATUS, h: 60.0, label: text, on: i32::from(text_err), item: -1, ..Default::default() }, 74.0);
@@ -478,9 +493,9 @@ fn progress_view(p: &Prog) -> DialogView {
     let two = matches!(p.stage, Stage::NoInternet | Stage::Portal);
     let items = if two { 2 } else { 1 };
     if two {
-        b.push(DRow { kind: dk::PAIR, h: DLG_BTN_H, label: lt("#Settings_Internet_Try_Another_Network", "Попробовать другую сеть"), value: lt("#Settings_Internet_Use_Network_Anyway", "Не подключаться к интернету"), on: 1, focus: if p.focus == 0 { 1 } else { 2 }, item: 0, ..Default::default() }, DLG_BTN_H);
+        b.push(DRow { kind: dk::PAIR, h: DLG_BTN_H, label: lt("#Settings_Internet_Try_Another_Network", i18n::tr_ref("internet.try_another_network")), value: lt("#Settings_Internet_Use_Network_Anyway", i18n::tr_ref("internet.use_without_internet")), on: 1, focus: if p.focus == 0 { 1 } else { 2 }, item: 0, ..Default::default() }, DLG_BTN_H);
     } else {
-        let label = match p.stage { Stage::Success => lt("#Login_Continue", "Продолжить"), _ => lt("#Button_Cancel", "Отмена") };
+        let label = match p.stage { Stage::Success => lt("#Login_Continue", i18n::tr_ref("internet.continue")), _ => lt("#Button_Cancel", i18n::tr_ref("internet.cancel")) };
         b.push(DRow { kind: dk::STRIP, h: 96.0, value: label, focus: 1, item: 0, ..Default::default() }, 96.0);
     }
     finish(b, items, p.focus.min(items - 1), None, false, 36.0 + if two { 0.0 } else { 0.0 }, 0.0)
@@ -489,11 +504,11 @@ fn progress_view(p: &Prog) -> DialogView {
 fn confirm_text(c: Confirm, game_running: bool, has_network: bool) -> (String, String, bool) {
     // (title, body, has_cancel)
     match c {
-        Confirm::GoOffline if game_running => (lt("#GoOffline", "Перейти в автономный режим"), lt("#UserManagement_OfflineMode_MustCloseGames", "Все запущенные игры должны быть закрыты до перехода в автономный режим."), false),
-        Confirm::GoOffline => (lt("#GoOffline", "Перейти в автономный режим"), lt("#UserManagement_OfflineMode_Desc", "Автономный режим может пригодиться, когда вы хотите играть, но подключение к сети Steam нестабильно. Вы также будете отключены от сети друзей и чатов."), true),
-        Confirm::GoOnline if !has_network => (lt("#GoOnline", "Войти в сеть"), lt("#UserManagement_GoOnline_NoNetwork", "Для входа в сеть необходимо подключение к интернету."), false),
-        Confirm::GoOnline => (lt("#GoOnline", "Войти в сеть"), lt("#UserManagement_GoOnline_Desc", "Вы снова подключитесь к сети Steam, друзьям и чатам."), true),
-        Confirm::DeleteBrowser => (lt("#Settings_Internet_WebBrowserDataDelete", "Удалить данные браузера"), lt("#Settings_Internet_WebBrowserDataDelete_Desc", "Удалить все файлы из кэша, файлы cookie и историю браузера?"), true),
+        Confirm::GoOffline if game_running => (lt("#GoOffline", i18n::tr_ref("internet.enter_offline_mode")), lt("#UserManagement_OfflineMode_MustCloseGames", i18n::tr_ref("internet.all_running_games_must_be_closed_before")), false),
+        Confirm::GoOffline => (lt("#GoOffline", i18n::tr_ref("internet.enter_offline_mode")), lt("#UserManagement_OfflineMode_Desc", i18n::tr_ref("internet.offline_mode_is_useful_when_you_want")), true),
+        Confirm::GoOnline if !has_network => (lt("#GoOnline", i18n::tr_ref("internet.go_online")), lt("#UserManagement_GoOnline_NoNetwork", i18n::tr_ref("internet.an_internet_connection_is_required_to_enter")), false),
+        Confirm::GoOnline => (lt("#GoOnline", i18n::tr_ref("internet.go_online")), lt("#UserManagement_GoOnline_Desc", i18n::tr_ref("internet.you_will_reconnect_to_the_steam_network")), true),
+        Confirm::DeleteBrowser => (lt("#Settings_Internet_WebBrowserDataDelete", i18n::tr_ref("internet.delete_web_browser_data")), lt("#Settings_Internet_WebBrowserDataDelete_Desc", i18n::tr_ref("internet.delete_all_browser_cached_files_cookies_and")), true),
     }
 }
 
@@ -680,12 +695,12 @@ impl State {
             Dialog::Info(i) => info_view(i, self.dscroll),
             Dialog::Proxy(p) => proxy::view(p, osk, self.dscroll),
             Dialog::Progress(p) => progress_view(p),
-            Dialog::Confirm(c, f) => { let (t, b, cancel) = confirm_text(*c, self.game_running, self.page_data().has_network); message_view(&t, &b, &lt(if cancel { "#Button_Confirm" } else { "#Button_OK" }, if cancel { "Подтвердить" } else { "OK" }), cancel.then(|| lt("#Button_Cancel", "Отмена")).as_deref(), *f) }
+            Dialog::Confirm(c, f) => { let (t, b, cancel) = confirm_text(*c, self.game_running, self.page_data().has_network); message_view(&t, &b, &lt(if cancel { "#Button_Confirm" } else { "#Button_OK" }, if cancel { i18n::tr_ref("internet.confirm") } else { "OK" }), cancel.then(|| lt("#Button_Cancel", i18n::tr_ref("internet.cancel"))).as_deref(), *f) }
             Dialog::Alert(k) => match k {
-                AlertKind::NotFound(s) => message_view(&lf("#Settings_Internet_Network_Not_Found", "Сеть не найдена: %1$s", s), "", &lt("#Button_Close", "Закрыть"), None, 0),
+                AlertKind::NotFound(s) => message_view(&lf("#Settings_Internet_Network_Not_Found", i18n::tr_ref("internet.network_not_found"), s), "", &lt("#Button_Close", i18n::tr_ref("internet.close")), None, 0),
                 AlertKind::MustCloseGames => { let (t, b, _) = confirm_text(Confirm::GoOffline, true, true); message_view(&t, &b, &lt("#Button_OK", "OK"), None, 0) }
                 AlertKind::NoNetwork => { let (t, b, _) = confirm_text(Confirm::GoOnline, false, false); message_view(&t, &b, &lt("#Button_OK", "OK"), None, 0) }
-                AlertKind::Unsupported => message_view(&lt("#Settings_Internet_AP_Security_Unsupported", "Этот тип защиты сети не поддерживается"), "", &lt("#Button_Close", "Закрыть"), None, 0),
+                AlertKind::Unsupported => message_view(&lt("#Settings_Internet_AP_Security_Unsupported", i18n::tr_ref("internet.this_type_of_network_protection_is_not")), "", &lt("#Button_Close", i18n::tr_ref("internet.close")), None, 0),
             },
         })
     }
@@ -779,19 +794,19 @@ pub fn hints() -> Vec<(&'static str, &'static str, i32, &'static str, Action)> {
     let b = ("b", "#ActionButtonLabelBack", 1, "Esc", Action::B);
     let a_sel = ("a", "#ActionButtonLabelSelect", 1, "Enter", Action::A);
     let (dlg, focus, osk) = with(|s| (s.dialog.clone(), s.focus.clone(), s.osk_open));
-    if osk { return vec![("a", "Ввод", 1, "Enter", Action::A), ("b", "Готово", 1, "Esc", Action::B)]; }
+    if osk { return vec![("a", i18n::tr_ref("internet.input"), 1, "Enter", Action::A), ("b", i18n::tr_ref("internet.done"), 1, "Esc", Action::B)]; }
     match dlg {
         Some(Dialog::Progress(p)) => match p.stage {
-            Stage::Success => vec![("a", "Готово", 1, "Enter", Action::A)],
-            Stage::NoInternet | Stage::Portal => vec![a_sel, ("b", "Отмена", 1, "Esc", Action::B)],
-            _ => vec![("b", "Отмена", 1, "Esc", Action::B)],
+            Stage::Success => vec![("a", i18n::tr_ref("internet.done"), 1, "Enter", Action::A)],
+            Stage::NoInternet | Stage::Portal => vec![a_sel, ("b", i18n::tr_ref("internet.cancel"), 1, "Esc", Action::B)],
+            _ => vec![("b", i18n::tr_ref("internet.cancel"), 1, "Esc", Action::B)],
         },
         Some(Dialog::Proxy(_)) => vec![a_sel, b],
-        Some(Dialog::Form(f)) if f.focus == F::Pass => vec![("y", "Показать пароль", 1, "F4", Action::Y), a_sel, b],
+        Some(Dialog::Form(f)) if f.focus == F::Pass => vec![("y", i18n::tr_ref("internet.show_password"), 1, "F4", Action::Y), a_sel, b],
         Some(_) => vec![a_sel, b],
         None => match focus {
-            Some(Key::Ap(s)) if with(|st| st.ap(&s).is_some_and(|a| !a.in_use)) => vec![("menu", "Информация", 2, "F9", Action::Menu), ("a", "Подключиться", 1, "Enter", Action::A), b],
-            Some(Key::Ap(_)) => vec![("a", "Информация", 1, "Enter", Action::A), b],
+            Some(Key::Ap(s)) if with(|st| st.ap(&s).is_some_and(|a| !a.in_use)) => vec![("menu", i18n::tr_ref("internet.about"), 2, "F9", Action::Menu), ("a", i18n::tr_ref("internet.connect"), 1, "Enter", Action::A), b],
+            Some(Key::Ap(_)) => vec![("a", i18n::tr_ref("internet.about"), 1, "Enter", Action::A), b],
             _ => vec![a_sel, b],
         },
     }
@@ -930,7 +945,7 @@ fn radio_result(app: &mut App, observed: Option<bool>, result: Result<(), String
         }
         Err(err) => {
             eprintln!("[deckshell] Wi-Fi: {err}");
-            app.toast("Не удалось изменить состояние Wi-Fi");
+            app.toast(i18n::tr_ref("internet.failed_to_change_the_status_of_wi"));
         }
     }
     if open {
@@ -1242,7 +1257,7 @@ fn info_activate(app: &mut App, i: Info) {
     match (row.kind, row.value.as_str(), row.label.as_str()) {
         (dk::SINGLE, ..) => close_and_refocus(app),
         (dk::TOGGLE, ..) => {
-            let Some(p) = i.saved.clone() else { return app.toast("Сначала подключитесь к сети") };
+            let Some(p) = i.saved.clone() else { return app.toast(i18n::tr_ref("internet.connect_to_the_network_first")) };
             let on = !p.autoconnect;
             with(|s| if let Some(Dialog::Info(inf)) = &mut s.dialog { if let Some(sp) = &mut inf.saved { sp.autoconnect = on; } });
             crate::sound::play(if on { crate::sound::Snd::ToggleOn } else { crate::sound::Snd::ToggleOff });
@@ -1250,11 +1265,11 @@ fn info_activate(app: &mut App, i: Info) {
             run(None, Box::new(move |b| { let _ = b.set_autoconnect(&ssid, on); }));
         }
         (dk::BUTTON_ROW, v, _) => {
-            if v == lt("#Settings_Internet_Forget", "Забыть") {
+            if v == lt("#Settings_Internet_Forget", i18n::tr_ref("internet.forget")) {
                 close_dialog(app);
                 run(Some(Op::Forget(ssid.clone())), Box::new(move |b| { let _ = b.forget(&ssid); }));
                 push(app);
-            } else if v == lt("#Settings_Internet_Disconnect", "Отключиться") {
+            } else if v == lt("#Settings_Internet_Disconnect", i18n::tr_ref("internet.disconnect")) {
                 close_dialog(app);
                 run(Some(Op::Disconnect), Box::new(move |b| { let _ = b.disconnect(); }));
                 push(app);

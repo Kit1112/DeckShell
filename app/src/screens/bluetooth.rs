@@ -7,6 +7,7 @@
 //!
 //! The painting is shared with the Internet page (`ui/screens/internet.slint`, `InternetState`): rows and dialog rows are computed
 //! here in window px so tests can lint them and walk the pad focus without Slint.
+use steam_assets::i18n;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
@@ -78,7 +79,7 @@ fn device_row(rows: &mut Vec<Row>, y: &mut f32, d: &Device, key: Key, last: bool
     let not_connected = d.paired && !d.connected;
     let spinner = d.pairing || d.busy;
     let (desc, btn, level) = if spinner { (String::new(), String::new(), 0.0) }
-        else if not_connected { (lt("#QuickAccess_Tab_Bluetooth_Not_Connected", "НЕ ПОДКЛЮЧЕНО").to_uppercase(), String::new(), 0.0) }
+        else if not_connected { (lt("#QuickAccess_Tab_Bluetooth_Not_Connected", i18n::tr_ref("bluetooth.not_connected")).to_uppercase(), String::new(), 0.0) }
         else if let Some(p) = d.battery { (String::new(), format!("{p}%"), p as f32) }
         else { (String::new(), String::new(), 0.0) };
     rows.push(Row { key: Some(key.tag()), kind: rk::DEVICE, y: *y, h: DEVICE_H, label: device_title(d), desc, btn, btn_w: level, on: i32::from(not_connected && !spinner),
@@ -92,17 +93,17 @@ pub fn page_rows(d: &PageData) -> Vec<Row> {
     let mut y = 153.0;
     rows.push(Row { key: Some(Key::Toggle.tag()), kind: rk::TOGGLE, y, h: TOGGLE_H, label: lt("#QuickAccess_Tab_Bluetooth_ToggleLabel", "Bluetooth"), on: if !d.available { -1 } else { i32::from(d.enabled) }, mark: 3, warn: true, ..Default::default() });
     y += TOGGLE_H + SEP;
-    rows.push(Row { key: Some(Key::ShowAll.tag()), kind: rk::TOGGLE, y, h: TOGGLE_H, label: lt("#QuickAccess_Tab_Bluetooth_ShowAllDevices", "Показать все устройства"), on: i32::from(d.show_all), warn: true, ..Default::default() });
+    rows.push(Row { key: Some(Key::ShowAll.tag()), kind: rk::TOGGLE, y, h: TOGGLE_H, label: lt("#QuickAccess_Tab_Bluetooth_ShowAllDevices", i18n::tr_ref("bluetooth.show_all_devices")), on: i32::from(d.show_all), warn: true, ..Default::default() });
     y += TOGGLE_H;
     if !d.paired.is_empty() {
-        net::section(&mut rows, &mut y, &lt("#QuickAccess_Tab_Bluetooth_Paired", "Привязано"));
+        net::section(&mut rows, &mut y, &lt("#QuickAccess_Tab_Bluetooth_Paired", i18n::tr_ref("bluetooth.paired")));
         rows.last_mut().unwrap().warn = true;
         for (i, dev) in d.paired.iter().enumerate() { device_row(&mut rows, &mut y, dev, Key::Paired(dev.id), i + 1 == d.paired.len()); }
     }
     if d.enabled || !d.avail.is_empty() {
-        let title = if !d.avail.is_empty() { lt("#QuickAccess_Tab_Bluetooth_Available_To_Pair", "Доступно для соединения") }
-            else if d.discovering { lt("#QuickAccess_Tab_Bluetooth_Searching", "Поиск устройств...") }
-            else { lt("#QuickAccess_Tab_Bluetooth_No_Devices_Found", "Устройства не обнаружены") };
+        let title = if !d.avail.is_empty() { lt("#QuickAccess_Tab_Bluetooth_Available_To_Pair", i18n::tr_ref("bluetooth.available_to_pair")) }
+            else if d.discovering { lt("#QuickAccess_Tab_Bluetooth_Searching", i18n::tr_ref("bluetooth.searching_for_devices")) }
+            else { lt("#QuickAccess_Tab_Bluetooth_No_Devices_Found", i18n::tr_ref("bluetooth.no_devices_found")) };
         net::section(&mut rows, &mut y, &title);
         if let Some(h) = rows.last_mut() {
             h.warn = true;
@@ -135,7 +136,7 @@ fn wake_label() -> String {
     // stock `g.yu()`: the Steam Deck name goes into the known-hardware template
     let deck = lt("#HardwareVariant_SteamDeck", "Steam Deck");
     if steam_assets::has_loc("#Settings_Bluetooth_AllowWake_KnownHardware") { crate::assets::tf("#Settings_Bluetooth_AllowWake_KnownHardware", &[&deck]) }
-    else { format!("Разрешить этому устройству выводить {deck} из спящего режима") }
+    else { i18n::tr_args("bluetooth.allow_this_device_to_wake_from_sleep", &[("deck", &(deck).to_string())]) }
 }
 
 pub fn info_view(d: &Device, focus: usize, scroll: f32) -> DialogView {
@@ -145,12 +146,12 @@ pub fn info_view(d: &Device, focus: usize, scroll: f32) -> DialogView {
     let mut focus_row = None;
     for (n, it) in items.iter().enumerate() {
         let (kind, label, value, on, h, w2, pitch) = match it {
-            Item::Mac => (dk::INFO, lt("#Settings_Internet_MAC_Address", "MAC-адрес"), d.mac.clone(), 0, net::ROW_H, 0.0, 80.0),
-            Item::Trusted => (dk::TOGGLE, lt("#Settings_Bluetooth_Trusted", "Доверенное"), String::new(), i32::from(d.trusted), 68.0, 0.0, 78.0),
+            Item::Mac => (dk::INFO, lt("#Settings_Internet_MAC_Address", i18n::tr_ref("bluetooth.mac_address")), d.mac.clone(), 0, net::ROW_H, 0.0, 80.0),
+            Item::Trusted => (dk::TOGGLE, lt("#Settings_Bluetooth_Trusted", i18n::tr_ref("bluetooth.trusted")), String::new(), i32::from(d.trusted), 68.0, 0.0, 78.0),
             Item::Wake => (dk::TOGGLE, wake_label(), String::new(), i32::from(d.wake_allowed), 68.0, 0.0, 78.0),
-            Item::Forget => (dk::BUTTON_ROW, lt("#QuickAccess_Tab_Bluetooth_Unpair", "Забыть устройство"), lt("#QuickAccess_Tab_Bluetooth_Forget", "Забыть"), 0, DLG_ROW_H, CTRL_W, DLG_PITCH),
-            Item::Toggle if d.connected => (dk::BUTTON_ROW, lt("#QuickAccess_Tab_Bluetooth_DisconnectLabel", "Отключить устройство"), lt("#QuickAccess_Tab_Bluetooth_Disconnect", "Отключить"), 0, DLG_ROW_H, CTRL_W, DLG_PITCH),
-            Item::Toggle => (dk::BUTTON_ROW, lt("#QuickAccess_Tab_Bluetooth_ConnectLabel", "Подключить устройство"), lt("#QuickAccess_Tab_Bluetooth_Connect", "Подключиться"), 0, DLG_ROW_H, CTRL_W, DLG_PITCH),
+            Item::Forget => (dk::BUTTON_ROW, lt("#QuickAccess_Tab_Bluetooth_Unpair", i18n::tr_ref("bluetooth.forget_device")), lt("#QuickAccess_Tab_Bluetooth_Forget", i18n::tr_ref("bluetooth.forget")), 0, DLG_ROW_H, CTRL_W, DLG_PITCH),
+            Item::Toggle if d.connected => (dk::BUTTON_ROW, lt("#QuickAccess_Tab_Bluetooth_DisconnectLabel", i18n::tr_ref("bluetooth.disconnect_device")), lt("#QuickAccess_Tab_Bluetooth_Disconnect", i18n::tr_ref("bluetooth.disconnect")), 0, DLG_ROW_H, CTRL_W, DLG_PITCH),
+            Item::Toggle => (dk::BUTTON_ROW, lt("#QuickAccess_Tab_Bluetooth_ConnectLabel", i18n::tr_ref("bluetooth.connect_device")), lt("#QuickAccess_Tab_Bluetooth_Connect", i18n::tr_ref("bluetooth.connect")), 0, DLG_ROW_H, CTRL_W, DLG_PITCH),
         };
         if focus == n { focus_row = Some(b.rows.len()); }
         b.push(DRow { kind, label, value, on, h, w2, focus: i32::from(focus == n), item: n as i32, ..Default::default() }, pitch);
@@ -159,9 +160,9 @@ pub fn info_view(d: &Device, focus: usize, scroll: f32) -> DialogView {
 }
 
 fn xbox_view() -> DialogView {
-    net::message_view(&lt("#Settings_Bluetooth_XboxIssue_Title", "Ошибка привязки контроллера Xbox"),
-        &lt("#Settings_Bluetooth_XboxIssue_Desc", "У контроллеров Xbox со старой прошивкой есть проблема, которая не позволяет подключать их к устройствам со SteamOS. Подключите свой контроллер к ПК на Windows и воспользуйтесь приложением «Аксессуары Xbox», чтобы обновить прошивку до последней версии."),
-        &lt("#Generic_GotIt", "Понятно!"), None, 0)
+    net::message_view(&lt("#Settings_Bluetooth_XboxIssue_Title", i18n::tr_ref("bluetooth.issue_pairing_to_your_xbox_controller")),
+        &lt("#Settings_Bluetooth_XboxIssue_Desc", i18n::tr_ref("bluetooth.xbox_controllers_with_older_firmware_have_an")),
+        &lt("#Generic_GotIt", i18n::tr_ref("bluetooth.got_it")), None, 0)
 }
 
 // ---------------------------------------------------------------- state
@@ -347,12 +348,12 @@ pub fn hints() -> Vec<(&'static str, &'static str, i32, &'static str, Action)> {
     let b = ("b", "#ActionButtonLabelBack", 1, "Esc", Action::B);
     let a_sel = ("a", "#ActionButtonLabelSelect", 1, "Enter", Action::A);
     let (dlg, focus, page) = with(|s| (s.dialog.clone(), s.focus.clone(), s.page_data()));
-    if matches!(dlg, Some(Dialog::Xbox)) { return vec![("a", "Понятно!", 1, "Enter", Action::A), b]; }
+    if matches!(dlg, Some(Dialog::Xbox)) { return vec![("a", i18n::tr_ref("bluetooth.got_it"), 1, "Enter", Action::A), b]; }
     if dlg.is_some() { return vec![a_sel, b]; }
     match focus {
-        Some(Key::Paired(_)) => vec![("a", "Подробнее", 1, "Enter", Action::A), b],
-        Some(Key::Avail(id)) if page.avail.iter().any(|d| d.id == id && d.pairing) => vec![("a", "Отвязать устройство", 1, "Enter", Action::A), b],
-        Some(Key::Avail(_)) => vec![("a", "Привязать", 1, "Enter", Action::A), b],
+        Some(Key::Paired(_)) => vec![("a", i18n::tr_ref("bluetooth.more_information"), 1, "Enter", Action::A), b],
+        Some(Key::Avail(id)) if page.avail.iter().any(|d| d.id == id && d.pairing) => vec![("a", i18n::tr_ref("bluetooth.cancel_pairing"), 1, "Enter", Action::A), b],
+        Some(Key::Avail(_)) => vec![("a", i18n::tr_ref("bluetooth.link"), 1, "Enter", Action::A), b],
         _ => vec![a_sel, b],
     }
 }

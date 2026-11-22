@@ -28,9 +28,9 @@ pub enum Plan {
     Nothing,
 }
 
-pub const ALREADY: &str = "Эта раскладка уже выбрана";
-pub const NO_COPY: &str = "Копию можно создать только из шаблона";
-pub const NO_DELETE: &str = "Удалять можно только свои раскладки";
+pub const ALREADY: &str = "controller.this_layout_is_already_selected";
+pub const NO_COPY: &str = "controller.you_can_only_create_a_copy_from_a";
+pub const NO_DELETE: &str = "controller.you_can_only_delete_your_own_layouts";
 
 /// `pending`: the url awaiting delete confirmation, if any.
 pub fn decide(tab: Tab, card: &Card, button: Button, pending: Option<&str>) -> Plan {

@@ -2,6 +2,7 @@
 //! Rail navigation moves the cursor; tapping or pressing A on a category replaces the route. Content rows come from
 //! `ui/generated/settings/pages.json` (tools/compile-ui/pages.mjs: rect/role/handlers of every element of the captured Steam page);
 //! current values are read (read-only) from `settingsStore` through the bridge; setters only log under DECKSHELL_DRYRUN.
+use steam_assets::i18n;
 #[path = "storage.rs"]
 mod storage;
 #[path = "recording_settings.rs"]
@@ -27,7 +28,7 @@ const ROUTES_JSON: &str = include_str!("../../../docs/engine/routes.json");
 const PAGES_JSON: &str = include_str!("../../ui/generated/settings/pages.json");
 
 fn system_report_unavailable() -> &'static str {
-    "Составление системного отчёта пока недоступно в DeckShell"
+    i18n::tr_ref("settings.system_reporting_not_available_on_deckshell")
 }
 
 /// Steam css px -> device px (window 1280 wide for the 1068 css px BP window).
@@ -81,7 +82,7 @@ fn field_done(_: &mut App) {}
 fn field_text(id: &str) -> String { FIELD_TEXT.with(|m| m.borrow().get(id).cloned().unwrap_or_default()) }
 
 pub fn parse_rows(v: &Value) -> Vec<PRow> {
-    let s = |r: &Value, k: &str| r[k].as_str().unwrap_or("").to_string();
+    let s = |r: &Value, k: &str| i18n::captured_text(r[k].as_str().unwrap_or_default()).to_owned();
     let f = |r: &Value, k: &str| r[k].as_f64().unwrap_or(0.0) as f32;
     v.as_array()
         .map(|a| {
@@ -90,6 +91,39 @@ pub fn parse_rows(v: &Value) -> Vec<PRow> {
                 .collect()
         })
         .unwrap_or_default()
+}
+
+/// Resolve capture text from the catalog and prefer Steam tokens in English. The recorded
+/// Russian copy also carries the description suffix used by token-backed rows.
+pub(super) fn parse_captured_rows(v: &Value) -> Vec<PRow> {
+    let mut rows = parse_rows(v);
+    if i18n::current().code() == "ru" {
+        return rows;
+    }
+    let translate = |raw: &Value, key: &str, token: &str, source_token: &str| {
+        let fallback = raw[key].as_str().map(i18n::tr_ref).unwrap_or_default();
+        let token = raw[token].as_str().unwrap_or(source_token);
+        if token.is_empty() { fallback.to_owned() } else { t_or(token, fallback) }
+    };
+    if let Some(capture) = v.as_array() {
+        for (row, raw) in rows.iter_mut().zip(capture) {
+            row.full.clear();
+            if row.k == 0 {
+                row.lab.clear();
+                row.desc.clear();
+                continue;
+            }
+            if raw["lab_key"].is_string() {
+                // Slint's search pills use captured uppercase labels.
+                let source_token = if row.k == 9 { "" } else { &row.tok };
+                row.lab = translate(raw, "lab_key", "lab_token", source_token);
+            }
+            if raw["desc_key"].is_string() {
+                row.desc = translate(raw, "desc_key", "desc_token", "");
+            }
+        }
+    }
+    rows
 }
 
 /// A captured label row whose token the running Steam does not localize and that has no captured text: showing the
@@ -250,7 +284,17 @@ fn load_pages() -> Vec<Page> {
             a.iter()
                 .filter_map(|p| {
                     let id = p["id"].as_str()?.to_string();
-                    let label = if id.eq_ignore_ascii_case("gamerecording") { recording_settings::ru("Settings_Page_GameRecording") } else if id.eq_ignore_ascii_case(super::anim_page::PAGE) { super::anim_page::LABEL.to_string() } else { t_or(&format!("#Settings_Page_{id}"), p["rail_label"].as_str().unwrap_or(&id)) };
+                    let label = if id.eq_ignore_ascii_case("gamerecording") {
+                        recording_settings::steam_text("Settings_Page_GameRecording")
+                    } else if id.eq_ignore_ascii_case(super::anim_page::PAGE) {
+                        i18n::tr(super::anim_page::LABEL)
+                    } else if id.eq_ignore_ascii_case(power_page::PAGE) {
+                        power_page::rail_label()
+                    } else if id.eq_ignore_ascii_case(controller_devices::PAGE) {
+                        t_or("#Settings_Page_Controller", steam_assets::i18n::tr_ref("controller.controller"))
+                    } else {
+                        t_or(&format!("#Settings_Page_{id}"), i18n::tr_ref(&format!("settings.rail.{}", id.to_lowercase())))
+                    };
                     Some(Page { id, label })
                 })
                 // stock `Ii`: «Bluetooth» is on the rail only while the Bluetooth service answers
@@ -259,7 +303,7 @@ fn load_pages() -> Vec<Page> {
         })
         .unwrap_or_default();
     if out.is_empty() {
-        out.push(Page { id: "System".into(), label: t_or("#Settings_Page_System", "Система") });
+        out.push(Page { id: "System".into(), label: t_or("#Settings_Page_System", i18n::tr_ref("settings.system")) });
     }
     out
 }
@@ -433,7 +477,7 @@ fn recording_mode_label(label: &str, mode: i64, snapshot: &Value) -> String {
     match snapshot["c"]["gamerecording_background_mode"].as_i64() {
         Some(current @ 0..=2) if current == mode => format!("● {label}"),
         Some(0..=2) => format!("○ {label}"),
-        _ => format!("{label} — недоступно"),
+        _ => i18n::tr_args("settings.not_available", &[("label", &(label).to_string())]),
     }
 }
 
@@ -653,8 +697,7 @@ impl App {
         }
         self.se.recording_menu = None;
         self.se.recording_write = None;
-        let rows: Vec<PRow> = serde_json::from_str::<Value>(PAGES_JSON).map(|v| parse_rows(&v[page_id.as_str()])).unwrap_or_default()
-            ;
+        let rows: Vec<PRow> = serde_json::from_str::<Value>(PAGES_JSON).map(|v| parse_captured_rows(&v[page_id.as_str()])).unwrap_or_default();
         let mut rows = drop_unlocalized(rows, steam_assets::has_loc);
         if page_id == power_page::PAGE {
             // task 466: the stock page is rebuilt natively; controls stay unavailable until the live snapshot arrives
@@ -689,8 +732,8 @@ impl App {
 
     fn show_storage(&mut self) {
         let (mut rows, selected) = match &self.se.storage {
-            None => (vec![PRow { k: 12, lab: "Загрузка хранилища…".into(), x: 270., y: 125., w: 650., h: 32., ..Default::default() }], None),
-            Some(Err(())) => (vec![PRow { k: 12, lab: "Не удалось получить данные хранилища Steam".into(), x: 270., y: 125., w: 650., h: 32., ..Default::default() }], None),
+            None => (vec![PRow { k: 12, lab: i18n::tr_ref("settings.loading_the_vault").into(), x: 270., y: 125., w: 650., h: 32., ..Default::default() }], None),
+            Some(Err(())) => (vec![PRow { k: 12, lab: i18n::tr_ref("settings.unable_to_obtain_steam_storage_data").into(), x: 270., y: 125., w: 650., h: 32., ..Default::default() }], None),
             Some(Ok(d)) => storage::rows(d, self.se.storage_selected, self.se.storage_sort, self.se.storage_sort_menu),
         };
         // Storage uses the wider Steam settings rail; map the captured content
@@ -824,23 +867,23 @@ impl App {
                     row.label = if self.se.snapshot["c"]["gamerecording_background_mode"].as_i64() == Some(1) {
                         self.se.snapshot["c"]["gamerecording_ic_seconds"].as_f64()
                             .filter(|v| v.is_finite() && *v > 0.0 && *v <= 9999.0)
-                            .map(|v| format!("{v} сек.")).unwrap_or_else(|| "Недоступно".into())
-                    } else { "Для фоновой записи".into() }.into();
+                            .map(|v| i18n::tr_args("settings.sec", &[("value", &(v).to_string())])).unwrap_or_else(|| i18n::tr_ref("settings.unavailable").into())
+                    } else { i18n::tr_ref("settings.for_background_recording").into() }.into();
                 }
                 if r.tok == "#DeckShell_RecordingBitrate" {
                     row.label = match self.se.snapshot["c"]["gamerecording_video_bitrate"].as_str() {
-                        Some("preset_ultra") => "Сверхвысокое",
-                        Some("preset_default") => "Высокое (по умолчанию)",
-                        Some("preset_medium") => "Среднее",
-                        Some("preset_low") => "Низкое",
-                        Some(_) => "Другое",
-                        None => "Недоступно",
+                        Some("preset_ultra") => i18n::tr_ref("settings.ultra"),
+                        Some("preset_default") => i18n::tr_ref("settings.high_by_default"),
+                        Some("preset_medium") => i18n::tr_ref("settings.medium"),
+                        Some("preset_low") => i18n::tr_ref("settings.low"),
+                        Some(_) => i18n::tr_ref("settings.more"),
+                        None => i18n::tr_ref("settings.unavailable"),
                     }.into();
                 }
                 if r.tok == "#DeckShell_RecordingDuration" {
                     row.label = self.se.snapshot["c"]["gamerecording_background_max_keep"].as_str()
-                        .and_then(recording_duration).map(|minutes| format!("{minutes} мин."))
-                        .unwrap_or_else(|| "Недоступно".into()).into();
+                        .and_then(recording_duration).map(|minutes| i18n::tr_args("settings.min", &[("minutes", &(minutes).to_string())]))
+                        .unwrap_or_else(|| i18n::tr_ref("settings.unavailable").into()).into();
                 }
                 let key = match r.tok.as_str() {
                     "#DeckShell_RecordingFps" => Some("gamerecording_max_fps"),
@@ -849,10 +892,10 @@ impl App {
                 };
                 if let Some(key) = key {
                     row.label = self.se.snapshot["c"][key].as_i64().map(|v| {
-                        if key.ends_with("maxheight") && v == 0 { "Без ограничения".to_string() }
-                        else if key.ends_with("maxheight") { format!("{v} пикс.") }
+                        if key.ends_with("maxheight") && v == 0 { i18n::tr_ref("settings.unlimited").to_string() }
+                        else if key.ends_with("maxheight") { i18n::tr_args("settings.px", &[("value", &(v).to_string())]) }
                         else { v.to_string() }
-                    }).unwrap_or_else(|| "Недоступно".into()).into();
+                    }).unwrap_or_else(|| i18n::tr_ref("settings.unavailable").into()).into();
                 }
             }
             if self.se.page_id() == power_page::PAGE {
@@ -864,7 +907,7 @@ impl App {
             }
             if self.se.page_id() == "gamerecording" && self.se.recording_write.is_some() {
                 if matches!(r.k, 2 | 4) { row.on = -1; }
-                if r.lab == "Сохранение настроек" { row.label = "Сохранение настройки в Steam…".into(); }
+                if r.tok == recording_settings::SAVE_STATUS { row.label = i18n::tr_ref("settings.save_the_settings_on_steam").into(); }
             }
             if self.se.page_id() != "storage" && self.se.page_id() != power_page::PAGE {
                 // Reflow the legacy 1.2x content into the space beside the 360px rail.
@@ -934,7 +977,7 @@ impl App {
     /// and the snapshot is updated so the page keeps the value; buttons run their action.
     pub fn settings_activate(&mut self, i: usize) {
         let Some(r) = self.se.rows.get(i).cloned() else { return };
-        if self.se.page_id() == "gamerecording" && self.se.recording_write.is_some() { self.toast("Ожидание сохранения настройки в Steam"); return; }
+        if self.se.page_id() == "gamerecording" && self.se.recording_write.is_some() { self.toast(i18n::tr_ref("settings.waiting_to_save_settings_on_steam")); return; }
         if self.se.page_id() == "gamerecording" && self.recording_dropdown(&r) { return; }
         if self.se.page_id() == power_page::PAGE && self.power_activate(&r) { return; }
         if r.tok != "#DeckShell_RecordingDuration" { self.se.pending = None; }
@@ -954,11 +997,11 @@ impl App {
         match r.k {
             2 | 3 => {
                 if self.se.page_id() == "gamerecording" && recording_settings::available_on(&r, &self.se.snapshot, self.se.on.get(i).copied().unwrap_or(-1)) < 0 {
-                    self.toast("Настройка недоступна в текущем режиме записи"); return;
+                    self.toast(i18n::tr_ref("settings.setup_is_not_available_in_the_current")); return;
                 }
                 let binding = self.toggle_binding(i);
                 let Some(on) = next_toggle_value(self.se.on.get(i).copied().unwrap_or(-1), binding.map(|b| b.0)) else {
-                    self.toast(&t_or("#DeckShell_SettingUnavailable", "Настройка недоступна: нет подтверждённого состояния или обработчика"));
+                    self.toast(&t_or("#DeckShell_SettingUnavailable", i18n::tr_ref("settings.setup_unavailable_no_confirmed_state_or_processor")));
                     return;
                 };
                 if self.se.page_id() == "gamerecording" {
@@ -996,7 +1039,7 @@ impl App {
             4 if self.se.page_id() == "gamerecording" && recording_mode(&r.tok).is_some() => {
                 let target = recording_mode(&r.tok).unwrap();
                 let Some(current @ 0..=2) = self.se.snapshot["c"]["gamerecording_background_mode"].as_i64() else {
-                    self.toast("Режим записи недоступен"); return;
+                    self.toast(i18n::tr_ref("settings.recording_mode_unavailable")); return;
                 };
                 if current != target { self.recording_setting("gamerecording_background_mode", Value::from(target)); }
                 return;
@@ -1020,7 +1063,7 @@ impl App {
 
     fn recording_setting(&mut self, key: &'static str, requested: Value) {
         if crate::actions::dryrun() {
-            self.toast("Проверочный режим: настройка не изменена");
+            self.toast(i18n::tr_ref("settings.verification_mode_the_setting_is_not_changed"));
             return;
         }
         let Some(encoded) = crate::setters::encode_client_setting(key, &requested) else { return };
@@ -1048,7 +1091,7 @@ impl App {
                 if !response_is_current("gamerecording", generation, &a.se.page_id(), a.se.storage_generation, a.router.current()) { return; }
                 a.se.recording_write = None;
                 if !result.as_ref().is_some_and(|v| v == &requested || v.as_f64().zip(requested.as_f64()).is_some_and(|(a, b)| a == b)) {
-                    a.toast(if result.is_some() { "Steam не подтвердил выбранное значение настройки записи" } else { "Не удалось прочитать настройку записи из Steam. Попробуйте ещё раз" });
+                    a.toast(if result.is_some() { i18n::tr_ref("settings.steam_has_not_confirmed_the_selected_value") } else { i18n::tr_ref("settings.i_couldn_t_read_the_steam_recording") });
                 }
                 a.se.snapshot["c"][key] = result.unwrap_or(Value::Null);
                 a.apply_values();
@@ -1066,16 +1109,18 @@ impl App {
                 true
             } else {
                 a.se.pending = Some(what.to_string());
-                a.toast("Нажмите ещё раз для подтверждения");
+                a.toast(i18n::tr_ref("settings.click_again_for_confirmation"));
                 false
             }
         };
-        let lab = r.full.to_lowercase();
-        if key.contains("GoOffline") || lab.contains("автономный режим") {
+        let lab = if i18n::current().code() == "ru" { &r.full } else { &r.lab }.to_lowercase();
+        let russian = i18n::by_code("ru").expect("Russian locale");
+        let contains_label = |key| lab.contains(i18n::tr_ref(key)) || lab.contains(&russian.tr(key));
+        if key.contains("GoOffline") || contains_label("settings.offline_mode") {
             if confirm(self, "offline") {
                 crate::setters::write("go-offline", "SteamClient.User.GoOffline()".into());
             }
-        } else if lab.contains("удалить данные браузера") || key.contains("ClearBrowser") {
+        } else if contains_label("settings.delete_browser_data") || key.contains("ClearBrowser") {
             if confirm(self, "http-cache") {
                 crate::setters::write("clear-http-cache", "SteamClient.Settings.ClearAllHTTPCaches()".into());
             }
@@ -1085,32 +1130,32 @@ impl App {
             }
         } else if key.contains("Settings_Internet_Custom_Network") {
             self.act(crate::actions::Act::Open(steam_control::SteamPage::Settings));
-        } else if key.contains("CheckForUpdates") || lab.contains("проверить обновления") {
+        } else if key.contains("CheckForUpdates") || contains_label("settings.check_out") {
             crate::setters::write("check-updates", "SteamClient.System.CheckForUpdates()".into());
-            self.toast("Проверка обновлений...");
-        } else if key.contains("Settings_Keyboard_Preview") || lab.contains("показать клавиатуру") {
+            self.toast(i18n::tr_ref("settings.checking_for_updates"));
+        } else if key.contains("Settings_Keyboard_Preview") || contains_label("settings.keyboard") {
             // предпросмотр клавиатуры: ввод идёт в первое тестовое поле страницы
             FIELD_ACTIVE.with(|k| *k.borrow_mut() = "1".into());
             super::osk::attach(self, FIELD_SINK);
-        } else if key.contains("Settings_Keyboard_PointsShop_Visit") || lab.contains("магазин предметов за очки") {
+        } else if key.contains("Settings_Keyboard_PointsShop_Visit") || contains_label("settings.point_shop") {
             self.act(crate::actions::Act::Open(steam_control::SteamPage::Store));
-        } else if key.contains("ThirdPartyLicenses") || lab.contains("сторонние лицензии") || key.contains("Settings_SRSI_Run") {
+        } else if key.contains("ThirdPartyLicenses") || contains_label("settings.third_party_license") || key.contains("Settings_SRSI_Run") {
             crate::setters::write("open-runtimeinfo", "SteamClient.System.OpenRuntimeInfo()".into());
-        } else if key.contains("Settings_SystemReport_Start") || lab.contains("составить отчёт") {
+        } else if key.contains("Settings_SystemReport_Start") || contains_label("settings.report") {
             // Steam's sp.js:464507 checks the native result, decodes the reply,
             // and fetches the report text. We cannot present that flow yet.
             self.se.pending = None;
             self.toast(system_report_unavailable());
-        } else if key.contains("Settings_System_Factory_Reset") || lab.contains("сброс к заводским настройкам") {
+        } else if key.contains("Settings_System_Factory_Reset") || contains_label("settings.factory_setting") {
             // Native sp.js:349172 uses the service request with explicit reset_os
             // and reset_user_data options. A guessed no-argument client method
             // plus "press twice" is not that flow. Keep it unavailable.
             self.se.pending = None;
-            self.toast(&t_or("#DeckShell_ActionUnavailable", "Команда пока недоступна в DeckShell"));
+            self.toast(&t_or("#DeckShell_ActionUnavailable", i18n::tr_ref("settings.the_team_is_not_yet_available_on")));
         } else {
             self.se.pending = None;
             eprintln!("[deckshell] {}settings button '{}' ({}) has no native equivalent wired", if crate::actions::dryrun() { "DRYRUN " } else { "" }, r.lab, r.tok);
-            self.toast(&t_or("#DeckShell_ActionUnavailable", "Команда пока недоступна в DeckShell"));
+            self.toast(&t_or("#DeckShell_ActionUnavailable", i18n::tr_ref("settings.the_team_is_not_yet_available_on")));
         }
     }
 
@@ -1349,7 +1394,7 @@ mod availability_tests {
     fn system_report_outcomes() {
         // This action has no dispatch or success/error outcome until the full
         // report flow is implemented; every activation reports unavailability.
-        assert_eq!(system_report_unavailable(), "Составление системного отчёта пока недоступно в DeckShell");
+        assert_eq!(system_report_unavailable(), i18n::tr_ref("settings.system_reporting_not_available_on_deckshell"));
     }
 
     #[test]
@@ -1497,6 +1542,24 @@ mod rail_focus_tests {
         assert!(problems.is_empty(), "layout lint: {} problem(s):\n{}", problems.len(), problems.join("\n"));
     }
 
+    #[test]
+    fn english_captured_settings_use_localized_display_text() {
+        if i18n::current().code() != "en" { return; }
+        let pages: Value = serde_json::from_str(PAGES_JSON).unwrap();
+        for (page, rows) in pages.as_object().unwrap() {
+            if matches!(page.as_str(), "internet" | "storage" | "power" | "gamerecording" | "controller") {
+                continue;
+            }
+            for (index, row) in parse_captured_rows(rows).iter().enumerate() {
+                let row = to_grow(row, 0);
+                for text in [&row.label, &row.desc, &row.sub] {
+                    assert!(!text.chars().any(|c| ('\u{0400}'..='\u{052f}').contains(&c)),
+                        "{page} row {index} contains an untranslated label");
+                }
+            }
+        }
+    }
+
     /// Task 143: on Система the status label «Обновления ПО / Все обновления установлены…» sat centred across the whole
     /// row and ran under «Проверить обновления» (Deck build a7777085, g04-rail). The label must end before the control's
     /// left edge, and the two must not share a vertical band.
@@ -1504,7 +1567,7 @@ mod rail_focus_tests {
     fn system_status_label_ends_before_update_button() {
         let v: Value = serde_json::from_str(PAGES_JSON).expect("pages.json");
         let rows = parse_rows(&v["system"]);
-        let label = rows.iter().find(|r| r.k == 1 && r.lab == "Обновления ПО").expect("status label row");
+        let label = rows.iter().find(|r| r.k == 1 && r.lab == i18n::tr_ref("settings.capture.system.3.label")).expect("status label row");
         let button = rows.iter().find(|r| r.k == 4 && r.tok == "#Settings_Updates_CheckForUpdates").expect("check-updates button");
         assert!(label.x + label.w <= button.x, "label ends at {} but the button starts at {}", label.x + label.w, button.x);
         // the label stays on the page's column and keeps its description
@@ -1571,11 +1634,11 @@ mod recording_setting_tests {
         let mut rows = parse_rows(&pages["gamerecording"]);
         identify_recording_rows(&mut rows);
         for (label, expected) in [
-            ("Записывать звук с микрофона", "c.gamerecording_background_a_m"),
-            ("Принудительное переключение микрофона", "c.gamerecording_force_mic_mono"),
-            ("Автоматическая регулировка усиления", "c.gamerecording_automatic_gain_control"),
+            (recording_settings::steam_text("Settings_GameRecording_AudioRecording_Mic"), "c.gamerecording_background_a_m"),
+            (recording_settings::steam_text("Settings_GameRecording_AudioRecording_MicMono"), "c.gamerecording_force_mic_mono"),
+            (recording_settings::steam_text("Settings_GameRecording_AudioRecording_AGC"), "c.gamerecording_automatic_gain_control"),
         ] {
-            let index = rows.iter().position(|r| r.lab.starts_with(label)).unwrap();
+            let index = rows.iter().position(|r| r.lab.starts_with(&label)).unwrap();
             assert!(matches!(rows[index + 1].k, 2 | 3));
             assert_eq!(binding(&rows[index].tok, 0), Some(expected));
         }
@@ -1597,11 +1660,11 @@ mod recording_setting_tests {
             assert!(row.f);
             assert_eq!(recording_mode(&row.tok), Some(mode));
             assert!(recording_mode_label(&row.lab, mode, &json!({"c":{"gamerecording_background_mode": mode}})).starts_with('●'));
-            assert!(recording_mode_label(&row.lab, mode, &Value::Null).contains("недоступно"));
+            assert!(recording_mode_label(&row.lab, mode, &Value::Null).contains(i18n::tr_ref("settings.unavailable_2")));
             assert!(crate::setters::encode_client_setting("gamerecording_background_mode", &json!(mode)).is_some());
         }
         let manual = rows.iter().find(|r| r.tok == "#DeckShell_RecordingMode2").unwrap();
-        let faq = rows.iter().find(|r| r.lab == "О настройках записи").unwrap();
+        let faq = rows.iter().find(|r| r.lab == i18n::tr_ref("recording_settings.on_the_recording_settings")).unwrap();
         assert!(manual.y + manual.h <= faq.y);
     }
 
@@ -1671,9 +1734,9 @@ mod field_tests {
         let v: Value = serde_json::from_str(PAGES_JSON).unwrap();
         a.se.rows = parse_rows(&v["keyboard"]);
         let fields: Vec<usize> = a.se.rows.iter().enumerate().filter(|(_, r)| r.k == 5 && r.f).map(|(i, _)| i).collect();
-        assert_eq!(fields.len(), 8, "восемь тестовых полей страницы «Клавиатура» фокусируются");
+        assert_eq!(fields.len(), 8, "Eight test fields of the Keyboard page are focused");
         a.settings_activate(fields[1]);
-        assert!(a.osk_is_open(), "A / касание на поле открывает клавиатуру");
+        assert!(a.osk_is_open(), "A/Tap on the field opens the keyboard");
         a.handle(Action::Char('h'));
         a.handle(Action::Char('i'));
         assert_eq!(field_text("2"), "hi");
@@ -1683,7 +1746,7 @@ mod field_tests {
         assert!(!a.osk_is_open());
         a.settings_activate(fields[0]);
         a.handle(Action::Char('x'));
-        assert_eq!(field_text("1"), "x", "другое поле — свой текст");
+        assert_eq!(field_text("1"), "x", "The other field is your own text");
         assert_eq!(field_text("2"), "hi");
     }
 }

@@ -1,4 +1,5 @@
 //! Глобальный поиск. Ранжирование работает со снимком библиотеки, Slint получает только видимые ряды.
+use steam_assets::i18n;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::{mpsc, Arc, LazyLock};
@@ -13,13 +14,13 @@ use crate::loader::Kind;
 use crate::model::{self, Extra, Sort, SORTS};
 use crate::router::Route;
 use crate::screens::library::collate_key;
-use crate::screens::settings::{parse_rows, to_grow, PRow, SC};
+use crate::screens::settings::{parse_captured_rows, to_grow, PRow, SC};
 use crate::sound::{play, Snd};
 use crate::{AppWindow, GPageRow, SearchState};
 
 const PAGE: &str = include_str!("../../ui/generated/search/page.json");
 static TEMPLATE: LazyLock<Vec<PRow>> =
-    LazyLock::new(|| parse_rows(&serde_json::from_str(PAGE).expect("геометрия поиска")));
+    LazyLock::new(|| parse_captured_rows(&serde_json::from_str(PAGE).expect("search geometry")));
 
 const COLS: usize = 5;
 const X0: f32 = 30.0;
@@ -268,7 +269,7 @@ impl App {
                 self.search.caret += text.chars().count();
                 self.search_query_changed();
             }
-            None => self.toast(&t_or("#DeckShell_ClipboardEmpty", "Буфер обмена пуст")),
+            None => self.toast(&t_or("#DeckShell_ClipboardEmpty", i18n::tr_ref("search.the_exchange_buffer_is_empty"))),
         }
     }
 
@@ -414,8 +415,8 @@ impl App {
             *tab += usize::from(r.k == 9);
             Some(to_grow(r, i32::from(on)))
         }).collect();
-        let card = TEMPLATE.iter().find(|r| r.k == 8).expect("шаблон карточки");
-        let img = TEMPLATE.iter().find(|r| r.k == 6).expect("шаблон обложки");
+        let card = TEMPLATE.iter().find(|r| r.k == 8).expect("search card geometry");
+        let img = TEMPLATE.iter().find(|r| r.k == 6).expect("search artwork geometry");
         let in_library = t(&card.tok).to_uppercase();
         // Пять видимых рядов и один запасной ряд для быстрого скролла.
         let end = (first + COLS * 6).min(self.search.hits.len());
@@ -431,7 +432,7 @@ impl App {
                     let (name, status) = self.search_friend_label(id).unwrap_or_default();
                     (status.to_uppercase(), name, None)
                 }
-                Hit::Store => (t_or("#Menu_Store", "МАГАЗИН").to_uppercase(), format!("{}: {}", t_or("#Menu_Store", "Магазин"), self.lb.query.trim()), None),
+                Hit::Store => (t_or("#Menu_Store", i18n::tr_ref("search.store")).to_uppercase(), format!("{}: {}", t_or("#Menu_Store", i18n::tr_ref("search.store_2")), self.lb.query.trim()), None),
             };
             let mut c = to_grow(&PRow { k: 15, role: "button".into(), x, y, w: card.w, h: card.h, pad: card.pad.clone(), tok: if id.is_some() { card.tok.clone() } else { String::new() }, lab: cap, ..Default::default() }, 0);
             c.sub = name.as_str().into();
@@ -675,7 +676,7 @@ mod profile_tests {
         Library {
             games: (1..=count)
                 .map(|id| {
-                    let title = if id <= 5 { "ZX" } else { "Игровая коллекция Adventure" };
+                    let title = if id <= 5 { "ZX" } else { i18n::tr_ref("search.adventure_gaming_collection") };
                     let name = format!("{title} {:06}", (id * 919) % 65537);
                     Game {
                         app_id: id, kind: GameKind::Steam, name: name.clone(), sort_name: name.to_lowercase(),
@@ -731,7 +732,7 @@ mod profile_tests {
         advance(Duration::from_millis(45));
         crate::with_app(|a| a.search_char('x'));
         advance(Duration::from_millis(45));
-        crate::with_app(|a| assert!(a.search.worker.is_none(), "таймер перезапускается от последней клавиши"));
+        crate::with_app(|a| assert!(a.search.worker.is_none(), "timer restarts from the last key"));
         advance(Duration::from_millis(35));
         crate::with_app(|a| {
             assert!(a.search.worker.is_some());
@@ -777,14 +778,14 @@ mod profile_tests {
         let first = app.search.first.unwrap();
         assert!(first > 0);
         let index = app.search.focus;
-        let Hit::Game(id) = app.search.hits[index] else { panic!("ожидается игра") };
+        let Hit::Game(id) = app.search.hits[index] else { panic!("play-off") };
         let row = st.get_rfocus() as usize;
         assert_eq!(row, header_rows().count() + (index - first) * 2);
         assert_eq!(st.get_rows().row_data(row).unwrap().kind, 15);
         let generation = st.get_model_generation();
         app.search_set_tab(1);
         app.search_row_clicked(row, first, generation);
-        assert_eq!(app.router.current(), &Route::Search, "старый клик не выбирает другой результат");
+        assert_eq!(app.router.current(), &Route::Search, "The old clique does not choose another result.");
         assert!(app.search_focus_app(id));
         app.search_row_clicked(st.get_rfocus() as usize, app.search.first.unwrap(), st.get_model_generation());
         assert_eq!(app.router.current(), &Route::App(id));
@@ -815,7 +816,7 @@ mod profile_tests {
                 let input = start.elapsed();
                 let typed = snapshot(&ui);
                 assert!(ui.global::<SearchState>().get_pending());
-                assert!(app.search.worker.is_none(), "два символа только перезапускают debounce");
+                assert!(app.search.worker.is_none(), "The two characters just reboot the debounce.");
                 let started = Instant::now();
                 app.search_submit();
                 apply_results(&mut app);
@@ -831,14 +832,14 @@ mod profile_tests {
                     let rows = ui.global::<SearchState>().get_rows();
                     assert_eq!((0..rows.row_count()).filter(|&i| rows.row_data(i).unwrap().has_img).count(), 5);
                     assert!(empty.2 / (empty.0 as u32) < Duration::from_millis(65),
-                        "средний программный кадр: {:?}", empty.2 / empty.0 as u32);
+                        "average software frame: {:?}", empty.2 / empty.0 as u32);
                 }
-                assert!(input < Duration::from_millis(50), "синхронный ввод: {input:?}");
+                assert!(input < Duration::from_millis(50), "synchronous input: {input:?}");
                 // После первого запуска библиотек шрифтов открытие не зависит от объёма каталога.
                 if count > 108 || !art {
-                    assert!(open < Duration::from_millis(100), "синхронное открытие: {open:?}");
+                    assert!(open < Duration::from_millis(100), "synchronous opening: {open:?}");
                 }
-                assert!(empty.1 < Duration::from_millis(50), "сумма обработчиков обложек: {:?}", empty.1);
+                assert!(empty.1 < Duration::from_millis(50), "cover handler time: {:?}", empty.1);
             }
         }
     }

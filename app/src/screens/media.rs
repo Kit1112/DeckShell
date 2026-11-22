@@ -1,6 +1,7 @@
 //! /routes/media/grid - screenshots grid. Items: Steam userdata/<acct>/760/remote/<appid>/screenshots/*.jpg (full image with thumbnail fallback),
 //! newest first, laid out like the captured page (docs/parity ledger /routes/media/grid): 3 columns, card 335x188 css, pitch 342.5 x 196.
 //! `handle_media` must be dispatched by app.rs (`Route::Media => self.handle_media(a)`); pointer/touch work through `wire`.
+use steam_assets::i18n;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::PathBuf;
@@ -132,6 +133,51 @@ fn clear_phone_panel(s: &mut St) {
     if !s.phone_busy { s.phone_tone = PhoneTone::Quiet; }
 }
 
+fn phone_phase_label(phase: &SendPhase) -> Option<&'static str> {
+    Some(i18n::tr_ref(match phase {
+        SendPhase::Exporting => "media_phone.exporting",
+        SendPhase::Uploading => "media_phone.uploading",
+        SendPhase::Sent => "media_phone.sent",
+        _ => return None,
+    }))
+}
+
+fn phone_block_label(token: &str) -> Option<String> {
+    let key = match token {
+        "#SendToChat_ClipTooLong" => "media_phone.too_long",
+        "#ShareSheet_ScreenUploadNotAllowed" => "media_phone.screenshots_blocked",
+        "#ShareSheet_ClipUploadNotAllowed" => "media_phone.clips_blocked",
+        "#ShareSheet_LimitedScreenshotNotAllowed" => "media_phone.limited_account",
+        _ => return None,
+    };
+    Some(super::stock_label(token, key))
+}
+
+fn phone_reply_label(reply: send_to_phone::PhoneReply, kind: MediaKind) -> Option<String> {
+    use send_to_phone::PhoneReply;
+    Some(match (reply, kind) {
+        (PhoneReply::Ready, _) => return None,
+        (PhoneReply::QueryError, _) => i18n::tr("media_phone.query_error"),
+        (PhoneReply::NoPhone, _) => super::stock_label("#SendToPhone_NoPhone", "media_phone.no_phone"),
+        (PhoneReply::OutdatedApp, MediaKind::Clip) => i18n::tr("media_phone.update_clips"),
+        (PhoneReply::OutdatedApp, MediaKind::Screenshot) => i18n::tr("media_phone.update_screenshots"),
+    })
+}
+
+fn phone_refusal_label(reason: &str, kind: MediaKind) -> String {
+    use send_to_phone::PhoneReply;
+    let reply = match reason {
+        "query" => PhoneReply::QueryError,
+        "no_phone" => PhoneReply::NoPhone,
+        "outdated" => PhoneReply::OutdatedApp,
+        "no_preset" => return i18n::tr("media_phone.clip_size"),
+        "no_path" => return i18n::tr("media_phone.missing_path"),
+        "too_big" => return i18n::tr("media_phone.size_limit"),
+        _ => return i18n::tr_args("media_phone.refused", &[("reason", reason)]),
+    };
+    phone_reply_label(reply, kind).unwrap_or_default()
+}
+
 /// Stage of the send bar in media.slint: 0 check, 1 export, 2 upload, 3 done.
 fn phone_stage(phase: &SendPhase) -> i32 {
     match phase { SendPhase::Exporting => 1, SendPhase::Uploading => 2, SendPhase::Sent => 3, _ => 0 }
@@ -229,10 +275,10 @@ fn phone_target(it: &Item) -> Option<(MediaKind, Option<u64>, Option<String>)> {
 
 /// Item label. A clip longer than 60 s keeps the item but says it is unavailable; the press shows the stock reason.
 fn phone_label(it: &Item) -> String {
-    let base = t_or("#ExportClip_SendToPhone", "Отправить на телефон…");
+    let base = t_or("#ExportClip_SendToPhone", i18n::tr_ref("media.send_to_phone"));
     match phone_target(it) {
         Some((kind, duration, _)) if send_to_phone::menu_block(kind, duration, AccountFlags::default()).is_some() => {
-            format!("{base} (недоступно)")
+            i18n::tr_args("media.unavailable", &[("base", &(base).to_string())])
         }
         _ => base,
     }
@@ -240,9 +286,9 @@ fn phone_label(it: &Item) -> String {
 
 fn delete_label(armed: bool) -> String {
     if armed {
-        t_or("#MediaPage_Delete_Confirm_Short", "Подтвердить удаление")
+        t_or("#MediaPage_Delete_Confirm_Short", i18n::tr_ref("media.confirm_removal"))
     } else {
-        t_or("#MediaPage_ScreenshotContext_Delete", "Удалить")
+        t_or("#MediaPage_ScreenshotContext_Delete", i18n::tr_ref("media.delete"))
     }
 }
 
@@ -269,7 +315,7 @@ pub enum MediaOp {
 /// list is [All, Screenshot] when the gamepad UI is active, [All, Clip, Screenshot, Recording] on desktop), so DeckShell,
 /// which is the gamepad UI, offers All and Screenshot only.
 pub(crate) fn type_filter_options() -> Vec<(u8, (&'static str, &'static str))> {
-    vec![(0, ("#MediaManager_MediaType_All", "Все")), (1, ("#MediaManager_MediaType_Screenshot", "Скриншоты"))]
+    vec![(0, ("#MediaManager_MediaType_All", i18n::tr_ref("media.all"))), (1, ("#MediaManager_MediaType_Screenshot", i18n::tr_ref("media.screenshots")))]
 }
 /// Row shown for the active filter. A value outside the list (clip / recording) shows the first entry, as Steam's
 /// `options.find(o => o.data == value) || options[0]` does.
@@ -280,7 +326,7 @@ pub(crate) fn type_filter_index(opts: &[(u8, (&'static str, &'static str))], tf:
 pub fn init_strings(ui: &AppWindow) {
     let st = ui.global::<MediaState>();
     st.set_title(t_or("#MainTabsMedia", "").into());
-    st.set_empty_text(t_or("#MediaPage_NoContentAvailable", "Нет доступных медиафайлов").into());
+    st.set_empty_text(t_or("#MediaPage_NoContentAvailable", i18n::tr_ref("media.no_media_files_available")).into());
 }
 
 pub fn wire(ui: &AppWindow) {
@@ -368,10 +414,10 @@ fn window_start_of(focus: usize, cols: usize) -> usize {
 fn ago(t: SystemTime) -> String {
     let s = SystemTime::now().duration_since(t).map(|d| d.as_secs()).unwrap_or(0);
     let (n, unit) = match s {
-        0..=3599 => (s / 60, "мин. назад"),
-        3600..=86399 => (s / 3600, "ч. назад"),
-        86400..=2591999 => (s / 86400, "дн. назад"),
-        _ => (s / 2592000, "мес. назад"),
+        0..=3599 => (s / 60, i18n::tr_ref("media.minute")),
+        3600..=86399 => (s / 3600, i18n::tr_ref("media.backwards")),
+        86400..=2591999 => (s / 86400, i18n::tr_ref("media.backwards_2")),
+        _ => (s / 2592000, i18n::tr_ref("media.month_back")),
     };
     format!("{} {}", n.max(1), unit)
 }
@@ -417,14 +463,14 @@ fn scan(root: &std::path::Path, acct: u32) -> Vec<Item> {
 
 fn kind_label(kind: u8) -> String {
     match kind {
-        0 => t_or("#MediaPage_Screenshot", "Скриншот"),
-        1 => "Клип".into(),
-        _ => "Запись".into(),
+        0 => t_or("#MediaPage_Screenshot", i18n::tr_ref("media.screenshot")),
+        1 => i18n::tr_ref("media.clip").into(),
+        _ => i18n::tr_ref("media.recording").into(),
     }
 }
 
 fn media_name(name: Option<&str>, app: u32) -> String {
-    name.map(str::to_owned).unwrap_or_else(|| if app == 0 { String::new() } else { "Неизвестная игра".into() })
+    name.map(str::to_owned).unwrap_or_else(|| if app == 0 { String::new() } else { i18n::tr_ref("media.unknown_game").into() })
 }
 
 /// The app of a native clip. Steam writes the recording's 64-bit GameID: a library entry whose rungame id matches
@@ -730,7 +776,7 @@ impl App {
             nn.label = label.as_str().into();
             if let Some(selection) = &selection {
                 nn.on = i32::from(selection.contains(&item_key(it)));
-                nn.label = format!("{label} · {}", if nn.on == 1 { "Выбрано" } else { "Без отметки" }).into();
+                nn.label = format!("{label} · {}", if nn.on == 1 { i18n::tr_ref("media.selected") } else { i18n::tr_ref("media.no_mark") }).into();
             }
             nn.has_img = img.is_some();
             nn.img = img.unwrap_or_default();
@@ -747,13 +793,13 @@ impl App {
         st.set_wrap_pad(g["wrap"].as_str().unwrap_or("B,X,Y,FOCUS,keyboard").into());
         // empty state: NoContentAvailable vs AllContentFilteredOut
         let filtered = tf != 0 || game.is_some();
-        st.set_empty_text(if filtered && !items.is_empty() { "Всё содержимое скрыто фильтрами".to_string() } else { "Нет скриншотов или известных клипов. Кэш Steam может быть неполным.".to_string() }.into());
+        st.set_empty_text(if filtered && !items.is_empty() { i18n::tr_ref("media.all_contents_are_hidden_by_filters").to_string() } else { i18n::tr_ref("media.no_screenshots_or_famous_clips_steam_cache").to_string() }.into());
         let mut ft = vec![];
         if let Some(g) = game {
             ft.push(self.media_game_name(g));
         }
         if tf != 0 {
-            ft.push(["", "Скриншоты", "Клипы", "Записи"][tf as usize].to_string());
+            ft.push(["", i18n::tr_ref("media.screenshots"), i18n::tr_ref("media.clips"), i18n::tr_ref("media.records")][tf as usize].to_string());
         }
         if !selection_status.is_empty() { ft.push(selection_status); }
         st.set_filter_text(ft.join("  -  ").into());
@@ -791,13 +837,13 @@ impl App {
                 let playable = clip.as_deref().is_some_and(|cid| self.clip_playable(cid));
                 let acts: Vec<String> = viewer_actions(it, playable).into_iter().map(|a| match a {
                     ViewerAct::Play => match status {
-                        Some((true, _, _, _)) => "Пауза",
-                        Some((false, true, _, _)) => "Сначала",
-                        Some((false, false, pos, _)) if pos > 0 => "Продолжить",
-                        _ => "Воспроизвести",
+                        Some((true, _, _, _)) => i18n::tr_ref("media.pause"),
+                        Some((false, true, _, _)) => i18n::tr_ref("media.first_of_all"),
+                        Some((false, false, pos, _)) if pos > 0 => i18n::tr_ref("media.continue"),
+                        _ => i18n::tr_ref("media.play"),
                     }.to_owned(),
-                    ViewerAct::Share => t_or("#MediaPage_ScreenshotContext_Share", "Поделиться"),
-                    ViewerAct::Upload => t_or("#MediaPage_ScreenshotContext_Upload", "Загрузить"),
+                    ViewerAct::Share => t_or("#MediaPage_ScreenshotContext_Share", i18n::tr_ref("media.share")),
+                    ViewerAct::Upload => t_or("#MediaPage_ScreenshotContext_Upload", i18n::tr_ref("media.upload")),
                     ViewerAct::PhoneSend => phone_label(it),
                     ViewerAct::Delete => delete_label(armed),
                 }).collect();
@@ -806,11 +852,11 @@ impl App {
                 // A message from playback or the viewer wins over the clip's summary line.
                 let native_note = it.native.as_ref().map(|c| {
                     let how = match clip.as_deref() {
-                        Some(cid) if self.clip_playable(cid) && media_player::is_playing(cid) => "A: пауза; ←/→: ±10 с.",
-                        Some(cid) if self.clip_playable(cid) => "A: воспроизведение.",
-                        _ => "Записи клипа не найдены; воспроизведение недоступно.",
+                        Some(cid) if self.clip_playable(cid) && media_player::is_playing(cid) => i18n::tr_ref("media.a_pause_10_s"),
+                        Some(cid) if self.clip_playable(cid) => i18n::tr_ref("media.a_reproduction"),
+                        _ => i18n::tr_ref("media.no_recordings_of_the_clip_have_been"),
                     };
-                    format!("Steam: {} мс · {} байт · {}. {how}", c.duration_ms, c.file_size, if c.temporary { "временный" } else { "постоянный" })
+                    i18n::tr_args("media.steam_ms_bytes", &[("duration_ms", &(c.duration_ms).to_string()), ("file_size", &(c.file_size).to_string()), ("temporary", &(if c.temporary { i18n::tr_ref("media.temporary") } else { i18n::tr_ref("media.permanent") }).to_string()), ("how", &(how).to_string())])
                 });
                 // While the phone panel shows, its text replaces the note line (no duplicate).
                 let line = if panel { String::new() } else if note.is_empty() { native_note.unwrap_or_default() } else { note.clone() };
@@ -943,7 +989,7 @@ impl App {
                     it.app
                 );
                 crate::setters::write(if op == MediaOp::Share { "share-screenshot" } else { "upload-screenshot" }, js);
-                ST.with(|s| s.borrow_mut().note = t_or("#MediaPage_Upload_Notification_Success", "Отправлено в Steam"));
+                ST.with(|s| s.borrow_mut().note = t_or("#MediaPage_Upload_Notification_Success", i18n::tr_ref("media.sent_to_steam")));
                 self.push_media();
             }
             MediaOp::Delete => self.media_delete_press(),
@@ -967,7 +1013,7 @@ impl App {
                     let mut s = s.borrow_mut();
                     s.confirm_key = Some(key);
                     clear_phone_panel(&mut s);
-                    s.note = t_or("#MediaPage_Delete_Confirm_Prompt", "Удалить? A/B");
+                    s.note = t_or("#MediaPage_Delete_Confirm_Prompt", i18n::tr_ref("media.delete_a_b"));
                 });
                 self.push_media();
             }
@@ -985,9 +1031,9 @@ impl App {
         }
         if crate::actions::dryrun() {
             eprintln!("[deckshell] DRYRUN delete media {:?}", it.full);
-            return self.media_delete_failed("DRYRUN: файл не удалён.");
+            return self.media_delete_failed(i18n::tr_ref("media.dryrun_file_not_deleted"));
         }
-        let Some(full) = it.full.as_deref() else { return self.media_delete_failed("Файл не найден; ничего не удалено.") };
+        let Some(full) = it.full.as_deref() else { return self.media_delete_failed(i18n::tr_ref("media.file_not_found_nothing_deleted")) };
         match remove_screenshot_files(full, it.thumb.as_deref()) {
             Ok(()) => {
                 eprintln!("[deckshell] media delete {:?}: ok", it.full);
@@ -996,7 +1042,7 @@ impl App {
             }
             Err(e) => {
                 eprintln!("[deckshell] media delete {:?}: {e}", it.full);
-                self.media_delete_failed(&format!("Не удалось удалить: {e}"));
+                self.media_delete_failed(&i18n::tr_args("media.could_not_delete", &[("error", &(e).to_string())]));
             }
         }
     }
@@ -1010,20 +1056,20 @@ impl App {
     /// the clip from Steam's cache), then the clip folder is checked on disk. DeckShell removes nothing itself.
     fn media_clip_delete_start(&mut self, clip_id: String) {
         if ST.with(|s| s.borrow().deleting.is_some()) { return; }
-        let Some(clips) = self.clips_root() else { return self.media_delete_failed("Профиль Steam не найден; клип не удалён.") };
+        let Some(clips) = self.clips_root() else { return self.media_delete_failed(i18n::tr_ref("media.steam_profile_not_found_clip_not_deleted")) };
         let Some(dir) = media_clips::clip_dir_for_delete(&clips, &clip_id) else {
-            return self.media_delete_failed("Путь клипа не прошёл проверку; клип не удалён.");
+            return self.media_delete_failed(i18n::tr_ref("media.the_path_of_the_clip_has_not"));
         };
         if crate::actions::dryrun() {
             eprintln!("[deckshell] DRYRUN delete clip {clip_id}");
-            return self.media_delete_failed("DRYRUN: клип не удалён.");
+            return self.media_delete_failed(i18n::tr_ref("media.dryrun_no_video_deleted"));
         }
-        let Some(bridge) = crate::actions::bridge() else { return self.media_delete_failed("Steam недоступен; клип не удалён.") };
+        let Some(bridge) = crate::actions::bridge() else { return self.media_delete_failed(i18n::tr_ref("media.steam_is_unavailable_the_clip_is_not")) };
         ST.with(|s| {
             let mut s = s.borrow_mut();
             s.deleting = Some(clip_id.clone());
             clear_phone_panel(&mut s);
-            s.note = "Удаление клипа через Steam…".to_owned();
+            s.note = i18n::tr_ref("media.removal_of_the_clip_via_steam").to_owned();
         });
         self.push_media();
         let id = clip_id.clone();
@@ -1046,7 +1092,7 @@ impl App {
         });
         if spawned.is_err() {
             ST.with(|s| s.borrow_mut().deleting = None);
-            self.media_delete_failed("Не удалось начать удаление; клип не тронут.");
+            self.media_delete_failed(i18n::tr_ref("media.failed_to_begin_deleting_the_clip_is"));
         }
     }
 
@@ -1064,11 +1110,11 @@ impl App {
             return;
         }
         let msg = match reply {
-            Ok(DeleteReply::NotCached) => "Клип ещё не загружен из кэша Steam; нажмите «Запросить кэш клипов Steam» и повторите. Папка клипа на месте.".to_owned(),
-            Ok(DeleteReply::Refused(code)) => format!("Steam не удалил клип (код {code}). Папка клипа на месте."),
-            Ok(DeleteReply::Unavailable) => "Steam не принял удаление. Папка клипа на месте.".to_owned(),
-            Ok(DeleteReply::Reported) => "Steam сообщил об удалении, но папка клипа на месте. Больше ничего не удалено.".to_owned(),
-            Err(e) => format!("Нет связи со Steam ({e}). Папка клипа на месте."),
+            Ok(DeleteReply::NotCached) => i18n::tr_ref("media.the_clip_isn_t_downloaded_from_the").to_owned(),
+            Ok(DeleteReply::Refused(code)) => i18n::tr_args("media.steam_did_not_delete_the_clip_code", &[("code", &(code).to_string())]),
+            Ok(DeleteReply::Unavailable) => i18n::tr_ref("media.steam_has_not_accepted_the_deletion_the").to_owned(),
+            Ok(DeleteReply::Reported) => i18n::tr_ref("media.steam_has_reported_the_deletion_but_the").to_owned(),
+            Err(e) => i18n::tr_args("media.could_not_reach_steam_the_clip_folder", &[("error", &(e).to_string())]),
         };
         self.media_delete_failed(&msg);
     }
@@ -1084,12 +1130,12 @@ impl App {
 
     fn media_phone_send_item(&mut self, it: Item) {
         let Some((kind, duration_ms, clip_id)) = phone_target(&it) else {
-            self.media_phone_done("Тип медиа не поддерживается для отправки.".into(), PhoneTone::Info);
+            self.media_phone_done(i18n::tr_ref("media.the_type_of_media_is_not_supported").into(), PhoneTone::Info);
             return;
         };
         if let Some(block) = send_to_phone::menu_block(kind, duration_ms, AccountFlags::default()) {
-            let msg = block.message(kind).map(|m| m.1.to_owned())
-                .unwrap_or_else(|| "Отправка на телефон для этого ролика недоступна.".to_owned());
+            let msg = block.message(kind).and_then(|(token, _)| phone_block_label(token))
+                .unwrap_or_else(|| i18n::tr_ref("media.sending_to_the_phone_for_this_video").to_owned());
             if self.media_batch_busy() {
                 self.media_phone_done(msg, PhoneTone::Info);
             } else {
@@ -1099,17 +1145,17 @@ impl App {
         }
         let key = item_key(&it);
         if ST.with(|s| s.borrow().phone_sent.contains(&key)) {
-            return self.media_phone_done("Элемент уже отправлен или результат отправки неизвестен.".into(), PhoneTone::Info);
+            return self.media_phone_done(i18n::tr_ref("media.the_item_has_already_been_sent_or").into(), PhoneTone::Info);
         }
         let shot_path = phone_shot_path(&it);
         if kind == MediaKind::Screenshot {
             match shot_path.as_deref().map(send_to_phone::check_shot_path) {
                 Some(Ok(())) => {}
-                _ => return self.media_phone_done("Файл скриншота не найден; ничего не отправлено.".to_owned(), PhoneTone::Failed),
+                _ => return self.media_phone_done(i18n::tr_ref("media.screenshot_file_not_found_nothing_sent").to_owned(), PhoneTone::Failed),
             }
         }
         let Some(bridge) = crate::actions::bridge() else {
-            return self.media_phone_done("Steam недоступен; ничего не отправлено.".to_owned(), PhoneTone::Failed);
+            return self.media_phone_done(i18n::tr_ref("media.steam_is_unavailable_nothing_has_been_sent").to_owned(), PhoneTone::Failed);
         };
         let req = SendRequest { kind, clip_id, app: it.app, duration_ms, shot_path, live: !crate::actions::dryrun() };
         ST.with(|s| {
@@ -1118,7 +1164,7 @@ impl App {
             s.phone = SendPhase::Checking;
         });
         // Same frame as the press: the panel shows before the check query returns.
-        self.media_phone_line(PhoneTone::Busy, "Проверка мобильного устройства…".to_owned());
+        self.media_phone_line(PhoneTone::Busy, i18n::tr_ref("media.checking_your_mobile_device").to_owned());
         // One id per send: the progress poll and the send's own state read only this send's writes.
         let run_id = send_to_phone::new_run_id();
         let account_epoch = ST.with(|s| s.borrow().account_epoch);
@@ -1132,22 +1178,22 @@ impl App {
         });
         if spawned.is_err() {
             ST.with(|s| s.borrow_mut().phone_busy = false);
-            self.media_phone_done("Не удалось начать проверку; ничего не отправлено.".to_owned(), PhoneTone::Failed);
+            self.media_phone_done(i18n::tr_ref("media.failed_to_start_the_check_nothing_sent").to_owned(), PhoneTone::Failed);
         }
     }
 
     fn media_phone_checked(&mut self, req: SendRequest, key: String, run_id: String, bridge: steam_bridge::Bridge, reply: Result<steam_bridge::send_to_phone::PhoneReply, String>) {
         let phone = match reply {
             Ok(r) => r,
-            Err(e) => return self.media_phone_done(format!("Нет связи со Steam ({e}); ничего не отправлено."), PhoneTone::Failed),
+            Err(e) => return self.media_phone_done(i18n::tr_args("media.could_not_reach_steam_nothing_was_sent", &[("error", &(e).to_string())]), PhoneTone::Failed),
         };
-        if let Some(msg) = send_to_phone::phone_message(phone, req.kind) {
-            return self.media_phone_done(msg.to_owned(), PhoneTone::Failed);
+        if let Some(msg) = phone_reply_label(phone, req.kind) {
+            return self.media_phone_done(msg, PhoneTone::Failed);
         }
         if let Err(e) = send_to_phone::plan(req.kind, req.duration_ms, AccountFlags::default(), phone) {
-            return self.media_phone_done(format!("Отправка не запущена: {e}"), PhoneTone::Failed);
+            return self.media_phone_done(i18n::tr_args("media.could_not_start_sending", &[("error", &(e).to_string())]), PhoneTone::Failed);
         }
-        self.media_phone_line(PhoneTone::Busy, "Телефон найден. Подготовка…".to_owned());
+        self.media_phone_line(PhoneTone::Busy, i18n::tr_ref("media.phone_found_preparation").to_owned());
         let done = Arc::new(AtomicBool::new(false));
         let poll_done = done.clone();
         let poll_run = run_id.clone();
@@ -1182,7 +1228,7 @@ impl App {
         });
         if spawned.is_err() {
             stop_if_not_started.store(true, AtomicOrdering::Relaxed);
-            self.media_phone_done("Не удалось начать отправку; ничего не отправлено.".to_owned(), PhoneTone::Failed);
+            self.media_phone_done(i18n::tr_ref("media.failed_to_start_shipping_nothing_sent").to_owned(), PhoneTone::Failed);
         }
     }
 
@@ -1195,7 +1241,7 @@ impl App {
             true
         });
         if changed {
-            if let Some(label) = phase.label() { self.media_phone_line(PhoneTone::Busy, label.to_owned()); }
+            if let Some(label) = phone_phase_label(&phase) { self.media_phone_line(PhoneTone::Busy, label.to_owned()); }
         }
     }
 
@@ -1206,26 +1252,26 @@ impl App {
             // The upload may have reached the phone: do not try again in this session.
             Err(e) => {
                 ST.with(|s| { let mut s = s.borrow_mut(); s.phone_sent.insert(key); s.phone = SendPhase::Failed(e.clone()); });
-                (format!("Связь со Steam прервалась во время отправки ({e}), и результат не удалось проверить. Проверьте мобильное приложение Steam; повторно не отправляю."), PhoneTone::Failed)
+                (i18n::tr_args("media.connection_to_steam_was_lost_while_sending", &[("error", &(e).to_string())]), PhoneTone::Failed)
             }
             Ok(SendReply::Unknown(m)) => {
                 ST.with(|s| { let mut s = s.borrow_mut(); s.phone_sent.insert(key); s.phone = SendPhase::Failed(m.clone()); });
-                (format!("Отправка прервалась ({m}), статус неизвестен. Проверьте мобильное приложение Steam; повторно не отправляю."), PhoneTone::Failed)
+                (i18n::tr_args("media.sending_was_interrupted_check_the_steam_mobile", &[("message", &(m).to_string())]), PhoneTone::Failed)
             }
-            Ok(SendReply::Refused(why)) => (send_to_phone::refusal_message(&why, req.kind), PhoneTone::Failed),
-            Ok(SendReply::Dry { .. }) => ("Телефон найден и готов. Реальная отправка выключена: ничего не экспортировано и не загружено.".to_owned(), PhoneTone::Info),
+            Ok(SendReply::Refused(why)) => (phone_refusal_label(&why, req.kind), PhoneTone::Failed),
+            Ok(SendReply::Dry { .. }) => (i18n::tr_ref("media.the_phone_is_found_and_ready_the").to_owned(), PhoneTone::Info),
             Ok(SendReply::Failed(m)) => {
                 ST.with(|s| s.borrow_mut().phone = SendPhase::Failed(m.clone()));
-                (format!("Отправка не удалась: {m}. Ничего не отправлено."), PhoneTone::Failed)
+                (i18n::tr_args("media.sending_failed_nothing_was_sent", &[("message", &(m).to_string())]), PhoneTone::Failed)
             }
             Ok(SendReply::Sent) => {
                 ST.with(|s| { let mut s = s.borrow_mut(); s.phone_sent.insert(key); s.phone = SendPhase::Sent; });
                 if !self.media_batch_busy() {
-                    self.toast(&t_or("#SendToPhone_Finished", "Отправлено"));
+                    self.toast(&t_or("#SendToPhone_Finished", i18n::tr_ref("media.item_sent")));
                 }
                 let text = match req.kind {
-                    MediaKind::Screenshot => "Отправлено. Скриншот придёт уведомлением в мобильном приложении Steam.".to_owned(),
-                    MediaKind::Clip => "Отправлено. Ролик придёт уведомлением в мобильном приложении Steam.".to_owned(),
+                    MediaKind::Screenshot => i18n::tr_ref("media.the_screenshot_will_come_as_a_notification").to_owned(),
+                    MediaKind::Clip => i18n::tr_ref("media.sent_the_video_will_come_as_a").to_owned(),
                 };
                 (text, PhoneTone::Sent)
             }
@@ -1263,7 +1309,7 @@ impl App {
         if self.media_batch_busy() {
             self.media_batch_outcome(Outcome::Done);
         } else {
-            self.toast(&t_or("#MediaPage_Delete_Notification_Success", "Удалено"));
+            self.toast(&t_or("#MediaPage_Delete_Notification_Success", i18n::tr_ref("media.deleted")));
         }
     }
 
@@ -1313,26 +1359,26 @@ impl App {
                 apps.dedup();
                 apps.sort_by_key(|a| self.media_game_name(*a).to_lowercase());
                 let game = ST.with(|s| s.borrow().game);
-                let mut v = vec![it(t_or("#MediaPage_Filter_None", "Все игры"), MenuAct::Media(MediaOp::Game(None)))];
+                let mut v = vec![it(t_or("#MediaPage_Filter_None", i18n::tr_ref("media.all_games")), MenuAct::Media(MediaOp::Game(None)))];
                 v.extend(apps.iter().map(|&a| it(self.media_game_name(a), MenuAct::Media(MediaOp::Game(Some(a))))));
                 let cur = game.and_then(|g| apps.iter().position(|&a| a == g)).map(|p| p + 1).unwrap_or(0);
-                (v, t_or("#MediaPage_Filter", "Выбрать игру"), cur)
+                (v, t_or("#MediaPage_Filter", i18n::tr_ref("media.select_game")), cur)
             }
             'y' => {
                 let tf = ST.with(|s| s.borrow().type_filter);
                 let opts = type_filter_options();
                 let v = opts.iter().map(|&(i, l)| it(t_or(l.0, l.1), MenuAct::Media(MediaOp::Type(i)))).collect();
-                (v, t_or("#MediaPage_Filter", "Фильтровать"), type_filter_index(&opts, tf))
+                (v, t_or("#MediaPage_Filter", i18n::tr_ref("media.filter")), type_filter_index(&opts, tf))
             }
             _ => {
                 let kind = self.media_current().map(|i| i.kind).unwrap_or(0);
-                let mut v = vec![it(t_or("#Button_Open", "Открыть"), MenuAct::Media(MediaOp::Open))];
+                let mut v = vec![it(t_or("#Button_Open", i18n::tr_ref("media.open")), MenuAct::Media(MediaOp::Open))];
                 if !self.media_viewer_open() && self.media_current().is_some() {
-                    v.push(it(t_or("#MediaManager_EnterSelectMode", "Выбрать несколько"), MenuAct::Media(MediaOp::SelectMany)));
+                    v.push(it(t_or("#MediaManager_EnterSelectMode", i18n::tr_ref("media.multi_select")), MenuAct::Media(MediaOp::SelectMany)));
                 }
                 if kind == 0 {
-                    v.push(it(t_or("#MediaPage_ScreenshotContext_Share", "Поделиться"), MenuAct::Media(MediaOp::Share)));
-                    v.push(it(t_or("#MediaPage_ScreenshotContext_Upload", "Загрузить"), MenuAct::Media(MediaOp::Upload)));
+                    v.push(it(t_or("#MediaPage_ScreenshotContext_Share", i18n::tr_ref("media.share")), MenuAct::Media(MediaOp::Share)));
+                    v.push(it(t_or("#MediaPage_ScreenshotContext_Upload", i18n::tr_ref("media.upload")), MenuAct::Media(MediaOp::Upload)));
                 }
                 if let Some(cur) = self.media_current() {
                     if phone_target(&cur).is_some() {
@@ -1347,16 +1393,16 @@ impl App {
                     v.push(it(delete_label(armed), MenuAct::Media(MediaOp::Delete)));
                 }
                 let (start, stop) = self.native_recording_controls();
-                if start { v.push(it("Steam: начать запись".into(), MenuAct::Media(MediaOp::NativeStart))); }
-                if stop { v.push(it("Steam: остановить запись".into(), MenuAct::Media(MediaOp::NativeStop))); }
-                v.push(it("Прочитать состояние Steam".into(), MenuAct::Media(MediaOp::NativeRefresh)));
-                v.push(it("Запросить кэш клипов Steam (однократно)".into(), MenuAct::Media(MediaOp::NativeLoadClips)));
+                if start { v.push(it(i18n::tr_ref("media.steam_start_recording").into(), MenuAct::Media(MediaOp::NativeStart))); }
+                if stop { v.push(it(i18n::tr_ref("media.steam_stop_recording").into(), MenuAct::Media(MediaOp::NativeStop))); }
+                v.push(it(i18n::tr_ref("media.read_the_state_of_steam").into(), MenuAct::Media(MediaOp::NativeRefresh)));
+                v.push(it(i18n::tr_ref("media.request_the_cache_of_steam_clips_once").into(), MenuAct::Media(MediaOp::NativeLoadClips)));
                 if self.native_recording_can_acknowledge() {
-                    v.push(it("Принять неизвестный исход (без повтора команды)".into(), MenuAct::Media(MediaOp::NativeAcknowledge)));
+                    v.push(it(i18n::tr_ref("media.accept_an_unknown_outcome_without_repeating_commands").into(), MenuAct::Media(MediaOp::NativeAcknowledge)));
                 }
-                v.push(it(t_or("#Button_Cancel", "Отмена"), MenuAct::Cancel));
+                v.push(it(t_or("#Button_Cancel", i18n::tr_ref("media.cancel")), MenuAct::Cancel));
                 if armed {
-                    (v, t_or("#MediaPage_Delete_Confirm_Prompt", "Удалить? A/B"), delete_at)
+                    (v, t_or("#MediaPage_Delete_Confirm_Prompt", i18n::tr_ref("media.delete_a_b")), delete_at)
                 } else {
                     (v, String::new(), 0)
                 }
@@ -1761,9 +1807,9 @@ mod delete_tests {
     fn phone_label_marks_a_clip_over_60_seconds_unavailable() {
         let mut c = clip("clip_2379780_20261112_040949");
         if let Some(n) = c.native.as_mut() { n.duration_ms = 75_000; }
-        assert!(phone_label(&c).ends_with("(недоступно)"));
+        assert!(phone_label(&c).ends_with(i18n::tr_ref("media.unavailable_2")));
         if let Some(n) = c.native.as_mut() { n.duration_ms = 60_000; }
-        assert!(!phone_label(&c).contains("недоступно"));
+        assert!(!phone_label(&c).contains(i18n::tr_ref("media.unavailable_3")));
     }
 
     #[test]
@@ -1775,7 +1821,7 @@ mod delete_tests {
             viewer: Some(1),
             vfocus: 2,
             confirm_key: Some(item_key(&shot("b"))),
-            note: "Удалить? A/B".into(),
+            note: i18n::tr_ref("media.delete_a_b").into(),
             ..St::default()
         };
         remove_item_in_state(&mut s, &item_key(&shot("b")));

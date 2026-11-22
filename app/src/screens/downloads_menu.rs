@@ -4,6 +4,7 @@
 //! `downloadsStore`), see docs/downloads-menu-2026-11-15.md. Sections, item states and the calls behind each action
 //! are ports of that code. A value Steam did not report is shown as unavailable and its action is not offered.
 //! Nothing is mirrored optimistically: after a write the panel waits for Steam's next snapshot.
+use steam_assets::i18n;
 use std::rc::Rc;
 
 use serde_json::{json, Value};
@@ -162,15 +163,15 @@ pub fn primary(section: Section, st: Status, ov_paused: Option<bool>, appid: u32
     }
     match section {
         Section::Active => match ov_paused? {
-            false => Some(act(Op::EnableAll(false), "#Downloads_Pause_Tooltip", "Приостановить")),
-            true => Some(act(Op::EnableAll(true), "#Downloads_Resume_Tooltip", "Возобновить")),
+            false => Some(act(Op::EnableAll(false), "#Downloads_Pause_Tooltip", i18n::tr_ref("downloads_menu.pause"))),
+            true => Some(act(Op::EnableAll(true), "#Downloads_Resume_Tooltip", i18n::tr_ref("downloads_menu.resume"))),
         },
         Section::Queued | Section::Scheduled | Section::NotQueued => Some(if st == Status::Error {
-            act(Op::DownloadNow(appid), "#Downloads_Retry_Tooltip", "Повторить")
+            act(Op::DownloadNow(appid), "#Downloads_Retry_Tooltip", i18n::tr_ref("downloads_menu.retry"))
         } else {
-            act(Op::DownloadNow(appid), "#Downloads_MoveToTop_Tooltip", "Загрузить сейчас")
+            act(Op::DownloadNow(appid), "#Downloads_MoveToTop_Tooltip", i18n::tr_ref("downloads_menu.download_now"))
         }),
-        Section::Completed => Some(act(Op::ViewInLibrary(appid), "#Downloads_GoToGame_Tooltip", "Перейти к игре")),
+        Section::Completed => Some(act(Op::ViewInLibrary(appid), "#Downloads_GoToGame_Tooltip", i18n::tr_ref("downloads_menu.go_to_the_game"))),
     }
 }
 
@@ -183,10 +184,10 @@ pub fn item_actions(d: &Downloads, appid: u32, throttle_rate: Option<i64>) -> Ve
     let mut v = Vec::new();
     v.extend(primary(section, st, d.overview.paused, appid));
     if i.queue_index == 0 {
-        v.push(ItemAction { check: Some(i.launch_on_completion), ..act(Op::LaunchOnComplete { appid, on: !i.launch_on_completion }, "#Downloads_LaunchWhenComplete", "Запустить после загрузки") });
+        v.push(ItemAction { check: Some(i.launch_on_completion), ..act(Op::LaunchOnComplete { appid, on: !i.launch_on_completion }, "#Downloads_LaunchWhenComplete", i18n::tr_ref("downloads_menu.launch_after_booting")) });
         if let (Some(rate), Some(suspended)) = (throttle_rate, d.overview.throttling_suspended) {
             if rate > 0 {
-                v.push(ItemAction { check: Some(suspended), ..act(Op::SuspendThrottle(!suspended), "#Downloads_OverrideDownloadThrottle", "Не ограничивать скорость этой загрузки") });
+                v.push(ItemAction { check: Some(suspended), ..act(Op::SuspendThrottle(!suspended), "#Downloads_OverrideDownloadThrottle", i18n::tr_ref("downloads_menu.do_not_limit_the_speed_of_the")) });
             }
         }
     }
@@ -194,26 +195,26 @@ pub fn item_actions(d: &Downloads, appid: u32, throttle_rate: Option<i64>) -> Ve
         let last = d.items.iter().filter(|x| x.queue_index != -1 && x.deferred_time == 0).map(|x| x.queue_index).max().unwrap_or(0);
         // Index 0 is the active slot: moving there is "download now" above. Only moves inside the waiting queue.
         if i.queue_index >= 2 {
-            v.push(act(Op::QueueIndex(appid, i.queue_index as u32 - 1), "", "Выше в очереди"));
+            v.push(act(Op::QueueIndex(appid, i.queue_index as u32 - 1), "", i18n::tr_ref("downloads_menu.up_in_line")));
         }
         if i.queue_index >= 1 && i.queue_index < last {
-            v.push(act(Op::QueueIndex(appid, i.queue_index as u32 + 1), "", "Ниже в очереди"));
+            v.push(act(Op::QueueIndex(appid, i.queue_index as u32 + 1), "", i18n::tr_ref("downloads_menu.below_in_line")));
         }
     }
     if matches!(section, Section::Queued | Section::Scheduled) {
-        v.push(act(Op::Unqueue(appid), "", "Убрать из очереди (не скачивать)"));
+        v.push(act(Op::Unqueue(appid), "", i18n::tr_ref("downloads_menu.remove_from_the_queue_do_not_download")));
     }
     // sp.js bShowRemoveButton: not in "not queued", not while active, not when disabled by the app.
     if section != Section::NotQueued && !matches!(st, Status::Active | Status::ActiveDownloading | Status::DisabledByApp) {
         let reenable = i.queue_index == 0 && d.overview.paused == Some(true);
         v.push(if i.completed {
-            act(Op::Remove { appid, reenable }, "#Downloads_RemoveFromList_Tooltip", "Убрать из списка")
+            act(Op::Remove { appid, reenable }, "#Downloads_RemoveFromList_Tooltip", i18n::tr_ref("downloads_menu.remove_from_list"))
         } else {
-            act(Op::Remove { appid, reenable }, "#Downloads_RemoveFromQueue_Tooltip", "Удалить из очереди")
+            act(Op::Remove { appid, reenable }, "#Downloads_RemoveFromQueue_Tooltip", i18n::tr_ref("downloads_menu.remove_from_line"))
         });
     }
     if section != Section::Completed {
-        v.push(act(Op::ViewInLibrary(appid), "#Generic_ViewInLibrary", "Показать в библиотеке"));
+        v.push(act(Op::ViewInLibrary(appid), "#Generic_ViewInLibrary", i18n::tr_ref("downloads_menu.view_in_library")));
     }
     v
 }
@@ -252,16 +253,16 @@ impl Setting {
     }
     fn label(self) -> (&'static str, &'static str) {
         match self {
-            Setting::Limit => ("#DownloadSettings_BandwidthLimit", "Ограничить скорость скачивания"),
-            Setting::RateBits => ("#DownloadSettings_DisplayInBitsPerSecond", "Скорость в битах в секунду"),
-            Setting::UpdateBehavior => ("#DownloadSettings_GameUpdateTiming", "Обновление игр"),
-            Setting::Restrict => ("#DownloadSettings_ScheduleAutoUpdates", "Автообновление по расписанию"),
-            Setting::RestrictStart => ("#DownloadSettings_RestrictUpdatesFrom", "Обновлять с"),
-            Setting::RestrictEnd => ("#DownloadSettings_RestrictUpdatesTo", "до"),
-            Setting::WhileRunning => ("#DownloadSettings_AllowDownloadDuringGameplay", "Разрешить загрузки во время игры"),
-            Setting::ThrottleStreaming => ("#DownloadSettings_ThrottleDuringStreaming", "Ограничить загрузки во время трансляции"),
-            Setting::PeerContent => ("#DownloadSettings_PeerContent", "Передача файлов по локальной сети"),
-            Setting::Region => ("#DownloadSettings_SelectRegion", "Регион загрузки"),
+            Setting::Limit => ("#DownloadSettings_BandwidthLimit", i18n::tr_ref("downloads_menu.limit_download_speed")),
+            Setting::RateBits => ("#DownloadSettings_DisplayInBitsPerSecond", i18n::tr_ref("downloads_menu.speed_in_bits_per_second")),
+            Setting::UpdateBehavior => ("#DownloadSettings_GameUpdateTiming", i18n::tr_ref("downloads_menu.update_games")),
+            Setting::Restrict => ("#DownloadSettings_ScheduleAutoUpdates", i18n::tr_ref("downloads_menu.schedule_auto_updates")),
+            Setting::RestrictStart => ("#DownloadSettings_RestrictUpdatesFrom", i18n::tr_ref("downloads_menu.update_with")),
+            Setting::RestrictEnd => ("#DownloadSettings_RestrictUpdatesTo", i18n::tr_ref("downloads_menu.before")),
+            Setting::WhileRunning => ("#DownloadSettings_AllowDownloadDuringGameplay", i18n::tr_ref("downloads_menu.allow_downloads_during_gameplay")),
+            Setting::ThrottleStreaming => ("#DownloadSettings_ThrottleDuringStreaming", i18n::tr_ref("downloads_menu.throttle_downloads_while_streaming")),
+            Setting::PeerContent => ("#DownloadSettings_PeerContent", i18n::tr_ref("downloads_menu.transfer_of_files_over_a_local_network")),
+            Setting::Region => ("#DownloadSettings_SelectRegion", i18n::tr_ref("downloads_menu.download_region")),
         }
     }
     fn toggle(self, s: &DownloadSettings) -> Option<Option<bool>> {
@@ -286,17 +287,17 @@ impl Setting {
     }
 }
 
-const UNAVAILABLE: &str = "недоступно";
+const UNAVAILABLE: &str = "downloads_menu.unavailable";
 
 /// Stored unit is kbit/s (sp.js: stored = floor(input * (bits ? 1 : 8))); shown in the unit Steam's own field uses.
 pub fn limit_label(rate: i64, bits: Option<bool>) -> String {
     if rate <= 0 {
-        return "Без ограничения".into();
+        return i18n::tr_ref("downloads_menu.unlimited").into();
     }
     match bits {
-        Some(false) if rate % 8 == 0 => format!("{} КБ/с", rate / 8),
-        Some(false) => crate::app::comma(format!("{:.1} КБ/с", rate as f64 / 8.0)),
-        _ => format!("{rate} кбит/с"),
+        Some(false) if rate % 8 == 0 => i18n::tr_args("downloads_menu.kb_s", &[("rate", &(rate / 8).to_string())]),
+        Some(false) => crate::app::comma(i18n::tr_args("downloads_menu.kb_s", &[("rate", &format!("{:.1}", rate as f64 / 8.0))])),
+        _ => i18n::tr_args("downloads_menu.kbit_s", &[("rate", &(rate).to_string())]),
     }
 }
 
@@ -319,27 +320,27 @@ pub fn choices(setting: Setting, s: &DownloadSettings) -> Vec<(i64, String)> {
             std::iter::once(0).chain(steps).map(|r| (r, limit_label(r, s.rate_bits))).collect()
         }
         Setting::UpdateBehavior => vec![
-            (BEHAVIOR_KEEP_UPDATED, "Разрешить Steam выбирать время обновления".into()),
-            (AUTO_UPDATE_ON_LAUNCH, "Обновлять только при запуске игры".into()),
+            (BEHAVIOR_KEEP_UPDATED, i18n::tr_ref("downloads_menu.let_steam_decide_when_to_update").into()),
+            (AUTO_UPDATE_ON_LAUNCH, i18n::tr_ref("downloads_menu.update_only_when_the_game_starts").into()),
         ],
         Setting::RestrictStart | Setting::RestrictEnd => s.hours.clone(),
         Setting::PeerContent => vec![
-            (0, "Выключено".into()),
-            (1, "Только мои устройства".into()),
-            (2, "Мои устройства и друзья".into()),
-            (3, "Любой пользователь".into()),
+            (0, i18n::tr_ref("downloads_menu.disabled").into()),
+            (1, i18n::tr_ref("downloads_menu.just_my_devices").into()),
+            (2, i18n::tr_ref("downloads_menu.my_devices_and_friends").into()),
+            (3, i18n::tr_ref("downloads_menu.any_user").into()),
         ],
         _ => vec![],
     }
 }
 
 fn choice_label(setting: Setting, s: &DownloadSettings) -> String {
-    let Some(v) = setting.number(s) else { return UNAVAILABLE.into() };
+    let Some(v) = setting.number(s) else { return i18n::tr_ref(UNAVAILABLE).into() };
     if setting == Setting::Limit {
         return limit_label(v, s.rate_bits);
     }
     let named = if setting == Setting::Region { s.regions.clone() } else { choices(setting, s) };
-    named.into_iter().find(|(x, _)| *x == v).map(|(_, l)| l).unwrap_or_else(|| format!("неизвестно ({v})"))
+    named.into_iter().find(|(x, _)| *x == v).map(|(_, l)| l).unwrap_or_else(|| i18n::tr_args("downloads_menu.unknown", &[("value", &(v).to_string())]))
 }
 
 /// JS of a settings write: one CMsgClientSettings field through SetSetting (sp.js `K(key, value)`).
@@ -419,21 +420,21 @@ pub struct Txt<'a> {
 }
 
 pub(crate) fn speed(bytes_per_sec: u64, bits: Option<bool>) -> String {
-    let (v, units) = if bits == Some(true) { (bytes_per_sec as f64 * 8.0, ["кбит/с", "Мбит/с"]) } else { (bytes_per_sec as f64, ["КБ/с", "МБ/с"]) };
+    let (v, units) = if bits == Some(true) { (bytes_per_sec as f64 * 8.0, [i18n::tr_ref("downloads_menu.qbit"), i18n::tr_ref("downloads_menu.mbit_s")]) } else { (bytes_per_sec as f64, [i18n::tr_ref("downloads_menu.kb_s_2"), i18n::tr_ref("downloads_menu.mb_s")]) };
     crate::app::comma(if v >= 1e6 { format!("{:.1} {}", v / 1e6, units[1]) } else { format!("{:.0} {}", v / 1e3, units[0]) })
 }
 
 pub(crate) fn state_text(state: &str, t: &Txt) -> String {
     let fallback = match state {
-        "Downloading" => "Загрузка",
-        "Starting" => "Запуск",
-        "Validating" | "Verifying" => "Проверка",
-        "Preallocating" => "Выделение места",
-        "Updating" | "Patching" => "Обновление",
-        "Unpacking" => "Распаковка",
-        "Installing" => "Установка",
-        "Finalizing" => "Завершение",
-        "Stopping" => "Остановка",
+        "Downloading" => i18n::tr_ref("downloads_menu.loading"),
+        "Starting" => i18n::tr_ref("downloads_menu.launching"),
+        "Validating" | "Verifying" => i18n::tr_ref("downloads_menu.validating"),
+        "Preallocating" => i18n::tr_ref("downloads_menu.reserving_space"),
+        "Updating" | "Patching" => i18n::tr_ref("downloads_menu.updating"),
+        "Unpacking" => i18n::tr_ref("downloads_menu.unpacking"),
+        "Installing" => i18n::tr_ref("downloads_menu.installing"),
+        "Finalizing" => i18n::tr_ref("downloads_menu.finalizing"),
+        "Stopping" => i18n::tr_ref("downloads_menu.stopping"),
         other => other,
     };
     (t.tr)(&format!("#Downloads_DetailedState_{state}"), fallback)
@@ -447,8 +448,8 @@ pub(crate) fn percent_of(done: u64, total: u64) -> Option<u32> {
 fn eta_text(sec: i64) -> String {
     match sec {
         s if s < 0 => String::new(),
-        s if s <= 60 => format!("осталось {s} с"),
-        s => format!("осталось {} мин", s / 60),
+        s if s <= 60 => i18n::tr_args("downloads_menu.sec_remaining", &[("seconds", &(s).to_string())]),
+        s => i18n::tr_args("downloads_menu.min_remaining", &[("seconds", &(s / 60).to_string())]),
     }
 }
 
@@ -468,28 +469,28 @@ fn item_row(section: Section, i: &DownloadItem, d: &Downloads, t: &Txt) -> Row {
     let mut row = Row::item(item_name(i), Target::Item(i.appid));
     row.value = match st {
         Status::ActiveDownloading | Status::Active => state_text(&d.overview.state, t),
-        Status::ActivePaused => (t.tr)("#Downloads_State_Paused", "Приостановлено"),
-        Status::Queued => (t.tr)("#Downloads_State_Queued", "В очереди"),
-        Status::QueuedNext => (t.tr)("#Downloads_State_UpNext", "Далее"),
-        Status::Scheduled => (t.tr)("#Downloads_State_Scheduled", "Запланировано"),
-        Status::RemovedFromQueue => (t.tr)("#Downloads_State_Paused", "Приостановлено"),
-        Status::Error => "Ошибка".into(),
-        Status::DisabledByUser | Status::DisabledByApp => "Отключено".into(),
-        Status::Completed => (t.tr)("#Downloads_State_Complete", "Завершено"),
-        Status::Unknown => "Неизвестно".into(),
+        Status::ActivePaused => (t.tr)("#Downloads_State_Paused", i18n::tr_ref("downloads_menu.paused")),
+        Status::Queued => (t.tr)("#Downloads_State_Queued", i18n::tr_ref("downloads_menu.queued")),
+        Status::QueuedNext => (t.tr)("#Downloads_State_UpNext", i18n::tr_ref("downloads_menu.next")),
+        Status::Scheduled => (t.tr)("#Downloads_State_Scheduled", i18n::tr_ref("downloads_menu.scheduled")),
+        Status::RemovedFromQueue => (t.tr)("#Downloads_State_Paused", i18n::tr_ref("downloads_menu.paused")),
+        Status::Error => i18n::tr_ref("downloads_menu.error").into(),
+        Status::DisabledByUser | Status::DisabledByApp => i18n::tr_ref("downloads_menu.disconnected").into(),
+        Status::Completed => (t.tr)("#Downloads_State_Complete", i18n::tr_ref("downloads_menu.completed")),
+        Status::Unknown => i18n::tr_ref("downloads_menu.unknown_2").into(),
     };
     let mut sub: Vec<String> = Vec::new();
     match st {
         Status::Error => {
             let code = i.update_result.unwrap_or_default();
-            sub.push((t.tr)(&format!("#Steam_AppUpdateError_{code}"), &format!("Ошибка обновления (код {code})")));
+            sub.push((t.tr)(&format!("#Steam_AppUpdateError_{code}"), &i18n::tr_args("downloads_menu.update_error_code", &[("code", &(code).to_string())])));
             sub.extend(i.update_error.clone());
         }
-        Status::Scheduled => sub.push(format!("на {}", (t.time)(i.deferred_time))),
-        Status::DisabledByUser => sub.push((t.tr)("#Downloads_AutoUpdate_DoNotUpdate", "Обновляется только при запуске")),
-        Status::DisabledByApp => sub.push((t.tr)("#Downloads_State_UpdatesDiabledByApp", "Обновления отключены приложением")),
+        Status::Scheduled => sub.push(i18n::tr_args("downloads_menu.at", &[("deferred_time", &((t.time)(i.deferred_time)).to_string())])),
+        Status::DisabledByUser => sub.push((t.tr)("#Downloads_AutoUpdate_DoNotUpdate", i18n::tr_ref("downloads_menu.updated_only_at_launch"))),
+        Status::DisabledByApp => sub.push((t.tr)("#Downloads_State_UpdatesDiabledByApp", i18n::tr_ref("downloads_menu.updates_disabled_by_app"))),
         Status::Completed => sub.push((t.time)(i.completed_time)),
-        Status::Unknown => sub.push("Steam не сообщил состояние".into()),
+        Status::Unknown => sub.push(i18n::tr_ref("downloads_menu.steam_did_not_report_a_condition").into()),
         _ => {}
     }
     if st != Status::Completed {
@@ -512,7 +513,7 @@ fn item_row(section: Section, i: &DownloadItem, d: &Downloads, t: &Txt) -> Row {
         }
     }
     if i.launch_on_completion && !i.completed {
-        sub.push("запуск после загрузки".into());
+        sub.push(i18n::tr_ref("downloads_menu.launch").into());
     }
     row.dim_bar = !matches!(st, Status::ActiveDownloading | Status::Active);
     row.sub = sub.join(" · ");
@@ -521,37 +522,37 @@ fn item_row(section: Section, i: &DownloadItem, d: &Downloads, t: &Txt) -> Row {
 
 fn section_title(s: Section, n: usize, t: &Txt) -> String {
     let (tok, fb) = match s {
-        Section::Active => ("#Downloads_Section_Active", "Сейчас"),
-        Section::Queued => ("#Downloads_Section_Current", "Далее"),
-        Section::Scheduled => ("#Downloads_Section_Scheduled", "Запланировано"),
-        Section::NotQueued => ("#Downloads_Section_NotQueued", "Не в очереди"),
-        Section::Completed => ("#Downloads_Section_Completed", "Завершено"),
+        Section::Active => ("#Downloads_Section_Active", i18n::tr_ref("downloads_menu.now")),
+        Section::Queued => ("#Downloads_Section_Current", i18n::tr_ref("downloads_menu.up_next")),
+        Section::Scheduled => ("#Downloads_Section_Scheduled", i18n::tr_ref("downloads_menu.scheduled")),
+        Section::NotQueued => ("#Downloads_Section_NotQueued", i18n::tr_ref("downloads_menu.not_queued")),
+        Section::Completed => ("#Downloads_Section_Completed", i18n::tr_ref("downloads_menu.completed")),
     };
     format!("{} ({n})", (t.tr)(tok, fb).to_uppercase())
 }
 
 /// One-line state of the whole download system. `None` data = the bridge delivered nothing.
 pub fn status_line(d: Option<&Downloads>, s: Option<&DownloadSettings>) -> String {
-    let Some(d) = d else { return "Нет данных от Steam".into() };
+    let Some(d) = d else { return i18n::tr_ref("downloads_menu.no_data_from_steam").into() };
     let ov = &d.overview;
     let bits = s.and_then(|s| s.rate_bits);
     let mut parts: Vec<String> = Vec::new();
     match ov.paused {
-        Some(true) => parts.push("Загрузки приостановлены".into()),
-        None => parts.push("Пауза: неизвестно".into()),
+        Some(true) => parts.push(i18n::tr_ref("downloads_menu.downloads_paused").into()),
+        None => parts.push(i18n::tr_ref("downloads_menu.pause_unknown").into()),
         Some(false) if ov.appid != 0 && ov.state != "None" => {
-            parts.push(if ov.is_upload { "Отправка".into() } else { state_text(&ov.state, &Txt { tr: &|_, f| f.to_string(), time: &|_| String::new(), size: &|_| String::new() }) });
+            parts.push(if ov.is_upload { i18n::tr_ref("downloads_menu.sending").into() } else { state_text(&ov.state, &Txt { tr: &|_, f| f.to_string(), time: &|_| String::new(), size: &|_| String::new() }) });
             if ov.net_bytes_per_sec > 0 {
                 parts.push(speed(ov.net_bytes_per_sec, bits));
             }
         }
-        Some(false) => parts.push("Нет активной загрузки".into()),
+        Some(false) => parts.push(i18n::tr_ref("downloads_menu.no_active_loading").into()),
     }
     if let Some(rate) = s.and_then(|s| s.throttle_rate).filter(|&r| r > 0) {
-        parts.push(format!("лимит {}{}", limit_label(rate, bits), if ov.throttling_suspended == Some(true) { " (снят для текущей)" } else { "" }));
+        parts.push(i18n::tr_args("downloads_menu.limit", &[("bits", &(limit_label(rate, bits)).to_string()), ("true", &(if ov.throttling_suspended == Some(true) { i18n::tr_ref("downloads_menu.removed_for_current") } else { "" }).to_string())]));
     }
     if let Some(host) = ov.lan_peer_hostname.as_deref().filter(|h| !h.is_empty()) {
-        parts.push(format!("локальная сеть: {host}"));
+        parts.push(i18n::tr_args("downloads_menu.local_network", &[("host", &(host).to_string())]));
     }
     parts.join(" · ")
 }
@@ -560,11 +561,11 @@ pub fn status_line(d: Option<&Downloads>, s: Option<&DownloadSettings>) -> Strin
 pub fn list_rows(d: Option<&Downloads>, t: &Txt) -> Vec<Row> {
     let mut rows = Vec::new();
     match d {
-        None => rows.push(Row::note("Steam не передал список загрузок: состояние неизвестно, действия недоступны.")),
+        None => rows.push(Row::note(i18n::tr_ref("downloads_menu.steam_did_not_hand_over_the_download"))),
         Some(d) => {
             let secs = sections(d);
             if secs.iter().all(|(_, v)| v.is_empty()) {
-                rows.push(Row::note((t.tr)("#Downloads_NoTransfers", "Нет загрузок")));
+                rows.push(Row::note((t.tr)("#Downloads_NoTransfers", i18n::tr_ref("downloads_menu.no_downloads"))));
             }
             for (s, items) in &secs {
                 if items.is_empty() {
@@ -575,23 +576,23 @@ pub fn list_rows(d: Option<&Downloads>, t: &Txt) -> Vec<Row> {
             }
         }
     }
-    rows.push(Row::header("УПРАВЛЕНИЕ"));
+    rows.push(Row::header(i18n::tr_ref("downloads_menu.management")));
     let mut all = match d.and_then(|d| d.overview.paused) {
-        Some(true) => Row::item("Возобновить все загрузки", Target::Op(Op::EnableAll(true))),
-        Some(false) => Row::item("Приостановить все загрузки", Target::Op(Op::EnableAll(false))),
-        None => Row { enabled: false, value: UNAVAILABLE.into(), ..Row::item("Приостановить все загрузки", Target::None) },
+        Some(true) => Row::item(i18n::tr_ref("downloads_menu.resume_all_downloads"), Target::Op(Op::EnableAll(true))),
+        Some(false) => Row::item(i18n::tr_ref("downloads_menu.suspend_all_downloads"), Target::Op(Op::EnableAll(false))),
+        None => Row { enabled: false, value: i18n::tr_ref(UNAVAILABLE).into(), ..Row::item(i18n::tr_ref("downloads_menu.suspend_all_downloads"), Target::None) },
     };
     all.check = -1;
     rows.push(all);
-    rows.push(Row::item((t.tr)("#DeckShell_DownloadSettings", "Настройки загрузок"), Target::OpenSettings));
-    rows.push(Row::item("Открыть страницу загрузок", Target::OpenPage));
+    rows.push(Row::item((t.tr)("#DeckShell_DownloadSettings", i18n::tr_ref("downloads_menu.loading_settings")), Target::OpenSettings));
+    rows.push(Row::item(i18n::tr_ref("downloads_menu.open_the_download_page"), Target::OpenPage));
     rows
 }
 
 /// Action view of one item. Empty item list (the download is gone) leaves only a note.
 pub fn action_rows(d: Option<&Downloads>, appid: u32, s: Option<&DownloadSettings>, t: &Txt) -> Vec<Row> {
-    let Some(d) = d else { return vec![Row::note("Steam не передал список загрузок.")] };
-    let Some((section, i)) = find(d, appid) else { return vec![Row::note("Этой загрузки больше нет в списке Steam.")] };
+    let Some(d) = d else { return vec![Row::note(i18n::tr_ref("downloads_menu.steam_didn_t_hand_over_the_download"))] };
+    let Some((section, i)) = find(d, appid) else { return vec![Row::note(i18n::tr_ref("downloads_menu.this_download_is_no_longer_on_the"))] };
     let mut info = item_row(section, i, d, t);
     info.label = info.value.clone();
     info.value = String::new();
@@ -606,10 +607,10 @@ pub fn action_rows(d: Option<&Downloads>, appid: u32, s: Option<&DownloadSetting
     let mut rows = vec![info];
     let actions = item_actions(d, appid, s.and_then(|s| s.throttle_rate));
     if section == Section::Active && d.overview.paused.is_none() {
-        rows.push(Row { enabled: false, value: UNAVAILABLE.into(), ..Row::item("Приостановить / возобновить", Target::None) });
+        rows.push(Row { enabled: false, value: i18n::tr_ref(UNAVAILABLE).into(), ..Row::item(i18n::tr_ref("downloads_menu.suspend_resume"), Target::None) });
     }
     if i.queue_index == 0 && (s.and_then(|s| s.throttle_rate).is_none() || d.overview.throttling_suspended.is_none()) {
-        rows.push(Row { enabled: false, value: UNAVAILABLE.into(), ..Row::item((t.tr)("#Downloads_OverrideDownloadThrottle", "Не ограничивать скорость этой загрузки"), Target::None) });
+        rows.push(Row { enabled: false, value: i18n::tr_ref(UNAVAILABLE).into(), ..Row::item((t.tr)("#Downloads_OverrideDownloadThrottle", i18n::tr_ref("downloads_menu.do_not_limit_the_speed_of_the")), Target::None) });
     }
     for a in actions {
         let mut r = Row::item(if a.token.is_empty() { a.fallback.to_string() } else { (t.tr)(a.token, a.fallback) }, Target::Op(a.op));
@@ -623,7 +624,7 @@ pub fn action_rows(d: Option<&Downloads>, appid: u32, s: Option<&DownloadSetting
 pub fn settings_rows(s: Option<&DownloadSettings>, t: &Txt) -> Vec<Row> {
     let mut rows = Vec::new();
     if s.is_none() {
-        rows.push(Row::note("Steam не передал настройки загрузок: значения неизвестны, изменение недоступно."));
+        rows.push(Row::note(i18n::tr_ref("downloads_menu.steam_has_not_handed_over_download_settings")));
     }
     let mut order = vec![Setting::Limit, Setting::RateBits, Setting::UpdateBehavior];
     // Stock shows the schedule only under "keep up to date", and the hours only while the schedule is on.
@@ -640,7 +641,7 @@ pub fn settings_rows(s: Option<&DownloadSettings>, t: &Txt) -> Vec<Row> {
         match s {
             None => {
                 row.enabled = false;
-                row.value = UNAVAILABLE.into();
+                row.value = i18n::tr_ref(UNAVAILABLE).into();
             }
             Some(s) => match setting.toggle(s) {
                 Some(Some(on)) => {
@@ -649,17 +650,17 @@ pub fn settings_rows(s: Option<&DownloadSettings>, t: &Txt) -> Vec<Row> {
                 }
                 Some(None) => {
                     row.enabled = false;
-                    row.value = UNAVAILABLE.into();
+                    row.value = i18n::tr_ref(UNAVAILABLE).into();
                 }
                 None => {
                     row.value = choice_label(setting, s);
                     if setting == Setting::Region {
                         // Steam asks for a client restart after a region change; not offered from this panel.
                         row.enabled = false;
-                        row.sub = "Меняется на странице настроек Steam (нужен перезапуск клиента)".into();
+                        row.sub = i18n::tr_ref("downloads_menu.changes_on_the_steam_settings_page_customer").into();
                     } else if setting.number(s).is_none() || choices(setting, s).is_empty() {
                         row.enabled = false;
-                        row.value = UNAVAILABLE.into();
+                        row.value = i18n::tr_ref(UNAVAILABLE).into();
                     } else {
                         row.target = Target::Choose(setting);
                     }
@@ -672,7 +673,7 @@ pub fn settings_rows(s: Option<&DownloadSettings>, t: &Txt) -> Vec<Row> {
 }
 
 pub fn choice_rows(setting: Setting, s: Option<&DownloadSettings>) -> Vec<Row> {
-    let Some(s) = s else { return vec![Row::note("Steam не передал настройки загрузок.")] };
+    let Some(s) = s else { return vec![Row::note(i18n::tr_ref("downloads_menu.steam_did_not_hand_over_download_settings"))] };
     let cur = setting.number(s);
     let mut rows: Vec<Row> = choices(setting, s).into_iter().map(|(v, label)| {
         let mut r = Row::item(label, Target::Pick(setting, v));
@@ -682,8 +683,8 @@ pub fn choice_rows(setting: Setting, s: Option<&DownloadSettings>) -> Vec<Row> {
     if setting == Setting::Limit {
         // Steam has a free text field here; the ladder above is DeckShell's own, this row is the field
         let typed = CUSTOM.with(|c| c.borrow().clone());
-        let unit = if s.rate_bits == Some(true) { "кбит/с" } else { "КБ/с" };
-        rows.push(Row::item(if typed.is_empty() { "Своё значение…".to_string() } else { format!("Своё значение: {typed} {unit}") }, Target::Custom(setting)));
+        let unit = if s.rate_bits == Some(true) { i18n::tr_ref("downloads_menu.qbit") } else { i18n::tr_ref("downloads_menu.kb_s_2") };
+        rows.push(Row::item(if typed.is_empty() { i18n::tr_ref("downloads_menu.its_significance").to_string() } else { i18n::tr_args("downloads_menu.custom_value", &[("typed", &(typed).to_string()), ("unit", &(unit).to_string())]) }, Target::Custom(setting)));
     }
     rows
 }
@@ -801,7 +802,7 @@ pub fn wire_models(app: &App, ui: &AppWindow) {
 }
 
 pub(crate) fn local_time(ts: i64) -> String {
-    chrono::DateTime::from_timestamp(ts, 0).map(|t| t.with_timezone(&chrono::Local).format("%d.%m %H:%M").to_string()).unwrap_or_else(|| "время неизвестно".into())
+    chrono::DateTime::from_timestamp(ts, 0).map(|t| t.with_timezone(&chrono::Local).format("%d.%m %H:%M").to_string()).unwrap_or_else(|| i18n::tr_ref("downloads_menu.timeless").into())
 }
 
 impl App {
@@ -847,10 +848,10 @@ impl App {
         let keep = self.dm.rows.get(self.dm.focus).map(|r| r.target.clone());
         let (title, rows) = match self.dm.view {
             View::Closed => return,
-            View::List => (crate::assets::t_or("#MainTabsDownload", "Загрузки"), list_rows(d.as_ref(), &t)),
+            View::List => (crate::assets::t_or("#MainTabsDownload", i18n::tr_ref("downloads_menu.downloads")), list_rows(d.as_ref(), &t)),
             View::Actions(id) => (d.as_ref().and_then(|d| d.items.iter().find(|i| i.appid == id)).map(item_name).unwrap_or_else(|| format!("App {id}")), action_rows(d.as_ref(), id, settings.as_ref(), &t)),
-            View::Settings => ("Настройки загрузок".to_string(), match &self.dm.settings {
-                None => vec![Row::note("Чтение настроек Steam…")],
+            View::Settings => (i18n::tr_ref("downloads_menu.loading_settings").to_string(), match &self.dm.settings {
+                None => vec![Row::note(i18n::tr_ref("downloads_menu.reading_the_steam_settings"))],
                 Some(s) => settings_rows(s.as_ref(), &t),
             }),
             View::Choice(setting) => { let (tok, fb) = setting.label(); (crate::assets::t_or(tok, fb), choice_rows(setting, settings.as_ref())) }
@@ -960,7 +961,7 @@ impl App {
                     self.sm.open = false;
                     self.open_game(gi);
                 } else {
-                    self.toast("Игры нет в библиотеке DeckShell");
+                    self.toast(i18n::tr_ref("downloads_menu.the_game_is_not_in_the_deckshell"));
                 }
             }
             Target::Op(op) => {
@@ -996,11 +997,11 @@ impl App {
             eprintln!("[deckshell] DRYRUN downloads menu {what}: {js}");
             #[cfg(test)]
             WRITES.with(|w| w.borrow_mut().push(js.clone()));
-            self.toast("Проверочный режим: запись в Steam не отправлена");
+            self.toast(i18n::tr_ref("downloads_menu.verification_mode_recording_on_steam_is_not"));
             return;
         }
         let Some(bridge) = crate::actions::bridge() else {
-            self.toast("Steam недоступен: изменение не отправлено");
+            self.toast(i18n::tr_ref("downloads_menu.steam_unavailable_change_not_sent"));
             return;
         };
         std::thread::spawn(move || {
@@ -1014,7 +1015,7 @@ impl App {
             let downloads = bridge.downloads().ok();
             super::defer(move |a| {
                 if sent.is_err() {
-                    a.toast("Steam не принял изменение");
+                    a.toast(i18n::tr_ref("downloads_menu.steam_did_not_accept_the_change"));
                 }
                 a.dm.settings = Some(settings);
                 match downloads {
@@ -1053,394 +1054,5 @@ impl App {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use steam_bridge::{parse_download_settings, parse_downloads};
-
-    const FIXTURE: &str = include_str!("downloads_menu_fixture.json");
-
-    fn fixture() -> (Downloads, DownloadSettings) {
-        let v: Value = serde_json::from_str(FIXTURE).unwrap();
-        (parse_downloads(&v["downloads"]).unwrap(), parse_download_settings(&v["settings"]).unwrap())
-    }
-
-    fn txt() -> Txt<'static> {
-        Txt { tr: &|_, fallback| fallback.to_string(), time: &|ts| format!("T{ts}"), size: &|b| format!("{b}B") }
-    }
-
-    fn ids(v: &[&DownloadItem]) -> Vec<u32> {
-        v.iter().map(|i| i.appid).collect()
-    }
-
-    #[test]
-    fn sections_follow_the_stock_store_getters() {
-        let (d, _) = fixture();
-        let s = sections(&d);
-        assert_eq!(s.iter().map(|x| x.0).collect::<Vec<_>>(), vec![Section::Active, Section::Queued, Section::Scheduled, Section::NotQueued, Section::Completed]);
-        assert_eq!(ids(&s[0].1), vec![100], "head of the queue is the active section");
-        assert_eq!(ids(&s[1].1), vec![200, 300, 350], "rest of the queue in queue order");
-        assert_eq!(ids(&s[2].1), vec![400], "scheduled: no queue index, deferred time set");
-        assert_eq!(ids(&s[3].1), vec![600, 500, 700], "not queued, by name");
-        assert_eq!(ids(&s[4].1), vec![900, 800], "completed, newest first");
-    }
-
-    #[test]
-    fn item_states_are_the_stock_enum() {
-        let (d, _) = fixture();
-        let st = |id: u32| { let (_, i) = find(&d, id).unwrap(); status(i, item_overview(i, &d.overview)) };
-        assert_eq!(st(100), Status::ActiveDownloading);
-        assert_eq!(st(200), Status::QueuedNext);
-        assert_eq!(st(300), Status::Queued);
-        assert_eq!(st(350), Status::Error, "an update error wins over the queue position");
-        assert_eq!(st(400), Status::Scheduled);
-        assert_eq!(st(500), Status::RemovedFromQueue);
-        assert_eq!(st(600), Status::DisabledByUser);
-        assert_eq!(st(700), Status::DisabledByApp);
-        assert_eq!(st(800), Status::Completed);
-        let mut paused = d.clone();
-        paused.overview.paused = Some(true);
-        paused.overview.state = "None".into();
-        paused.items[0].active = false;
-        let (_, head) = find(&paused, 100).unwrap();
-        assert_eq!(status(head, item_overview(head, &paused.overview)), Status::ActivePaused);
-        // The overview never applies to an item that is neither active nor at the head.
-        let (_, second) = find(&paused, 200).unwrap();
-        assert_eq!(item_overview(second, &paused.overview), None);
-    }
-
-    #[test]
-    fn ok_action_is_the_stock_button_of_each_section() {
-        let js = |a: Option<ItemAction>| a.and_then(|a| a.op.js());
-        assert_eq!(js(primary(Section::Active, Status::ActiveDownloading, Some(false), 100)).as_deref(), Some(r#"(SteamClient.Downloads.EnableAllDownloads(false,"0"),true)"#));
-        assert_eq!(js(primary(Section::Active, Status::ActivePaused, Some(true), 100)).as_deref(), Some(r#"(SteamClient.Downloads.EnableAllDownloads(true,"0"),true)"#));
-        assert_eq!(primary(Section::Active, Status::Active, None, 100), None, "unknown pause state offers no pause/resume");
-        for s in [Section::Queued, Section::Scheduled, Section::NotQueued] {
-            assert_eq!(js(primary(s, Status::Queued, Some(false), 7)).as_deref(), Some(r#"(SteamClient.Downloads.ResumeAppUpdate(7,"0"),true)"#));
-        }
-        assert_eq!(primary(Section::Queued, Status::Error, Some(false), 7).unwrap().token, "#Downloads_Retry_Tooltip");
-        assert_eq!(primary(Section::NotQueued, Status::DisabledByApp, Some(false), 7), None);
-        assert_eq!(primary(Section::Completed, Status::Completed, Some(false), 7).unwrap().op, Op::ViewInLibrary(7));
-    }
-
-    #[test]
-    fn item_actions_match_the_stock_menu_and_drag_rules() {
-        let (d, s) = fixture();
-        let ops = |d: &Downloads, id: u32, rate: Option<i64>| item_actions(d, id, rate).into_iter().map(|a| a.op).collect::<Vec<_>>();
-        // Active: pause, launch-when-complete (currently off), throttle override (limit set), view. No remove while active.
-        assert_eq!(ops(&d, 100, s.throttle_rate), vec![Op::EnableAll(false), Op::LaunchOnComplete { appid: 100, on: true }, Op::SuspendThrottle(true), Op::ViewInLibrary(100)]);
-        assert!(!ops(&d, 100, Some(0)).contains(&Op::SuspendThrottle(true)), "no override without a limit");
-        assert!(!ops(&d, 100, None).iter().any(|o| matches!(o, Op::SuspendThrottle(_))), "unknown limit: not offered");
-        // Second in the queue: cannot move up into the active slot by SetQueueIndex; can move down.
-        assert_eq!(ops(&d, 200, None), vec![Op::DownloadNow(200), Op::QueueIndex(200, 2), Op::Unqueue(200), Op::Remove { appid: 200, reenable: false }, Op::ViewInLibrary(200)]);
-        assert_eq!(ops(&d, 300, None), vec![Op::DownloadNow(300), Op::QueueIndex(300, 1), Op::QueueIndex(300, 3), Op::Unqueue(300), Op::Remove { appid: 300, reenable: false }, Op::ViewInLibrary(300)]);
-        // Last in the queue: only up.
-        assert!(ops(&d, 350, None).contains(&Op::QueueIndex(350, 2)) && !ops(&d, 350, None).contains(&Op::QueueIndex(350, 4)));
-        assert_eq!(ops(&d, 400, None), vec![Op::DownloadNow(400), Op::Unqueue(400), Op::Remove { appid: 400, reenable: false }, Op::ViewInLibrary(400)]);
-        // Not queued: download now only; stock shows no remove button there.
-        assert_eq!(ops(&d, 500, None), vec![Op::DownloadNow(500), Op::ViewInLibrary(500)]);
-        assert_eq!(ops(&d, 700, None), vec![Op::ViewInLibrary(700)], "disabled by the app: no button");
-        assert_eq!(ops(&d, 800, None), vec![Op::ViewInLibrary(800), Op::Remove { appid: 800, reenable: false }]);
-        assert_eq!(item_actions(&d, 800, None)[1].token, "#Downloads_RemoveFromList_Tooltip");
-        // Paused head of the queue: remove also re-enables downloads, launch-when-complete is cleared with appid 0.
-        let mut p = d.clone();
-        p.overview.paused = Some(true);
-        p.items[0].active = false;
-        p.items[0].launch_on_completion = true;
-        let a = item_actions(&p, 100, None);
-        assert_eq!(a[0].op, Op::EnableAll(true));
-        assert_eq!(a[1].op.js().as_deref(), Some("(SteamClient.Downloads.SetLaunchOnUpdateComplete(0),true)"));
-        assert_eq!(a[1].check, Some(true));
-        assert!(a.iter().any(|x| x.op == Op::Remove { appid: 100, reenable: true }));
-        assert!(item_actions(&d, 12345, None).is_empty(), "an item Steam no longer lists has no actions");
-    }
-
-    #[test]
-    fn list_shows_sections_states_and_progress() {
-        let (d, _) = fixture();
-        let rows = list_rows(Some(&d), &txt());
-        let labels: Vec<&str> = rows.iter().map(|r| r.label.as_str()).collect();
-        assert_eq!(labels, vec![
-            "СЕЙЧАС (1)", "Alpha", "ДАЛЕЕ (3)", "Beta", "Gamma", "Broken", "ЗАПЛАНИРОВАНО (1)", "Delta",
-            "НЕ В ОЧЕРЕДИ (3)", "Epsilon", "Paused game", "Zeta", "ЗАВЕРШЕНО (2)", "Newest", "Done",
-            "УПРАВЛЕНИЕ", "Приостановить все загрузки", "Настройки загрузок", "Открыть страницу загрузок",
-        ]);
-        let row = |name: &str| rows.iter().find(|r| r.label == name).unwrap();
-        assert_eq!(row("Alpha").value, "Загрузка");
-        assert_eq!(row("Alpha").sub, "4000B / 10000B · 41% · 2,0 МБ/с · осталось 5 мин");
-        assert_eq!(row("Alpha").progress, 0.41);
-        assert!(!row("Alpha").dim_bar);
-        assert_eq!((row("Beta").value.as_str(), row("Beta").sub.as_str(), row("Beta").progress), ("Далее", "6000B", -1.0));
-        assert_eq!((row("Gamma").sub.as_str(), row("Gamma").progress), ("500B / 2000B · 25%", 0.25));
-        assert_eq!((row("Broken").value.as_str(), row("Broken").sub.as_str()), ("Ошибка", "Ошибка обновления (код 6) · disk write failure · 100B"));
-        assert_eq!((row("Delta").value.as_str(), row("Delta").sub.as_str()), ("Запланировано", "на T1790000000 · 300B"));
-        assert_eq!(row("Paused game").value, "Приостановлено");
-        assert_eq!(row("Epsilon").sub, "Обновляется только при запуске");
-        assert_eq!(row("Zeta").sub, "Обновления отключены приложением");
-        assert_eq!((row("Done").value.as_str(), row("Done").sub.as_str()), ("Завершено", "T1780000000"));
-        assert_eq!(row("Alpha").target, Target::Item(100));
-        assert_eq!(row("Приостановить все загрузки").target, Target::Op(Op::EnableAll(false)));
-        // Headers are never focusable; the cursor walks items only and stops at both ends.
-        assert_eq!(step(&rows, 1, Action::Up), None);
-        assert_eq!(step(&rows, 1, Action::Down), Some(3));
-        assert_eq!(step(&rows, 5, Action::Down), Some(7));
-        assert_eq!(step(&rows, rows.len() - 1, Action::Down), None);
-        assert_eq!(step(&rows, 16, Action::Up), Some(14));
-    }
-
-    #[test]
-    fn unknown_data_is_shown_as_unavailable_not_guessed() {
-        let rows = list_rows(None, &txt());
-        assert_eq!(rows[0].kind, RowKind::Note);
-        assert!(!rows.iter().any(|r| matches!(r.target, Target::Item(_) | Target::Op(_))), "no download actions without Steam data");
-        let all = rows.iter().find(|r| r.label == "Приостановить все загрузки").unwrap();
-        assert_eq!((all.enabled, all.value.as_str()), (false, UNAVAILABLE));
-        assert_eq!(status_line(None, None), "Нет данных от Steam");
-        // A snapshot without the pause flag: no pause/resume anywhere, the rest still listed.
-        let (mut d, s) = fixture();
-        d.overview.paused = None;
-        d.overview.throttling_suspended = None;
-        let rows = list_rows(Some(&d), &txt());
-        assert!(!rows.iter().any(|r| matches!(r.target, Target::Op(Op::EnableAll(_)))));
-        let actions = action_rows(Some(&d), 100, Some(&s), &txt());
-        assert!(!actions.iter().any(|r| matches!(r.target, Target::Op(Op::EnableAll(_) | Op::SuspendThrottle(_)))));
-        assert_eq!(actions.iter().filter(|r| !r.enabled && r.value == UNAVAILABLE).count(), 2);
-        assert!(status_line(Some(&d), Some(&s)).starts_with("Пауза: неизвестно"));
-        // Empty Steam list is a real answer, not an error.
-        let empty = Downloads { overview: DownloadOverview { state: "None".into(), paused: Some(false), ..Default::default() }, history: vec![], items: vec![] };
-        assert_eq!(list_rows(Some(&empty), &txt())[0].label, "Нет загрузок");
-        assert_eq!(status_line(Some(&empty), None), "Нет активной загрузки");
-        assert_eq!(action_rows(Some(&empty), 100, None, &txt()).len(), 1, "a vanished item leaves only the note");
-        // An item without a state Steam recognises stays "unknown".
-        let odd = DownloadItem { appid: 1, queue_index: -1, ..Default::default() };
-        assert_eq!(status(&odd, None), Status::Unknown);
-    }
-
-    #[test]
-    fn settings_rows_follow_steam_values() {
-        let (_, s) = fixture();
-        let rows = settings_rows(Some(&s), &txt());
-        let got: Vec<(&str, &str, i32, bool)> = rows.iter().map(|r| (r.label.as_str(), r.value.as_str(), r.check, r.enabled)).collect();
-        assert_eq!(got, vec![
-            ("Ограничить скорость скачивания", "1000 КБ/с", -1, true),
-            ("Скорость в битах в секунду", "", 0, true),
-            ("Обновление игр", "Разрешить Steam выбирать время обновления", -1, true),
-            ("Автообновление по расписанию", "", 1, true),
-            ("Обновлять с", "01:00", -1, true),
-            ("до", "05:00", -1, true),
-            ("Разрешить загрузки во время игры", "", 0, true),
-            ("Ограничить загрузки во время трансляции", "", 1, true),
-            ("Передача файлов по локальной сети", "Только мои устройства", -1, true),
-            ("Регион загрузки", "Poland - Katowice", -1, false),
-        ]);
-        assert_eq!(rows[1].target, Target::Toggle(Setting::RateBits, true));
-        assert_eq!(rows[4].target, Target::Choose(Setting::RestrictStart));
-        // "Update on launch" hides the schedule, as in Steam.
-        let on_launch = DownloadSettings { update_behavior: Some(1), ..s.clone() };
-        assert!(!settings_rows(Some(&on_launch), &txt()).iter().any(|r| r.label.contains("расписанию") || r.label == "до"));
-        let no_schedule = DownloadSettings { restrict_auto_updates: Some(false), ..s.clone() };
-        assert_eq!(settings_rows(Some(&no_schedule), &txt()).len(), 8);
-        // Nothing read: every row unavailable, none writable.
-        let none = settings_rows(None, &txt());
-        assert_eq!(none[0].kind, RowKind::Note);
-        assert!(none[1..].iter().all(|r| !r.enabled && r.value == UNAVAILABLE && r.target == Target::None));
-        // Partly reported: only the missing values are unavailable.
-        let partial = DownloadSettings { rate_bits: None, peer_content: None, hours: vec![], ..s.clone() };
-        let rows = settings_rows(Some(&partial), &txt());
-        let row = |name: &str| rows.iter().find(|r| r.label == name).unwrap();
-        assert!(!row("Скорость в битах в секунду").enabled);
-        assert!(!row("Передача файлов по локальной сети").enabled);
-        assert!(!row("Обновлять с").enabled, "no hour list from Steam: nothing to choose from");
-        assert_eq!(row("Ограничить скорость скачивания").value, "8000 кбит/с", "unit setting unknown: the stored unit is shown");
-        let unknown_enum = DownloadSettings { update_behavior: Some(9), ..s.clone() };
-        assert_eq!(settings_rows(Some(&unknown_enum), &txt())[2].value, "неизвестно (9)");
-    }
-
-    #[test]
-    fn setting_choices_and_writes() {
-        let (_, s) = fixture();
-        let limit = choices(Setting::Limit, &s);
-        assert_eq!(limit[0], (0, "Без ограничения".to_string()));
-        assert!(limit.contains(&(8000, "1000 КБ/с".to_string())), "current value is in the list");
-        assert!(limit.windows(2).all(|w| w[0].0 < w[1].0));
-        let bits = DownloadSettings { rate_bits: Some(true), throttle_rate: Some(3333), ..s.clone() };
-        assert!(choices(Setting::Limit, &bits).contains(&(3333, "3333 кбит/с".to_string())));
-        assert_eq!(limit_label(8004, Some(false)), "1000,5 КБ/с");
-        assert_eq!(choices(Setting::RestrictStart, &s).len(), 3);
-        assert_eq!(choices(Setting::PeerContent, &s).iter().map(|c| c.0).collect::<Vec<_>>(), vec![0, 1, 2, 3]);
-        assert_eq!(choices(Setting::UpdateBehavior, &s).iter().map(|c| c.0).collect::<Vec<_>>(), vec![3, 1]);
-        let picks = choice_rows(Setting::PeerContent, Some(&s));
-        assert_eq!(picks.iter().map(|r| r.check).collect::<Vec<_>>(), vec![0, 1, 0, 0]);
-        assert_eq!(picks[2].target, Target::Pick(Setting::PeerContent, 2));
-        // download_throttle_rate is field 8012 (varint): tag e0 f4 03, value 8000 = c0 3e.
-        assert_eq!(setting_write(Setting::Limit, &json!(8000)).as_deref(), Some(r#"SteamClient.Settings.SetSetting("4PQDwD4=")"#));
-        for setting in [Setting::RateBits, Setting::Restrict, Setting::WhileRunning, Setting::ThrottleStreaming] {
-            assert!(setting_write(setting, &json!(true)).is_some(), "{setting:?}");
-        }
-        for setting in [Setting::UpdateBehavior, Setting::RestrictStart, Setting::RestrictEnd, Setting::PeerContent] {
-            assert!(setting_write(setting, &json!(1)).is_some(), "{setting:?}");
-        }
-        assert_eq!(setting_write(Setting::Region, &json!(1)), None, "region is read-only here");
-    }
-
-    #[test]
-    fn status_line_reports_speed_limit_and_pause() {
-        let (d, s) = fixture();
-        assert_eq!(status_line(Some(&d), Some(&s)), "Загрузка · 2,0 МБ/с · лимит 1000 КБ/с");
-        let bits = DownloadSettings { rate_bits: Some(true), ..s.clone() };
-        assert_eq!(status_line(Some(&d), Some(&bits)), "Загрузка · 16,0 Мбит/с · лимит 8000 кбит/с");
-        let mut p = d.clone();
-        p.overview.paused = Some(true);
-        p.overview.throttling_suspended = Some(true);
-        assert_eq!(status_line(Some(&p), Some(&s)), "Загрузки приостановлены · лимит 1000 КБ/с (снят для текущей)");
-    }
-
-    /// Side menu glue: A on «Загрузки» opens the panel next to the rail, B walks back to the rail, closing the menu
-    /// drops the panel. No bridge in tests: settings come back as "not delivered" and no write is sent.
-    #[test]
-    fn side_menu_opens_and_closes_the_panel() {
-        let _ = slint::platform::set_platform(Box::new(i_slint_backend_testing::TestingBackend::new(
-            i_slint_backend_testing::TestingBackendOptions { renderer_name: Some("software".into()), mock_time: true, ..Default::default() },
-        )));
-        let ui = AppWindow::new().unwrap();
-        let ds = std::sync::Arc::new(crate::data::DataSource::new());
-        let loader = crate::loader::Loader::start(ds.clone(), 0);
-        let mut a = App::new(ui.as_weak(), ds, std::sync::Arc::new(steam_data::Library::default()), loader);
-        crate::screens::downloads_menu::wire_models(&a, &ui);
-        a.live.downloads = Some(fixture().0);
-        let route = a.router.current().clone();
-        a.toggle_side();
-        assert!(a.sm.open);
-        let idx = a.sm.acts.iter().position(|x| *x == crate::screens::steam_menu::MenuAct::Downloads).unwrap();
-        a.menu_activate(idx);
-        assert_eq!(a.dm.view, View::List);
-        assert!(a.sm.open, "the rail stays open next to the panel");
-        assert_eq!(a.router.current(), &route, "no page navigation");
-        let st = ui.global::<DownloadsMenuState>();
-        assert!(st.get_open());
-        assert_eq!(a.dm.rows[a.dm.focus].label, "Alpha");
-        assert_eq!(a.dm.settings, Some(None), "no bridge: settings not delivered");
-        // Down walks items only (the next header is skipped).
-        a.handle(Action::Down);
-        assert_eq!(a.dm.rows[a.dm.focus].label, "Beta");
-        // A on an item opens its actions; B returns to the same row.
-        a.handle(Action::A);
-        assert_eq!(a.dm.view, View::Actions(200));
-        a.handle(Action::B);
-        assert_eq!((a.dm.view, a.dm.rows[a.dm.focus].label.as_str()), (View::List, "Beta"));
-        // Settings without Steam data: every row unavailable, nothing focusable to write.
-        a.dm.focus = a.dm.rows.iter().position(|r| r.target == Target::OpenSettings).unwrap();
-        a.handle(Action::A);
-        assert_eq!(a.dm.view, View::Settings);
-        assert!(a.dm.rows.iter().all(|r| !r.enabled));
-        a.handle(Action::A);
-        assert_eq!(a.dm.view, View::Settings, "a disabled row does nothing");
-        a.handle(Action::B);
-        a.handle(Action::B);
-        assert_eq!(a.dm.view, View::Closed);
-        assert!(a.sm.open && !st.get_open(), "B from the list returns to the rail");
-        // Closing the side menu (STEAM; called directly to skip the 300 ms guide debounce) drops the panel; reopening the menu does not bring it back.
-        a.menu_activate(idx);
-        assert!(a.dm.is_open());
-        a.toggle_side();
-        assert!(!a.sm.open && !a.dm.is_open() && !st.get_open());
-        a.toggle_side();
-        assert!(a.sm.open && !a.dm.is_open());
-        // A write without a bridge (or in dry run) changes nothing locally: the panel waits for Steam.
-        a.menu_activate(idx);
-        let before = a.live.downloads.clone();
-        a.dm.focus = a.dm.rows.iter().position(|r| r.target == Target::Op(Op::EnableAll(false))).unwrap();
-        a.handle(Action::A);
-        assert_eq!(a.live.downloads, before);
-        assert_eq!(a.dm.view, View::List);
-    }
-
-    /// The panel drawn by the software renderer from the fixture: list, item actions, settings. PC render only.
-    /// With DECKSHELL_GALLERY_DIR set the frames are written there.
-    #[test]
-    fn panel_renders_from_fixture() {
-        use crate::{MenuItem, SteamMenuState};
-        let _ = slint::platform::set_platform(Box::new(i_slint_backend_testing::TestingBackend::new(
-            i_slint_backend_testing::TestingBackendOptions { renderer_name: Some("software".into()), mock_time: true, ..Default::default() },
-        )));
-        let ui = AppWindow::new().unwrap();
-        ui.window().set_size(slint::PhysicalSize::new(1280, 800));
-        let menu = ui.global::<SteamMenuState>();
-        let names = ["Главная", "Библиотека", "Магазин", "Друзья и чат", "Медиа", "Загрузки", "Настройки", "Выключение"];
-        menu.set_items(ModelRc::new(VecModel::from(names.iter().enumerate().map(|(i, s)| MenuItem { label: (*s).into(), current: i == 5, ..Default::default() }).collect::<Vec<_>>())));
-        menu.set_row_y(ModelRc::new(VecModel::from((0..names.len()).map(|i| 52.5 + 72.0 * i as f32).collect::<Vec<_>>())));
-        menu.set_content_h(681.0);
-        menu.set_focus(-1);
-        menu.set_game_focus(-1);
-        menu.set_open(true);
-        let st = ui.global::<DownloadsMenuState>();
-        let (d, s) = fixture();
-        let out = std::env::var_os("DECKSHELL_GALLERY_DIR").map(std::path::PathBuf::from);
-        if let Some(dir) = &out { std::fs::create_dir_all(dir).unwrap(); }
-        let shot = |name: &str, open: bool, title: &str, rows: &[Row], focus: i32| -> Vec<u8> {
-            let (ys, _) = layout(rows);
-            st.set_rows(ModelRc::new(VecModel::from(rows.iter().zip(&ys).map(|(r, &y)| DlMenuRow {
-                label: r.label.as_str().into(), value: r.value.as_str().into(), sub: r.sub.as_str().into(), progress: r.progress,
-                kind: match r.kind { RowKind::Item => 0, RowKind::Header => 1, RowKind::Note => 2 },
-                enabled: r.enabled, check: r.check, dim_bar: r.dim_bar, y, h: r.height(),
-            }).collect::<Vec<_>>())));
-            st.set_title(title.into());
-            st.set_status(status_line(Some(&d), Some(&s)).into());
-            st.set_focus(focus);
-            st.set_open(open);
-            let _ = ui.window().take_snapshot().expect("first snapshot");
-            i_slint_backend_testing::mock_elapsed_time(std::time::Duration::from_secs(1));
-            slint::platform::update_timers_and_animations();
-            let snap = ui.window().take_snapshot().expect("snapshot");
-            assert_eq!((snap.width(), snap.height()), (1280, 800), "{name}");
-            if let Some(dir) = &out {
-                image::save_buffer(dir.join(format!("{name}.png")), snap.as_bytes(), 1280, 800, image::ColorType::Rgba8).unwrap();
-            }
-            snap.as_bytes().to_vec()
-        };
-        let list = list_rows(Some(&d), &txt());
-        let closed = shot("downloads-menu-closed", false, "", &list, -1);
-        let open = shot("downloads-menu-list", true, "Загрузки", &list, 1);
-        let moved = shot("downloads-menu-list-focus-next", true, "Загрузки", &list, 3);
-        let actions = shot("downloads-menu-actions", true, "Alpha", &action_rows(Some(&d), 100, Some(&s), &txt()), 1);
-        let settings = shot("downloads-menu-settings", true, "Настройки загрузок", &settings_rows(Some(&s), &txt()), 0);
-        let unknown = shot("downloads-menu-unavailable", true, "Настройки загрузок", &settings_rows(None, &txt()), 1);
-        let px = |b: &[u8], x: usize, y: usize| { let i = (y * 1280 + x) * 4; (b[i], b[i + 1], b[i + 2]) };
-        let differs = |a: &[u8], b: &[u8]| a.iter().zip(b).filter(|(x, y)| x != y).count();
-        // The panel sits right of the 360 px rail and covers the dimmed page with the side-menu surface colour.
-        assert_ne!(px(&closed, 600, 400), px(&open, 600, 760 - 30), "panel surface is drawn");
-        assert_eq!(px(&open, 900, 730), (0x0e, 0x14, 0x1b), "side-menu background (Tokens.menu-bg)");
-        assert_eq!(px(&open, 1000, 400), px(&closed, 1000, 400), "page right of the panel is untouched");
-        assert_eq!(px(&open, 100, 700), px(&closed, 100, 700), "the rail is untouched");
-        assert!(differs(&open, &moved) > 0, "focus moves between rows");
-        assert!(differs(&open, &actions) > 0 && differs(&actions, &settings) > 0 && differs(&settings, &unknown) > 0, "each view draws its own rows");
-    }
-
-    #[test]
-    fn custom_speed_limit_row_opens_numeric_keyboard_and_returns_to_choice() {
-        let (ui, mut a) = crate::screens::osk::field_tests::app();
-        crate::screens::downloads_menu::wire_models(&a, &ui);
-        let (d, s) = fixture();
-        a.live.downloads = Some(d);
-        a.dm.settings = Some(Some(s));
-        a.dm.view = View::Choice(Setting::Limit);
-        a.dl_menu_rebuild(true);
-        let last = a.dm.rows.len() - 1;
-        assert_eq!(a.dm.rows[last].target, Target::Custom(Setting::Limit));
-        a.dm.focus = last;
-        a.handle_dl_menu(Action::A);
-        assert!(a.osk_is_open(), "A на «Своё значение…» открывает клавиатуру");
-        assert_eq!(crate::screens::osk::current_mode(&a), Some(crate::screens::osk::InputMode::Numeric));
-        for c in "12x5".chars() { a.handle(Action::Char(c)); }
-        assert_eq!(a.dm.rows[last].label, "Своё значение: 125 КБ/с");
-        crate::screens::osk::field_tests::shot(&ui, "downloads-custom-limit");
-        a.handle(Action::B);
-        assert!(!a.osk_is_open());
-        assert_eq!(a.dm.view, View::Choice(Setting::Limit), "закрытие возвращает фокус списку");
-        assert_eq!(a.dm.rows[a.dm.focus].target, Target::Custom(Setting::Limit));
-        assert_eq!(a.dm.rows[last].label, "Своё значение…", "отмена очищает ввод");
-        assert_eq!(custom_rate("125", Some(false)), Some(1000));
-        assert_eq!(custom_rate("1.5", Some(false)), Some(12));
-        assert_eq!(custom_rate("3000", Some(true)), Some(3000));
-        assert_eq!(custom_rate("0", Some(true)), None);
-    }
-}
+#[path = "downloads_menu_tests.rs"]
+mod tests;

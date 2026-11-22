@@ -6,6 +6,8 @@ use crate::router::Route;
 use crate::screens::osk::field_tests::{app, shot};
 use slint::{ComponentHandle, Model};
 
+fn russian() -> &'static Locale { i18n::by_code("ru").unwrap() }
+
 fn full() -> Value {
     json!({"c":{"steamos_charge_limit_enabled":true,"steamos_charge_limit":90,
         "system_idle_suspend_battery_sec":900,"system_idle_suspend_ac_sec":3600,
@@ -19,8 +21,9 @@ fn full() -> Value {
 fn harness(snapshot: Value) -> (crate::AppWindow, App) {
     let (ui, mut a) = app();
     ui.global::<crate::Shell>().set_page(4);
-    a.se.pages = vec![Page { id: PAGE.into(), label: "Питание".into() }];
-    ui.global::<SettingsState>().set_rail(ModelRc::new(VecModel::from(vec![ListEntry { label: "Питание".into(), ..Default::default() }])));
+    let label = rail_label();
+    ui.global::<SettingsState>().set_rail(ModelRc::new(VecModel::from(vec![ListEntry { label: label.as_str().into(), ..Default::default() }])));
+    a.se.pages = vec![Page { id: PAGE.into(), label }];
     a.router.replace(Route::Settings(PAGE.into()));
     a.se.zone = 1;
     a.se.snapshot = snapshot;
@@ -56,13 +59,13 @@ fn layout_lint_for_every_device_variant() {
 
 #[test]
 fn sections_follow_the_stock_page() {
-    let rows = rows_for(&full());
+    let rows = rows_for_locale(&full(), russian());
     assert_eq!(titles(&rows), ["Батарея", "При работе от батареи и бездействии", "При работе от сети и бездействии",
         "Завершить загрузки перед переходом в спящий режим", "HDMI CEC"]);
     let toks: Vec<&str> = rows.iter().filter(|r| r.f).map(|r| r.tok.as_str()).collect();
     assert_eq!(&toks[..4], ["power-tg:pct", "power-tg:limit", "power-slider", "power-dd:dim_battery"]);
     // no battery: no battery section, one idle section «При бездействии», no «от батареи» download option
-    let nb = rows_for(&json!({"c":{"system_enable_low_power_downloads":true},"power":{"battery":false}}));
+    let nb = rows_for_locale(&json!({"c":{"system_enable_low_power_downloads":true},"power":{"battery":false}}), russian());
     assert_eq!(titles(&nb)[0], "При бездействии");
     assert!(!nb.iter().any(|r| r.tok == "power-tg:pct" || r.tok == "power-slider" || r.tok == "power-tg:lowpower_battery"));
     // charge limit unsupported (key absent from live settings): no limit rows
@@ -72,15 +75,29 @@ fn sections_follow_the_stock_page() {
 
 #[test]
 fn idle_options_follow_stock_and_keep_the_current_value() {
-    let o = options("system_idle_suspend_battery_sec", &full()).unwrap();
+    let o = options_for_locale("system_idle_suspend_battery_sec", &full(), russian()).unwrap();
     let names: Vec<&str> = o.iter().map(|x| x.0.as_str()).collect();
     assert_eq!(names, ["Режим отключён", "1 мин.", "5 мин.", "15 мин.", "30 мин.", "1 час"]);
     let custom = json!({"c":{"system_idle_suspend_battery_sec":120}});
-    let o = options("system_idle_suspend_battery_sec", &custom).unwrap();
+    let o = options_for_locale("system_idle_suspend_battery_sec", &custom, russian()).unwrap();
     assert_eq!(o[2].0, "2 мин.");
     assert!(options("system_idle_suspend_battery_sec", &Value::Null).is_none());
-    assert_eq!(idle_label(90), "1 мин. 30 сек.");
-    assert_eq!((idle_label(1200).as_str(), idle_label(7200).as_str(), idle_label(3900).as_str(), idle_label(45).as_str()), ("20 мин.", "2 ч.", "1 час и 5 мин.", "45 сек."));
+    assert_eq!(idle_label(90, russian()), "1 мин. 30 сек.");
+    assert_eq!((idle_label(1200, russian()).as_str(), idle_label(7200, russian()).as_str(), idle_label(3900, russian()).as_str(), idle_label(45, russian()).as_str()), ("20 мин.", "2 ч.", "1 час и 5 мин.", "45 сек."));
+}
+
+#[test]
+fn english_titles_and_idle_options() {
+    let en = i18n::by_code("en").unwrap();
+    let rows = rows_for_locale(&full(), en);
+    assert_eq!(titles(&rows), ["Battery", "When On Battery and Idle", "When Plugged In and Idle",
+        "Finish Downloads Before Sleep", "HDMI CEC"]);
+    let names = options_for_locale("system_idle_suspend_battery_sec", &full(), en).unwrap();
+    assert_eq!(names.into_iter().map(|(name, _)| name).collect::<Vec<_>>(),
+        ["Disabled", "1 minute", "5 minutes", "15 minutes", "30 minutes", "1 hour"]);
+    assert_eq!(idle_label(121, en), "2 minutes, 1 second");
+    assert_eq!(idle_label(3900, en), "1 hour and 5 minutes");
+    assert_eq!(idle_label(93_600, russian()), "1 день и 2 ч.");
 }
 
 #[test]
@@ -214,7 +231,7 @@ fn render_pngs() {
 
 #[test]
 fn card_heights_match_the_stock_captures() {
-    let rows = rows_for(&full());
+    let rows = rows_for_locale(&full(), russian());
     let h = |t: &str| rows.iter().find(|r| r.tok == t).map(|r| (r.h * SC).round() as i32).unwrap();
     // measured on the owner's 1280x800 captures: 96 (label + 1 line), 68 (1 line), 96 two-line drop-down, 174 / 150 (2-line label + 3 / 2 lines)
     assert_eq!(h("power-tg:pct"), 96);
@@ -262,7 +279,7 @@ fn cec_wake_row_follows_the_steam_flag() {
     let mut s = full();
     let wake = |s: &Value| { let r = rows_for(s); let r = r.iter().find(|r| r.tok == "power-tg:cec_wake_device").unwrap().clone(); (available_on(&r, s), r.desc.clone()) };
     let (state, desc) = wake(&s);
-    assert_eq!(state, -1); assert_eq!(desc, ru("Settings_CEC_WakeDeviceSupportedDesc"));
+    assert_eq!(state, -1); assert_eq!(desc, label(i18n::current(), "Settings_CEC_WakeDeviceSupportedDesc"));
     s["power"]["cec_wake_supported"] = json!(true);
     let (state, desc) = wake(&s);
     assert_eq!(state, 0); assert!(desc.is_empty());
@@ -277,17 +294,17 @@ fn dim_is_written_as_the_stock_system_settings_message() {
 
 #[test]
 fn wrap_estimates_agree_with_the_captures() {
-    assert_eq!(wrap_lines(&ru("Settings_LowPowerDownloads_Enable"), LABEL_PX, LABEL_W), 2);
-    assert_eq!(wrap_lines(&ru("Settings_CEC_WakeDevice"), LABEL_PX, LABEL_W), 2);
-    assert_eq!(wrap_lines(&ru("Settings_CEC_SuspendDevice"), LABEL_PX, LABEL_W), 2);
-    assert_eq!(wrap_lines(&ru("Settings_CEC_SuspendTV"), LABEL_PX, LABEL_W), 1);
-    assert_eq!(wrap_lines(&ru("Settings_CEC_WakeTV"), LABEL_PX, LABEL_W), 1);
-    assert_eq!(wrap_lines(&ru("Settings_Battery_ChargeLimitEnable"), LABEL_PX, LABEL_W), 1);
-    assert_eq!(wrap_lines(&ru("Settings_LowPowerDownloads_Details").trim().to_string(), DESC_PX, LABEL_W), 3);
-    assert_eq!(wrap_lines(&ru("Settings_LowPowerDownloads_AllowBatteryDetails"), DESC_PX, LABEL_W), 2);
-    assert_eq!(wrap_lines(&ru("Settings_System_Idle_Sleep_Label"), LABEL_PX, DD_LABEL_W), 2);
-    assert_eq!(wrap_lines(&ru("Settings_System_Idle_Screensaver_Label"), LABEL_PX, DD_LABEL_W), 1);
-    assert_eq!(wrap_lines(&ru("Settings_System_Idle_Dim_Label"), LABEL_PX, DD_LABEL_W), 1);
+    assert_eq!(wrap_lines(&russian().tr("Settings_LowPowerDownloads_Enable"), LABEL_PX, LABEL_W), 2);
+    assert_eq!(wrap_lines(&russian().tr("Settings_CEC_WakeDevice"), LABEL_PX, LABEL_W), 2);
+    assert_eq!(wrap_lines(&russian().tr("Settings_CEC_SuspendDevice"), LABEL_PX, LABEL_W), 2);
+    assert_eq!(wrap_lines(&russian().tr("Settings_CEC_SuspendTV"), LABEL_PX, LABEL_W), 1);
+    assert_eq!(wrap_lines(&russian().tr("Settings_CEC_WakeTV"), LABEL_PX, LABEL_W), 1);
+    assert_eq!(wrap_lines(&russian().tr("Settings_Battery_ChargeLimitEnable"), LABEL_PX, LABEL_W), 1);
+    assert_eq!(wrap_lines(&russian().tr("Settings_LowPowerDownloads_Details").trim().to_string(), DESC_PX, LABEL_W), 3);
+    assert_eq!(wrap_lines(&russian().tr("Settings_LowPowerDownloads_AllowBatteryDetails"), DESC_PX, LABEL_W), 2);
+    assert_eq!(wrap_lines(&russian().tr("Settings_System_Idle_Sleep_Label"), LABEL_PX, DD_LABEL_W), 2);
+    assert_eq!(wrap_lines(&russian().tr("Settings_System_Idle_Screensaver_Label"), LABEL_PX, DD_LABEL_W), 1);
+    assert_eq!(wrap_lines(&russian().tr("Settings_System_Idle_Dim_Label"), LABEL_PX, DD_LABEL_W), 1);
 }
 
 #[test]
@@ -415,7 +432,7 @@ fn no_gap_is_left_where_a_row_is_hidden_in_any_variant() {
     }
     // the battery sections go away together with the battery and the page starts at the first idle section
     let rows = rows_for(&json!({"power":{"battery":false}}));
-    assert_eq!(titles(&rows)[0], ru("Settings_System_Idle_NoBattery_Section"));
+    assert_eq!(titles(&rows)[0], label(i18n::current(), "Settings_System_Idle_NoBattery_Section"));
     assert_eq!((rows[0].y * SC).round() as i32, FIRST_Y as i32);
 }
 
@@ -495,11 +512,11 @@ fn deck_snapshot_has_every_row_usable_except_cec_while_it_is_off() {
         if cec_off || r.tok == "power-tg:pct" { continue; }
         assert!(st >= 0, "{} must be usable on the Deck snapshot", r.tok);
     }
-    assert!(rows.iter().filter(|r| r.k == 30).all(|r| r.desc != "Недоступно"), "dim/saver/sleep show the Deck values");
+    assert!(rows.iter().filter(|r| r.k == 30).all(|r| r.desc != i18n::tr("power.unavailable")), "dim/saver/sleep show the Deck values");
     let dd = |t: &str| rows.iter().find(|r| r.tok == t).unwrap().desc.clone();
-    assert_eq!(dd("power-dd:sleep_battery"), idle_label(1200));
-    assert_eq!(dd("power-dd:dim_ac"), idle_label(600));
-    assert_eq!(dd("power-dd:saver_battery"), idle_label(0));
+    assert_eq!(dd("power-dd:sleep_battery"), idle_label(1200, i18n::current()));
+    assert_eq!(dd("power-dd:dim_ac"), idle_label(600, i18n::current()));
+    assert_eq!(dd("power-dd:saver_battery"), idle_label(0, i18n::current()));
 }
 
 /// The old snapshot delivered `c` as `{}` (MobX through returnByValue): every drop-down was unavailable and each toggle showed «off».
@@ -613,12 +630,12 @@ fn deck_20_11_every_row_reads_its_real_value() {
         assert!(available_on(r, &s) >= 0, "{} must be usable on the 20.11 Deck snapshot", r.tok);
     }
     let dd = |t: &str| rows.iter().find(|r| r.tok == t).unwrap().desc.clone();
-    assert_eq!(dd("power-dd:sleep_battery"), idle_label(1200));
-    assert_eq!(dd("power-dd:sleep_ac"), idle_label(900));
-    assert_eq!(dd("power-dd:saver_battery"), idle_label(60));
-    assert_eq!(dd("power-dd:saver_ac"), idle_label(300));
-    assert_eq!(dd("power-dd:dim_battery"), idle_label(1200));
-    assert_eq!(dd("power-dd:dim_ac"), idle_label(600));
+    assert_eq!(dd("power-dd:sleep_battery"), idle_label(1200, i18n::current()));
+    assert_eq!(dd("power-dd:sleep_ac"), idle_label(900, i18n::current()));
+    assert_eq!(dd("power-dd:saver_battery"), idle_label(60, i18n::current()));
+    assert_eq!(dd("power-dd:saver_ac"), idle_label(300, i18n::current()));
+    assert_eq!(dd("power-dd:dim_battery"), idle_label(1200, i18n::current()));
+    assert_eq!(dd("power-dd:dim_ac"), idle_label(600, i18n::current()));
 }
 
 #[test]

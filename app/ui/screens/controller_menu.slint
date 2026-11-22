@@ -1,3 +1,4 @@
+import { ControllerText } from "controller_text.slint";
 import { ScrollView } from "std-widgets.slint";
 import { GStyle } from "../generated/style.slint";
 
@@ -20,9 +21,9 @@ export component ControllerLayoutMenu inherits Rectangle {
     TouchArea { }
     if root.page == 1: Rectangle {
         background: transparent;
-        Text { x: 30px; y: 117px; width: parent.width - 60px; height: 34px; text: "Настройки раскладки"; color: #dcdedf; font-size: 27px; horizontal-alignment: center; font-family: GStyle.loc-font; }
+        Text { x: 30px; y: 117px; width: parent.width - 60px; height: 34px; text: ControllerText.layout-options; color: #dcdedf; font-size: 27px; horizontal-alignment: center; font-family: GStyle.loc-font; }
         Rectangle { x: 192px; y: 171px; width: 897px; height: 466px; background: #20232b;
-            for label[i] in ["Экспортировать раскладку", "Поделиться раскладкой с сообществом", "Информация о раскладке", "Отменить изменения", "Переключиться на уникальную конфигурацию для этого устройства", "Отмена"]: Rectangle {
+            for label[i] in [ControllerText.export-layout, ControllerText.share-layout-with-community, ControllerText.layout-details, ControllerText.revert-changes, ControllerText.switch-to-unique-configuration-for-this-device, ControllerText.cancel]: Rectangle {
                 x: 0; y: i < 4 ? i * 72px : i == 4 ? 288px : 393px; width: parent.width; height: i == 4 ? 102px : 72px;
                 background: root.focus-index == i ? #ffffff : #20232b;
                 Text { x: 21px; width: parent.width - 42px; height: parent.height; text: label; wrap: word-wrap; color: root.focus-index == i ? #0e141b : i == 3 ? #60636a : #b8bcbf; font-size: 24px; vertical-alignment: center; font-family: GStyle.loc-font; }
@@ -34,13 +35,13 @@ export component ControllerLayoutMenu inherits Rectangle {
     if root.page == 2: Rectangle {
         x: 146px; y: 96px; width: 990px; height: 630px;
         background: #161d28; border-radius: 8px;
-        Text { x: 38px; y: 28px; width: parent.width - 76px; height: 48px; text: "Информация о раскладке"; color: white; font-size: 34px; font-weight: 700; font-family: GStyle.loc-font; }
+        Text { x: 38px; y: 28px; width: parent.width - 76px; height: 48px; text: ControllerText.layout-details; color: white; font-size: 34px; font-weight: 700; font-family: GStyle.loc-font; }
         ScrollView {
             x: 38px; y: 88px; width: parent.width - 70px; height: parent.height - 106px;
             viewport-width: self.width - 12px;
             VerticalLayout {
                 spacing: 9px;
-                for label[i] in ["Название", "Описание", "Автор", "URL", "ID раскладки", "Ссылка"]: Rectangle {
+                for label[i] in [ControllerText.title, ControllerText.description, ControllerText.author, "URL", ControllerText.layout-id, ControllerText.url]: Rectangle {
                     visible: i < 4 || root.link != "";
                     height: !self.visible ? 0px : i == 1 ? 138px : i == 3 || i == 5 ? 70px : 52px;
                     background: #252e3b; border-radius: 4px;
@@ -55,17 +56,17 @@ export component ControllerLayoutMenu inherits Rectangle {
     }
     if root.page == 3: Rectangle {
         x: 192px; y: 210px; width: 897px; height: 260px; background: #20232b;
-        Text { x: 24px; y: 24px; width: parent.width - 48px; text: "Не удалось выполнить действие"; color: white; font-size: 30px; font-weight: 700; font-family: GStyle.loc-font; }
+        Text { x: 24px; y: 24px; width: parent.width - 48px; text: ControllerText.could-not-complete-the-action; color: white; font-size: 30px; font-weight: 700; font-family: GStyle.loc-font; }
         Text { x: 24px; y: 85px; width: parent.width - 48px; height: 100px; text: root.error-text; wrap: word-wrap; color: #dcdedf; font-size: 24px; font-family: GStyle.loc-font; }
-        Text { x: 24px; y: 196px; width: parent.width - 48px; text: "A / B  Назад"; color: #dcdedf; font-size: 22px; font-family: GStyle.loc-font; }
+        Text { x: 24px; y: 196px; width: parent.width - 48px; text: ControllerText.a-b-back; color: #dcdedf; font-size: 22px; font-family: GStyle.loc-font; }
     }
     // Read-only views of the stock binding "Настройки" menu (controller-trackpad-command-menu),
     // activator window (-activator-settings) and multibinding interval (-multibinding-interval).
     // Values are not read from Steam yet (CMsgControllerActivator schema unconfirmed), so no value is invented.
     if root.page == 4: Rectangle {
         x: 192px; y: 150px; width: 897px; height: 566px; background: #20232b;
-        Text { x: 21px; y: 12px; width: parent.width - 42px; height: 50px; text: "Настройки · " + root.layout-name; color: #dcdedf; font-size: 27px; vertical-alignment: center; font-family: GStyle.loc-font; }
-        for label[i] in [root.activation-value == "" ? "Способ включения" : root.activation-value, "Настройки", "Переименовать команду", "Удалить эту команду", "Добавить дополнительную команду", "Добавить подкоманду", "Изменить интервал для множественной привязки", "Отмена"]: Rectangle {
+        Text { x: 21px; y: 12px; width: parent.width - 42px; height: 50px; text: ControllerText.settings-3 + root.layout-name; color: #dcdedf; font-size: 27px; vertical-alignment: center; font-family: GStyle.loc-font; }
+        for label[i] in [root.activation-value == "" ? ControllerText.activation-style : root.activation-value, ControllerText.settings, ControllerText.rename-command, ControllerText.remove-this-command, ControllerText.add-extra-command, ControllerText.add-sub-command, ControllerText.edit-multi-binding-timing, ControllerText.cancel]: Rectangle {
             x: 0; y: 70px + i * 61px; width: parent.width; height: 61px;
             background: root.focus-index == i ? #ffffff : #20232b;
             Text { x: 21px; width: parent.width - 42px; height: parent.height; text: label; color: root.focus-index == i ? #0e141b : #b8bcbf; font-size: 24px; vertical-alignment: center; font-family: GStyle.loc-font; }
@@ -74,30 +75,30 @@ export component ControllerLayoutMenu inherits Rectangle {
     }
     if root.page == 5: Rectangle {
         x: 146px; y: 40px; width: 990px; height: 690px; background: #0e141b; border-width: 3px; border-color: #242832; clip: true;
-        Text { x: 38px; y: 14px; width: parent.width - 72px; height: 44px; text: "Настройки " + root.layout-name; color: white; font-size: 30px; font-weight: 700; font-family: GStyle.loc-font; }
-        for label[i] in ["Повтор при зажатии (турбо-режим)", "Уровень тактильной отдачи", "Задержка активации при нажатии", "Задержка деактивации после нажатия", "Способ включения", "Порог слабого нажатия", "Цикл команд", "Переключение", "Прерываемость", "Инверсия активации", "Добавить подкоманду", "Удалить эту команду", "Закрыть"]: Rectangle {
+        Text { x: 38px; y: 14px; width: parent.width - 72px; height: 44px; text: ControllerText.settings-4 + root.layout-name; color: white; font-size: 30px; font-weight: 700; font-family: GStyle.loc-font; }
+        for label[i] in [ControllerText.hold-to-repeat-turbo, ControllerText.haptics-intensity, ControllerText.fire-start-delay, ControllerText.fire-end-delay, ControllerText.activation-style, ControllerText.soft-press-threshold, ControllerText.cycle-commands, ControllerText.toggle, ControllerText.interruptable, ControllerText.invert-activation, ControllerText.add-sub-command, ControllerText.remove-this-command, ControllerText.close]: Rectangle {
             x: 38px; y: 64px + i * 47px; width: 912px; height: 45px;
             background: root.focus-index == i ? #ffffff : #20232b;
             Text { x: 18px; width: 640px; height: parent.height; text: label; color: root.focus-index == i ? #0e141b : #dcdedf; font-size: 22px; vertical-alignment: center; font-family: GStyle.loc-font; }
-            Text { x: 660px; width: 234px; height: parent.height; text: i == 4 && root.activation-value != "" ? root.activation-value : "не прочитано"; color: i == 4 && root.activation-value != "" ? (root.focus-index == i ? #0e141b : #dcdedf) : #60636a; font-size: 20px; horizontal-alignment: right; vertical-alignment: center; font-family: GStyle.loc-font; visible: i < 10; }
+            Text { x: 660px; width: 234px; height: parent.height; text: i == 4 && root.activation-value != "" ? root.activation-value : ControllerText.unread; color: i == 4 && root.activation-value != "" ? (root.focus-index == i ? #0e141b : #dcdedf) : #60636a; font-size: 20px; horizontal-alignment: right; vertical-alignment: center; font-family: GStyle.loc-font; visible: i < 10; }
             TouchArea { clicked => { root.selected(i); } }
         }
     }
     if root.page == 6: Rectangle {
         x: 146px; y: 96px; width: 990px; height: 560px; background: #0e141b; border-width: 3px; border-color: #242832;
-        Text { x: 38px; y: 30px; width: parent.width - 72px; height: 48px; text: "Интервал для множественной привязки"; color: white; font-size: 32px; font-weight: 700; font-family: GStyle.loc-font; }
-        Text { x: 38px; y: 100px; width: parent.width - 76px; height: 110px; text: "Элемент управления выполняет только одну команду, поэтому между командами нельзя установить интервалы. Задержки для неё перечислены внизу."; wrap: word-wrap; color: #b8bcbf; font-size: 22px; font-family: GStyle.loc-font; }
-        Text { x: 38px; y: 230px; width: parent.width - 76px; height: 40px; text: "КОМАНДЫ: " + root.layout-name; color: #dcdedf; font-size: 24px; font-family: GStyle.loc-font; }
-        Text { x: 38px; y: 290px; width: parent.width - 76px; height: 80px; text: "Нажатие 500 мс · Отпускание · Начало / Конец — значения пока не читаются из Steam"; wrap: word-wrap; color: #8b929a; font-size: 22px; font-family: GStyle.loc-font; }
+        Text { x: 38px; y: 30px; width: parent.width - 72px; height: 48px; text: ControllerText.multi-binding-timing; color: white; font-size: 32px; font-weight: 700; font-family: GStyle.loc-font; }
+        Text { x: 38px; y: 100px; width: parent.width - 76px; height: 110px; text: ControllerText.this-control-only-produces-one-command-so-there; wrap: word-wrap; color: #b8bcbf; font-size: 22px; font-family: GStyle.loc-font; }
+        Text { x: 38px; y: 230px; width: parent.width - 76px; height: 40px; text: ControllerText.commands + root.layout-name; color: #dcdedf; font-size: 24px; font-family: GStyle.loc-font; }
+        Text { x: 38px; y: 290px; width: parent.width - 76px; height: 80px; text: ControllerText.press-500-ms-release-start-end-values-are; wrap: word-wrap; color: #8b929a; font-size: 22px; font-family: GStyle.loc-font; }
         Rectangle { x: 38px; y: 450px; width: parent.width - 76px; height: 60px; background: root.focus-index == 0 ? #ffffff : #20232b;
-            Text { x: 18px; text: "Добавить дополнительную команду"; color: root.focus-index == 0 ? #0e141b : #dcdedf; font-size: 22px; vertical-alignment: center; font-family: GStyle.loc-font; }
+            Text { x: 18px; text: ControllerText.add-extra-command; color: root.focus-index == 0 ? #0e141b : #dcdedf; font-size: 22px; vertical-alignment: center; font-family: GStyle.loc-font; }
             TouchArea { clicked => { root.selected(0); } } }
     }
     // «Способ включения»: stock list `ControllerBinding_ActivatorDropDown_*` for this input (EControllerActivationType).
     if root.page == 7: Rectangle {
         x: 288px; y: (738px - self.height) / 2 + 30px;
         width: 704px; height: 70px + root.choices.length * 56px + 12px; background: #20232b;
-        Text { x: 21px; y: 12px; width: parent.width - 42px; height: 50px; text: "Способ включения"; color: #dcdedf; font-size: 27px; vertical-alignment: center; font-family: GStyle.loc-font; }
+        Text { x: 21px; y: 12px; width: parent.width - 42px; height: 50px; text: ControllerText.activation-style; color: #dcdedf; font-size: 27px; vertical-alignment: center; font-family: GStyle.loc-font; }
         for label[i] in root.choices: Rectangle {
             x: 0; y: 70px + i * 56px; width: parent.width; height: 56px;
             background: root.focus-index == i ? #ffffff : #20232b;

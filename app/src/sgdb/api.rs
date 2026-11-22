@@ -4,6 +4,7 @@
 //! API key: the plugin ships a private key that its README says must not be reused ("will cause you to be automatically banned"),
 //! so DeckShell never touches it. The user's own key (https://www.steamgriddb.com/profile/preferences/api) comes from
 //! `DECKSHELL_SGDB_KEY` or `~/.config/deckshell/sgdb.json` {"api_key": "..."}; without one only the offline cache works.
+use steam_assets::i18n::{tr_args, tr_ref};
 use std::collections::HashMap;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -59,11 +60,11 @@ impl AType {
     /// Russian plugin labels (LABEL_TAB_*).
     pub fn label(self) -> &'static str {
         match self {
-            AType::Capsule => "Обложка",
-            AType::Wide => "Широкая обложка",
-            AType::Hero => "Баннер",
-            AType::Logo => "Лого",
-            AType::Icon => "Иконка",
+            AType::Capsule => tr_ref("sgdb.capsule"),
+            AType::Wide => tr_ref("sgdb.wide"),
+            AType::Hero => tr_ref("sgdb.hero"),
+            AType::Logo => tr_ref("sgdb.logo"),
+            AType::Icon => tr_ref("sgdb.icon"),
         }
     }
     /// File name part in userdata/<acct>/config/grid/<appid><suffix>.<ext>.
@@ -110,10 +111,10 @@ impl AType {
     /// (value, label) options of the filter dialog.
     pub fn style_opts(self) -> Vec<(&'static str, &'static str)> {
         match self {
-            AType::Capsule | AType::Wide => vec![("alternate", "Альтернативный"), ("white_logo", "Белый логотип"), ("no_logo", "Без логотипа"), ("blurred", "Размытый"), ("material", "Минимализм")],
-            AType::Hero => vec![("alternate", "Альтернативный"), ("blurred", "Размытый"), ("material", "Минимализм")],
-            AType::Logo => vec![("official", "Официальный"), ("white", "Белый"), ("black", "Чёрный"), ("custom", "Свой")],
-            AType::Icon => vec![("official", "Официальный"), ("custom", "Свой")],
+            AType::Capsule | AType::Wide => vec![("alternate", tr_ref("sgdb.alternative")), ("white_logo", tr_ref("sgdb.white_logo")), ("no_logo", tr_ref("sgdb.no_logo")), ("blurred", tr_ref("sgdb.blurred")), ("material", tr_ref("sgdb.minimal"))],
+            AType::Hero => vec![("alternate", tr_ref("sgdb.alternative")), ("blurred", tr_ref("sgdb.blurred")), ("material", tr_ref("sgdb.minimal"))],
+            AType::Logo => vec![("official", tr_ref("sgdb.official")), ("white", tr_ref("sgdb.white")), ("black", tr_ref("sgdb.black")), ("custom", tr_ref("sgdb.custom"))],
+            AType::Icon => vec![("official", tr_ref("sgdb.official")), ("custom", tr_ref("sgdb.custom"))],
         }
     }
     pub fn dim_opts(self) -> Vec<String> {
@@ -357,10 +358,10 @@ pub enum ApiErr {
 impl std::fmt::Display for ApiErr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ApiErr::NoKey => write!(f, "нет ключа API SteamGridDB"),
-            ApiErr::NotFound => write!(f, "игра не найдена на SteamGridDB"),
+            ApiErr::NoKey => f.write_str(tr_ref("sgdb.api_key_missing")),
+            ApiErr::NotFound => f.write_str(tr_ref("sgdb.api_game_missing")),
             ApiErr::Http(c, m) => write!(f, "SteamGridDB {c}: {m}"),
-            ApiErr::Net(m) => write!(f, "сеть: {m}"),
+            ApiErr::Net(m) => write!(f, "{}", tr_args("sgdb.network_error", &[("m", &m.to_string())])),
         }
     }
 }

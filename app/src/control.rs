@@ -4,6 +4,7 @@
 //!   props <appid> [page]   (open the Properties page, e.g. `props 227300 localfiles`)
 //!   click <x> <y> | drag <x0> <y0> <x1> <y1> [steps] | longpress <x> <y> [ms]   (logical px; real WindowEvent pointer events)
 //!   state | quit            (reply: `ok ...` / `err ...` / JSON for state)
+use steam_assets::i18n::tr_ref;
 use crate::app::App;
 use crate::input::Action;
 use crate::router::Route;
@@ -213,9 +214,9 @@ fn exec(a: &mut App, line: &str) -> String {
         }
         ("notification-test", [kind]) if crate::actions::dryrun() => {
             let (title, body) = match *kind {
-                "screenshot" => ("Скриншот сделан", "Проверка уведомлений"),
-                "achievement" => ("Достижение получено", "Проверка длинного описания достижения в двух строках"),
-                "friend" => ("Друг", "В игре: Проверка уведомлений"),
+                "screenshot" => (tr_ref("capture.screenshot_taken"), tr_ref("notification.notification_test")),
+                "achievement" => (tr_ref("notification.achievement_unlocked"), tr_ref("notification.achievement_test")),
+                "friend" => (tr_ref("notification.friend"), tr_ref("notification.in_game_test")),
                 _ => return "err bad notification kind".into(),
             };
             crate::notifications::enqueue(&a.ui(), crate::notifications::Event {

@@ -3,6 +3,7 @@
 //! PulseAudio/PipeWire from the same process, so both outputs share one clock. Pause stops the process and remembers the
 //! position; resume and seek start it again at that position (-ss). Steam's own files are only read.
 //! Nothing here touches the Steam recording or its chord: Media is the only caller, and the process ends with the viewer.
+use steam_assets::i18n;
 use std::cell::RefCell;
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -187,9 +188,9 @@ impl App {
 
     fn media_clip_start(&mut self, clip_id: &str, at: Option<u64>) {
         let Some(dir) = self.clip_dir_of(clip_id) else { return };
-        let Some(plan) = media_clips::play_plan(&dir) else { return self.media_clip_note("Файлы записи не найдены; воспроизведение недоступно.") };
+        let Some(plan) = media_clips::play_plan(&dir) else { return self.media_clip_note(i18n::tr_ref("media_player.record_files_are_not_found_playback_is")) };
         if crate::actions::dryrun() {
-            return self.media_clip_note("DRYRUN: воспроизведение не запускается.");
+            return self.media_clip_note(i18n::tr_ref("media_player.dryrun_the_playback_is_not_running"));
         }
         let start = at.unwrap_or_else(|| PLAY.with(|p| p.borrow().as_ref().filter(|s| s.clip_id == clip_id && !s.ended).map(|s| s.pos_ms).unwrap_or(0)));
         let start = start.min(plan.duration_ms);
@@ -206,7 +207,7 @@ impl App {
             }
             Err(e) => {
                 crate::diag::log("clip_play.error", serde_json::json!({"stage": "spawn", "kind": format!("{:?}", e.kind())}));
-                self.media_clip_note("Не удалось запустить ffmpeg для воспроизведения.");
+                self.media_clip_note(i18n::tr_ref("media_player.it_was_not_possible_to_run_ffmpeg"));
             }
         }
     }

@@ -4,4 +4,5 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+steam-assets = { path = "../steam-assets" }
 libc = "0.2"

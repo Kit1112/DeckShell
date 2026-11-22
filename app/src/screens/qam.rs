@@ -4,6 +4,7 @@
 //! (docs/engine/qam.json): brightness / output + mic volume / airplane / Wi-Fi / UI scale, performance overlay + advanced (TDP, fps, refresh).
 //! System writes use dry-run-aware actions or the corresponding settings backend.
 //! Tabs hidden by the user's "QAM Hide Tabs" theme (Help, Soundtrack, VR, voice chat) are not part of the rail: only the 5 live tabs exist.
+use steam_assets::i18n;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
@@ -309,9 +310,9 @@ fn friend_fields(r: &mut QamRow, f: &Friend, avatars: &HashMap<String, Image>, m
     let (sub, tint) = if !f.game.is_empty() {
         (f.game.clone(), 0xff_90_ba_3c)
     } else if f.state == 0 {
-        (t_or("#PersonaStateOffline", "Не в сети"), GREY)
+        (t_or("#PersonaStateOffline", i18n::tr_ref("qam.offline")), GREY)
     } else {
-        (t_or("#PersonaStateOnline", "В сети"), 0xff_57_cb_de)
+        (t_or("#PersonaStateOnline", i18n::tr_ref("qam.online")), 0xff_57_cb_de)
     };
     r.sub = sub.into();
     r.tint = slint::Color::from_argb_encoded(tint);
@@ -354,10 +355,10 @@ fn build_friends_tab(b: &mut B, v: &FriendsView, request: &mut dyn FnMut(&str)) 
     let cw = PANEL_W - RAIL_W;
     let strip_x = (cw - PITCH * qam_friends::TABS as f32) / 2.0;
     let names = [
-        t_or("#FriendGroup_Favorites", "Избранное"),
-        t_or("#Label_Friends", "Друзья"),
-        t_or("#Label_Groups", "Группы"),
-        t_or("#FriendGroup_Recent", "Недавние"),
+        t_or("#FriendGroup_Favorites", i18n::tr_ref("qam.favorites")),
+        t_or("#Label_Friends", i18n::tr_ref("qam.friends")),
+        t_or("#Label_Groups", i18n::tr_ref("qam.groups")),
+        t_or("#FriendGroup_Recent", i18n::tr_ref("qam.recent")),
     ];
     let icon_names = ["Star", "Friends", "Groups", "Recent"];
     let badge = qam_friends::badge_text(v.recent).unwrap_or_default();
@@ -477,8 +478,8 @@ fn build_friend_rows(b: &mut B, friends: &[Friend], avatars: &HashMap<String, Im
             b.push(r, H_ENTRY, Some(Item::Friend(i)));
         }
     };
-    group(b, t_or("#Friends_Online", "Друзья в сети"), &online, friends, 0x4d_4c_b4_ff);
-    group(b, t_or("#Friends_Offline", "Не в сети"), &offline, friends, 0xff_3d_44_50);
+    group(b, t_or("#Friends_Online", i18n::tr_ref("qam.online_friends")), &online, friends, 0x4d_4c_b4_ff);
+    group(b, t_or("#Friends_Offline", i18n::tr_ref("qam.offline")), &offline, friends, 0xff_3d_44_50);
 }
 
 #[cfg(test)]
@@ -725,6 +726,7 @@ fn clock_ms() -> f64 {
 
 pub fn wire(ui: &AppWindow) {
     let st = ui.global::<QamState>();
+    st.set_label_to_start_choose_a_friend_or_group(i18n::tr("qam.to_start_choose_a_friend_or_group").into());
     st.on_activate(|fid| super::defer(move |a| a.qam_click(fid)));
     st.on_changed(|fid, v| super::defer(move |a| a.qam_drag(fid, v)));
     st.on_select_tab(|i| super::defer(move |a| a.qam_select_tab(i as usize, true)));
@@ -735,10 +737,10 @@ pub fn wire(ui: &AppWindow) {
 pub fn init_strings(ui: &AppWindow) {
     let st = ui.global::<QamState>();
     let labels = [
-        t_or("#NotificationsMenu_Title", "Уведомления"),
-        t_or("#QuickAccess_Tab_Friends_Title", "Друзья"),
-        t_or("#QuickAccess_Tab_Settings_Title", "Быстрые настройки"),
-        t_or("#EncodingOption_Performance", "Производительность"),
+        t_or("#NotificationsMenu_Title", i18n::tr_ref("qam.notifications")),
+        t_or("#QuickAccess_Tab_Friends_Title", i18n::tr_ref("qam.friends")),
+        t_or("#QuickAccess_Tab_Settings_Title", i18n::tr_ref("qam.quick_settings")),
+        t_or("#EncodingOption_Performance", i18n::tr_ref("qam.best_performance")),
         "Decky".to_string(),
     ];
     // Decky's plug glyph (react-icons FaPlug look); Steam's icon set has none
@@ -920,46 +922,46 @@ fn performance_rows(b: &mut B, p: &PerfState, tdp: Option<(u32, u32, u32)>, gpu:
     let perf = p.perf_avail == Some(true);
     match p.overlay_observed {
         Some(level) if !p.overlay_write_failed => {
-            b.toggle(Item::Overlay, None, &t_or("#QuickAccess_Tab_Perf_Overlay", "Оверлей производительности"), (level > 0) as i32, H_TOGGLE, "#quickaccess_tab_perf_overlay");
+            b.toggle(Item::Overlay, None, &t_or("#QuickAccess_Tab_Perf_Overlay", i18n::tr_ref("qam.performance_overlay")), (level > 0) as i32, H_TOGGLE, "#quickaccess_tab_perf_overlay");
             let v = p.overlay_pending.map(|(_, l)| l).unwrap_or(level) as f32 / 4.0;
-            b.notch(Item::OverlayLevel, &t_or("#QuickAccess_Tab_Perf_Overlay_Level", "Уровень оверлея"), v, &t_or("#QuickAccess_Tab_Perf_Overlay_Level_OFF", "Выкл"), "4", 0);
+            b.notch(Item::OverlayLevel, &t_or("#QuickAccess_Tab_Perf_Overlay_Level", i18n::tr_ref("qam.overlay_level")), v, &t_or("#QuickAccess_Tab_Perf_Overlay_Level_OFF", i18n::tr_ref("qam.off")), "4", 0);
         }
         _ => {},
     }
-    b.button(Item::Advanced, None, &if p.advanced { t_or("#Common_Basic_View", "Показать основные параметры") } else { t_or("#Common_Advanced_View", "Показать доп. параметры") }, "", "#common_advanced_view");
+    b.button(Item::Advanced, None, &if p.advanced { t_or("#Common_Basic_View", i18n::tr_ref("qam.show_the_main_parameters")) } else { t_or("#Common_Advanced_View", i18n::tr_ref("qam.advanced_view")) }, "", "#common_advanced_view");
     if !p.advanced {
         return;
     }
     if let Some((cur, min, max)) = tdp.filter(|_| !p.tdp_failed) {
         // steamos_tdp_limit_enabled (PERF_READ tdp.on): stock «enable limit» switch; the cap goes through set_tdp_verified, Steam keeps the stored switch
-        b.toggle(Item::TdpOn, None, "Ограничение TDP", p.tdp_on as i32, H_TOGGLE, "tdp_limit");
+        b.toggle(Item::TdpOn, None, i18n::tr_ref("qam.limitation_of_tdp"), p.tdp_on as i32, H_TOGGLE, "tdp_limit");
         if p.tdp_pending {
-            b.text(&format!("Ограничение TDP: {cur} Вт · Применение…"), H_TOGGLE, WHITE_DIM);
+            b.text(&i18n::tr_args("qam.tdp_limit_w_applying", &[("cur", &(cur).to_string())]), H_TOGGLE, WHITE_DIM);
         } else {
-            b.text(&format!("Ограничение TDP: {cur} Вт"), H_TOGGLE, WHITE_DIM);
-            b.notch(Item::Tdp, "", (cur - min) as f32 / (max - min).max(1) as f32, &format!("{min} Вт"), &format!("{max} Вт"), 0);
+            b.text(&i18n::tr_args("qam.tdp_limit_w", &[("cur", &(cur).to_string())]), H_TOGGLE, WHITE_DIM);
+            b.notch(Item::Tdp, "", (cur - min) as f32 / (max - min).max(1) as f32, &i18n::tr_args("qam.w", &[("min", &(min).to_string())]), &i18n::tr_args("qam.w_2", &[("max", &(max).to_string())]), 0);
         }
     } else {
-        b.text("Ограничение TDP: недоступно", H_TOGGLE, GREY);
+        b.text(i18n::tr_ref("qam.tdp_limitation_unavailable"), H_TOGGLE, GREY);
     }
     if let Some((on, clock, min, max)) = gpu {
-        b.toggle(Item::GpuOn, None, &t_or("#QuickAccess_Tab_Perf_GPUClockControl", "Ручная частота GPU"), on as i32, H_TOGGLE, "gpu_manual");
+        b.toggle(Item::GpuOn, None, &t_or("#QuickAccess_Tab_Perf_GPUClockControl", i18n::tr_ref("qam.manual_frequency_gpu")), on as i32, H_TOGGLE, "gpu_manual");
         if let Some(clock) = clock {
-            b.text(&format!("Частота GPU: {clock} МГц{}", if p.gpu_pending { " · Применение…" } else { "" }), H_TOGGLE, WHITE_DIM);
+            b.text(&i18n::tr_args("qam.gpu_clock_mhz", &[("clock", &(clock).to_string()), ("gpu_pending", &(if p.gpu_pending { i18n::tr_ref("qam.application_of") } else { "" }).to_string())]), H_TOGGLE, WHITE_DIM);
             b.notch(Item::Gpu, "", (clock - min) as f32 / (max - min).max(1) as f32, &min.to_string(), &max.to_string(), 0);
         }
         if p.gpu_failed {
-            b.text("Не удалось применить частоту GPU. Повторите попытку.", H_TOGGLE, GREY);
+            b.text(i18n::tr_ref("qam.failed_to_apply_the_gpu_frequency_try"), H_TOGGLE, GREY);
         }
     } else {
-        b.text("Частота GPU: недоступно", H_TOGGLE, GREY);
+        b.text(i18n::tr_ref("qam.gpu_frequency_not_available"), H_TOGGLE, GREY);
     }
     if !perf {
         // No Perf channel: the only source is the gamescope FPS atom (gamescope_atoms). Other rows stay hidden.
         match p.gs_fps {
             Some(v) if p.fps_opts.contains(&v) => fps_row(b, p),
-            Some(v) => b.text(&format!("{}: {v} (нет в списке)", t_or("#QuickAccess_Tab_Perf_LimitFrameRate", "Ограничение кадров/с")), H_TOGGLE, WHITE_DIM),
-            None => b.text("Параметры производительности: недоступно вне сессии gamescope", H_TOGGLE, GREY),
+            Some(v) => b.text(&i18n::tr_args("qam.not_listed", &[("QuickAccess_Tab_Perf_LimitFrameRate", &(t_or("#QuickAccess_Tab_Perf_LimitFrameRate", i18n::tr_ref("qam.limitation_of_staff_s"))).to_string()), ("value", &(v).to_string())]), H_TOGGLE, WHITE_DIM),
+            None => b.text(i18n::tr_ref("qam.performance_options_not_available_outside_the_gamescope"), H_TOGGLE, GREY),
         }
         refresh_row(b, p, false);
         scaling_rows(b, p, false);
@@ -970,39 +972,39 @@ fn performance_rows(b: &mut B, p: &PerfState, tdp: Option<(u32, u32, u32)>, gpu:
     if p.vrr_supported && p.gs_vrr_capable != Some(false) {
         b.toggle(Item::Vrr, None, &t_or("#QuickAccess_Tab_Perf_EnableVRR", "VRR"), p.vrr as i32, H_TOGGLE, "#quickaccess_tab_perf_enablevrr");
     }
-    b.toggle(Item::Tearing, None, &t_or("#QuickAccess_Tab_Perf_EnableTearing", "Разрыв кадров"), p.tearing as i32, H_TOGGLE, "#quickaccess_tab_perf_enabletearing");
+    b.toggle(Item::Tearing, None, &t_or("#QuickAccess_Tab_Perf_EnableTearing", i18n::tr_ref("qam.staffing_gap")), p.tearing as i32, H_TOGGLE, "#quickaccess_tab_perf_enabletearing");
     if p.vrs_avail {
-        b.toggle(Item::Vrs, None, &t_or("#QuickAccess_Tab_Perf_VariableResolution", "Переменное разрешение"), p.vrs as i32, H_TOGGLE, "#quickaccess_tab_perf_variableresolution");
+        b.toggle(Item::Vrs, None, &t_or("#QuickAccess_Tab_Perf_VariableResolution", i18n::tr_ref("qam.variable_authorization")), p.vrs as i32, H_TOGGLE, "#quickaccess_tab_perf_variableresolution");
     }
     scaling_rows(b, p, true);
     let sharp_span = (p.sharp_max - p.sharp_min).max(1);
-    b.notch(Item::Sharp, &format!("{}: {}", t_or("#QuickAccess_Tab_Perf_Sharpness", "Резкость FSR"), p.sharp), (p.sharp - p.sharp_min) as f32 / sharp_span as f32, &p.sharp_min.to_string(), &p.sharp_max.to_string(), 0);
-    b.toggle(Item::Profile, None, &t_or("#QuickAccess_Tab_Perf_GameSpecificSettings", "Настройки для игры"), p.game_profile as i32, H_TOGGLE, "#quickaccess_tab_perf_gamespecificsettings");
-    b.button(Item::ProfileReset, None, &t_or("#QuickAccess_Tab_Perf_ResetToDefault", "Сбросить по умолчанию"), "", "#quickaccess_tab_perf_resettodefault");
+    b.notch(Item::Sharp, &format!("{}: {}", t_or("#QuickAccess_Tab_Perf_Sharpness", i18n::tr_ref("qam.sharp_fsr")), p.sharp), (p.sharp - p.sharp_min) as f32 / sharp_span as f32, &p.sharp_min.to_string(), &p.sharp_max.to_string(), 0);
+    b.toggle(Item::Profile, None, &t_or("#QuickAccess_Tab_Perf_GameSpecificSettings", i18n::tr_ref("qam.settings_for_the_game")), p.game_profile as i32, H_TOGGLE, "#quickaccess_tab_perf_gamespecificsettings");
+    b.button(Item::ProfileReset, None, &t_or("#QuickAccess_Tab_Perf_ResetToDefault", i18n::tr_ref("qam.reset_by_default")), "", "#quickaccess_tab_perf_resettodefault");
 }
 
 fn refresh_row(b: &mut B, p: &PerfState, perf: bool) {
     if (perf && p.refresh_avail) || (!perf && p.gs_refresh.is_some()) {
         let hz_span = (p.hz_max - p.hz_min).max(1.0);
-        let policy = if !perf && p.refresh_game_policy { " · задаёт игра" } else { "" };
-        let label = format!("{}: {} Гц{}", t_or("#QuickAccess_Tab_Perf_RefreshRate", "Частота обновления"), p.refresh_hz.round() as i32, policy);
+        let policy = if !perf && p.refresh_game_policy { i18n::tr_ref("qam.sets_the_game") } else { "" };
+        let label = i18n::tr_args("qam.hz", &[("QuickAccess_Tab_Perf_RefreshRate", &(t_or("#QuickAccess_Tab_Perf_RefreshRate", i18n::tr_ref("qam.refresh_rate"))).to_string()), ("i32", &(p.refresh_hz.round() as i32).to_string()), ("policy", &(policy).to_string())]);
         b.text(&label, H_TOGGLE, WHITE_DIM);
-        b.notch(Item::Refresh, &label, (p.refresh_hz - p.hz_min) / hz_span, &format!("{} Гц", p.hz_min.round() as i32), &format!("{} Гц", p.hz_max.round() as i32), 0);
+        b.notch(Item::Refresh, &label, (p.refresh_hz - p.hz_min) / hz_span, &i18n::tr_args("qam.hz_2", &[("i32", &(p.hz_min.round() as i32).to_string())]), &i18n::tr_args("qam.hz_2", &[("i32", &(p.hz_max.round() as i32).to_string())]), 0);
     }
 }
 
 fn scaling_rows(b: &mut B, p: &PerfState, perf: bool) {
     if perf || p.gs_filter.is_some() {
-    let filter_name = match p.filter { 2 => "Ближайший", 3 => "Резкий", _ => "Линейный" };
+    let filter_name = match p.filter { 2 => i18n::tr_ref("qam.nearest"), 3 => i18n::tr_ref("qam.sharp"), _ => i18n::tr_ref("qam.linear") };
     let fidx = FILTERS.iter().position(|&x| x == p.filter).unwrap_or(0);
-    let label = format!("{}: {filter_name}", t_or("#QuickAccess_Tab_Perf_ScalingFilter", "Фильтр масштабирования"));
+    let label = format!("{}: {filter_name}", t_or("#QuickAccess_Tab_Perf_ScalingFilter", i18n::tr_ref("qam.scaling_filter")));
     b.text(&label, H_TOGGLE, WHITE_DIM);
     b.notch(Item::Filter, &label, fidx as f32 / (FILTERS.len() - 1) as f32, "", "", 0);
     }
     if perf || p.gs_scaler.is_some() {
-    let scaler_name = match p.scaler { 2 => "Целочисленное", 3 => "По размеру", 5 => "Растянуть", 4 => "Заполнить", _ => "Авто" };
+    let scaler_name = match p.scaler { 2 => i18n::tr_ref("qam.integer"), 3 => i18n::tr_ref("qam.fit"), 5 => i18n::tr_ref("qam.stretch"), 4 => i18n::tr_ref("qam.fill_in"), _ => i18n::tr_ref("qam.automotive") };
     let sidx = SCALERS.iter().position(|&x| x == p.scaler).unwrap_or(0);
-    let label = format!("{}: {scaler_name}", t_or("#QuickAccess_Tab_Perf_ScalingScaler", "Масштабирование"));
+    let label = format!("{}: {scaler_name}", t_or("#QuickAccess_Tab_Perf_ScalingScaler", i18n::tr_ref("qam.scaling")));
     b.text(&label, H_TOGGLE, WHITE_DIM);
     b.notch(Item::Scaler, &label, sidx as f32 / (SCALERS.len() - 1) as f32, "", "", 0);
     }
@@ -1011,143 +1013,15 @@ fn scaling_rows(b: &mut B, p: &PerfState, perf: bool) {
 fn fps_row(b: &mut B, p: &PerfState) {
     let fps = p.fps_opts.get(p.fps).copied().unwrap_or(0);
     let fps_n = p.fps_opts.len().max(2) - 1;
-    let fps_text = if fps == 0 { t_or("#QuickAccess_Tab_Perf_LimitFrameRate_Off", "Без ограничения") } else { fps.to_string() };
-    let label = format!("{}: {fps_text}", t_or("#QuickAccess_Tab_Perf_LimitFrameRate", "Ограничение кадров/с"));
+    let fps_text = if fps == 0 { t_or("#QuickAccess_Tab_Perf_LimitFrameRate_Off", i18n::tr_ref("qam.unlimited")) } else { fps.to_string() };
+    let label = format!("{}: {fps_text}", t_or("#QuickAccess_Tab_Perf_LimitFrameRate", i18n::tr_ref("qam.limitation_of_staff_s")));
     b.text(&label, H_TOGGLE, WHITE_DIM);
     b.notch(Item::FpsLimit, &label, p.fps as f32 / fps_n as f32, "0", p.fps_opts.last().map(|x| x.to_string()).unwrap_or_default().as_str(), 0);
 }
 
 #[cfg(test)]
-mod performance_availability_tests {
-    use super::*;
-    fn ready() -> PerfState {
-        PerfState { advanced: true, perf_avail: Some(true), overlay_observed: Some(0), vrs_avail: true, refresh_avail: true, vrr_supported: true, ..PerfState::default() }
-    }
-    #[test]
-    fn tdp_enable_switch_follows_tdp_readback() {
-        let mut b = B::new();
-        performance_rows(&mut b, &ready(), Some((14, 3, 15)), None);
-        assert!(b.items.contains(&Item::TdpOn) && b.items.contains(&Item::Tdp));
-        let mut b = B::new();
-        performance_rows(&mut b, &ready(), None, None);
-        assert!(!b.items.contains(&Item::TdpOn));
-    }
-    #[test]
-    fn vrr_toggle_only_when_steam_reports_support() {
-        for (supported, expected) in [(true, true), (false, false)] {
-            let mut b = B::new();
-            let mut p = ready();
-            p.vrr_supported = supported;
-            performance_rows(&mut b, &p, None, None);
-            assert_eq!(b.items.contains(&Item::Vrr), expected, "supported={supported}");
-        }
-    }
-    #[test]
-    fn tdp_toggle_writes_hardware_target_from_the_stock_switch() {
-        // on keeps the shown cap inside the hardware range; off restores the hardware maximum
-        assert_eq!(tdp_toggle_target(true, 9, 3, 15), 9);
-        assert_eq!(tdp_toggle_target(true, 2, 3, 15), 3);
-        assert_eq!(tdp_toggle_target(true, 20, 3, 15), 15);
-        assert_eq!(tdp_toggle_target(false, 9, 3, 15), 15);
-    }
-    #[test]
-    fn tdp_is_only_interactive_with_readback_and_no_pending_or_failed_write() {
-        for (tdp, pending, failed, expected) in [
-            (Some((14, 3, 15)), false, false, true),
-            (None, false, false, false),
-            (Some((14, 3, 15)), true, false, false),
-            (Some((14, 3, 15)), false, true, false),
-        ] {
-            let mut b = B::new();
-            let mut p = ready();
-            p.tdp_pending = pending;
-            p.tdp_failed = failed;
-            performance_rows(&mut b, &p, tdp, None);
-            assert_eq!(b.items.contains(&Item::Tdp), expected);
-        }
-    }
-    #[test]
-    fn gpu_controls_remain_reachable_during_pending_and_failed_writes() {
-        for (gpu, pending, failed, toggle, slider) in [
-            (Some((false, None, 200, 1600)), false, false, true, false),
-            (Some((true, Some(300), 200, 1600)), false, false, true, true),
-            (None, false, false, false, false),
-            (Some((true, None, 200, 1600)), false, true, true, false),
-            (Some((true, Some(300), 200, 1600)), true, false, true, true),
-            (Some((true, Some(300), 200, 1600)), false, true, true, true),
-        ] {
-            let mut b = B::new();
-            let mut p = ready();
-            p.gpu_pending = pending;
-            p.gpu_failed = failed;
-            performance_rows(&mut b, &p, None, gpu);
-            assert_eq!(b.items.contains(&Item::GpuOn), toggle);
-            assert_eq!(b.items.contains(&Item::Gpu), slider);
-        }
-    }
-    #[test]
-    fn perf_rows_need_confirmed_perf_channel() {
-        for avail in [None, Some(false)] {
-            let mut b = B::new();
-            let mut p = ready();
-            p.perf_avail = avail;
-            p.gs_fps = None;
-            performance_rows(&mut b, &p, None, None);
-            for item in [Item::FpsLimit, Item::Refresh, Item::Vrr, Item::Filter, Item::Scaler, Item::Sharp, Item::Profile, Item::ProfileReset] {
-                assert!(!b.items.contains(&item), "{item:?} listed without the Perf channel");
-            }
-        }
-    }
-    #[test]
-    fn gamescope_controls_have_visible_labels_without_perf_channel() {
-        let mut p = ready();
-        p.perf_avail = Some(false);
-        p.gs_refresh = Some(90);
-        p.refresh_hz = 90.0;
-        p.refresh_game_policy = true;
-        p.gs_filter = Some(0);
-        p.gs_scaler = Some(0);
-        let mut b = B::new();
-        performance_rows(&mut b, &p, None, None);
-        for item in [Item::Refresh, Item::Filter, Item::Scaler] { assert!(b.items.contains(&item)); }
-        let labels: Vec<String> = b.rows.iter().filter(|r| r.kind == 6).map(|r| r.label.to_string()).collect();
-        assert!(labels.iter().any(|s| s.contains("90 Гц") && s.contains("задаёт игра")));
-        assert!(labels.iter().any(|s| s.contains("Линейный")));
-        assert!(labels.iter().any(|s| s.contains("Авто")));
-        assert!(!b.items.contains(&Item::Vrr));
-    }
-    #[test]
-    fn gamescope_incapable_output_hides_vrr_even_with_perf() {
-        let mut p = ready();
-        p.gs_vrr_capable = Some(false);
-        let mut b = B::new();
-        performance_rows(&mut b, &p, None, None);
-        assert!(!b.items.contains(&Item::Vrr));
-    }
-    #[test]
-    fn fps_row_without_perf_channel_follows_gamescope_atom() {
-        // Only the FPS atom, and only with a value from the list; the other perf rows stay hidden.
-        let mut p = ready();
-        p.perf_avail = Some(false);
-        for (atom, shown) in [(Some(60), true), (Some(45), true), (Some(75), false), (None, false)] {
-            p.gs_fps = atom;
-            p.fps = p.fps_opts.iter().position(|&x| Some(x) == atom).unwrap_or(0);
-            let mut b = B::new();
-            performance_rows(&mut b, &p, None, None);
-            assert_eq!(b.items.contains(&Item::FpsLimit), shown, "atom={atom:?}");
-            assert!(!b.items.contains(&Item::Refresh) && !b.items.contains(&Item::Filter) && !b.items.contains(&Item::Vrr));
-        }
-    }
-    #[test]
-    fn every_listed_perf_control_is_focusable_and_mapped_to_readback() {
-        let mut b = B::new();
-        performance_rows(&mut b, &ready(), Some((14, 3, 15)), Some((false, None, 200, 1600)));
-        for item in [Item::Overlay, Item::OverlayLevel, Item::Advanced, Item::Tdp, Item::GpuOn, Item::FpsLimit, Item::Refresh, Item::Vrr, Item::Tearing, Item::Vrs, Item::Filter, Item::Scaler, Item::Sharp, Item::Profile, Item::ProfileReset] {
-            assert!(b.items.contains(&item), "{item:?} missing");
-        }
-        assert_eq!(b.items.len(), b.rows.iter().filter(|r| r.fid >= 0).count());
-    }
-}
+#[path = "qam_performance_tests.rs"]
+mod performance_availability_tests;
 
 impl B {
     fn new() -> B {
@@ -1541,9 +1415,9 @@ impl App {
         let status = if !f.game.is_empty() {
             f.game.clone()
         } else if f.state == 0 {
-            t_or("#PersonaStateOffline", "Не в сети")
+            t_or("#PersonaStateOffline", i18n::tr_ref("qam.offline"))
         } else {
-            t_or("#PersonaStateOnline", "В сети")
+            t_or("#PersonaStateOnline", i18n::tr_ref("qam.online"))
         };
         Some((f.name.clone(), status))
     }
@@ -1629,7 +1503,7 @@ impl App {
                     .iter()
                     .map(|i| {
                         let d: serde_json::Value = serde_json::from_str(&i.data).unwrap_or_default();
-                        let label = ["strTitle", "title", "strBody", "body", "name", "game_name"].iter().find_map(|k| d[*k].as_str()).map(str::to_owned).unwrap_or_else(|| t_or("#NotificationsMenu_Title", "Уведомление"));
+                        let label = ["strTitle", "title", "strBody", "body", "name", "game_name"].iter().find_map(|k| d[*k].as_str()).map(str::to_owned).unwrap_or_else(|| t_or("#NotificationsMenu_Title", i18n::tr_ref("qam.notification")));
                         let appid = ["appid", "app_id", "nAppID", "unAppID"].iter().find_map(|k| d[*k].as_u64()).map(|x| x as u32);
                         Notif { id: i.id, label, appid }
                     })
@@ -1777,7 +1651,7 @@ impl App {
         match self.qm.tab {
             0 => {
                 if self.qm.notifs.is_empty() {
-                    b.text(&t_or("#QuickAccess_Tab_Notifications_None", "Нет новых уведомлений"), H_TOGGLE, GREY);
+                    b.text(&t_or("#QuickAccess_Tab_Notifications_None", i18n::tr_ref("qam.no_new_notifications")), H_TOGGLE, GREY);
                 }
                 for (i, n) in self.qm.notifs.iter().enumerate() {
                     let mut r = B::row(7);
@@ -1802,19 +1676,19 @@ impl App {
                 }
                 b.header(&tu("#QuickAccess_Tab_Settings_Section_Audio_Title"), H_HDR);
                 let vol = s.volume.map(|(v, m)| if m { 0.0 } else { v }).unwrap_or(-1.0);
-                b.slider(Item::Volume, ic_vol, &t_or("#Audio_Volume", "Громкость"), vol, "#voicevolume");
-                b.slider(Item::Mic, ic_mic, &t_or("#Audio_InputVolume", "Громкость микрофона"), s.mic.map(mic_to_slider).unwrap_or(-1.0), "#audio_inputvolume");
+                b.slider(Item::Volume, ic_vol, &t_or("#Audio_Volume", i18n::tr_ref("qam.volume")), vol, "#voicevolume");
+                b.slider(Item::Mic, ic_mic, &t_or("#Audio_InputVolume", i18n::tr_ref("qam.microphone_volume")), s.mic.map(mic_to_slider).unwrap_or(-1.0), "#audio_inputvolume");
                 b.gap();
                 b.header(&tu("#QuickAccess_Tab_Settings_Section_Other_Title"), H_HDR);
-                b.button(Item::Controllers, None, &t_or("#QuickAccess_Tab_Settings_Section_Controllers_ReorderButton", "Изменить порядок контроллеров"), "", "#quickaccess_tab_settings_section_controllers_reorderbutton");
+                b.button(Item::Controllers, None, &t_or("#QuickAccess_Tab_Settings_Section_Controllers_ReorderButton", steam_assets::i18n::tr_ref("controller.rearrange_controller_order")), "", "#quickaccess_tab_settings_section_controllers_reorderbutton");
                 let air = s.airplane.map(|x| x as i32).unwrap_or(-1);
-                b.toggle(Item::Airplane, Some(ic_air), &t_or("#QuickAccess_Tab_Settings_Section_Shortcuts_AirplaneMode", "Авиарежим"), air, H_SHORTCUT, "#quickaccess_tab_settings_section_shortcuts_airplanemode");
+                b.toggle(Item::Airplane, Some(ic_air), &t_or("#QuickAccess_Tab_Settings_Section_Shortcuts_AirplaneMode", i18n::tr_ref("qam.airplane_mode")), air, H_SHORTCUT, "#quickaccess_tab_settings_section_shortcuts_airplanemode");
                 // The status sub-row in Steam's Oe() is gated on ON_FRAME.
                 b.toggle(Item::Wifi, Some(ic_wifi), &t_or("#QuickAccess_Tab_Settings_Section_Shortcuts_Wifi", "Wi-Fi"), s.wifi.map(i32::from).unwrap_or(-1), H_SHORTCUT, "#quickaccess_tab_settings_section_shortcuts_wifi");
                 self.qam_bluetooth_rows(&mut b, &s.bluetooth);
                 let night_icon = self.qam_icon("NightMode");
                 b.toggle(Item::NightMode, Some(night_icon),
-                    &t_or("#QuickAccess_Tab_Settings_Section_Shortcuts_NightMode", "Ночной режим"),
+                    &t_or("#QuickAccess_Tab_Settings_Section_Shortcuts_NightMode", i18n::tr_ref("qam.night_mode")),
                     s.night_mode.map(i32::from).unwrap_or(-1), H_SHORTCUT, "#quickaccess_tab_settings_section_shortcuts_nightmode");
                 // Display scaling belongs to the desktop Quick Access layout.
                 if s.gs.is_some() || std::env::var_os("GAMESCOPE_WAYLAND_DISPLAY").is_some() {
@@ -1828,7 +1702,7 @@ impl App {
                 b.toggle(
                     Item::UiAuto,
                     None,
-                    &t_or("#Settings_Display_DisplayScaling_Automatically_Scale_UI_Verbose", "Автоматически масштабировать интерфейс"),
+                    &t_or("#Settings_Display_DisplayScaling_Automatically_Scale_UI_Verbose", i18n::tr_ref("qam.automatically_scale_user_interface")),
                     self.qm.perf.ui_auto as i32,
                     H_TALL,
                     "#settings_display_displayscaling_automatically_scale_ui_verb",
@@ -1856,7 +1730,7 @@ impl App {
                 let time = if caption.is_some() && battery_logic::time_shown(conf) {
                     let (h, m) = battery_logic::time_parts(secs);
                     let tok = "#QuickAccess_Tab_Perf_BatteryTimeRemaining";
-                    if steam_assets::has_loc(tok) { crate::assets::tf(tok, &[&h, &m]) } else { format!("{h} ч. {m} м.") }
+                    if steam_assets::has_loc(tok) { crate::assets::tf(tok, &[&h, &m]) } else { i18n::tr_args("qam.h_min", &[("hours", &(h).to_string()), ("message", &(m).to_string())]) }
                 } else {
                     "\u{200B}".to_string()
                 };
@@ -1934,16 +1808,16 @@ impl App {
 
     fn qam_title(&self) -> String {
         match self.qm.tab {
-            0 => t_or("#QuickAccess_Tab_Notifications_Title", "Уведомления"),
+            0 => t_or("#QuickAccess_Tab_Notifications_Title", i18n::tr_ref("qam.notifications")),
             1 if self.ui().global::<QamState>().get_expanded() => match self.qm.ftab {
-                qam_friends::TAB_FAVORITES => t_or("#FriendGroup_Favorites", "Избранные"),
-                qam_friends::TAB_FRIENDS => t_or("#Label_Friends", "Друзья"),
-                qam_friends::TAB_GROUPS => t_or("#Label_Groups", "Группы"),
-                _ => t_or("#FriendGroup_Recent", "Недавние"),
+                qam_friends::TAB_FAVORITES => t_or("#FriendGroup_Favorites", i18n::tr_ref("qam.favorites_2")),
+                qam_friends::TAB_FRIENDS => t_or("#Label_Friends", i18n::tr_ref("qam.friends")),
+                qam_friends::TAB_GROUPS => t_or("#Label_Groups", i18n::tr_ref("qam.groups")),
+                _ => t_or("#FriendGroup_Recent", i18n::tr_ref("qam.recent")),
             },
-            1 => t_or("#QuickAccess_Tab_Friends_Title", "Друзья"),
-            2 => t_or("#QuickAccess_Tab_Settings_Title", "Быстрые настройки"),
-            3 => t_or("#QuickAccess_Tab_Perf_Title", "Производительность"),
+            1 => t_or("#QuickAccess_Tab_Friends_Title", i18n::tr_ref("qam.friends")),
+            2 => t_or("#QuickAccess_Tab_Settings_Title", i18n::tr_ref("qam.quick_settings")),
+            3 => t_or("#QuickAccess_Tab_Perf_Title", i18n::tr_ref("qam.performance")),
             _ => "Decky".into(),
         }
     }
@@ -2529,8 +2403,8 @@ impl App {
         // the QAM rows show the stored level: rebuild so the slider lands on the confirmed value
         if self.qm.open { self.qam_rebuild(false); }
         if result.is_err() || observed.is_none() {
-            let name = if brightness { "Яркость" } else { "Громкость" };
-            self.toast(&format!("{name}: изменение не подтверждено или недоступно"));
+            let name = if brightness { i18n::tr_ref("qam.brightness") } else { i18n::tr_ref("qam.volume") };
+            self.toast(&i18n::tr_args("qam.change_unconfirmed_or_unavailable", &[("name", &(name).to_string())]));
         }
     }
 

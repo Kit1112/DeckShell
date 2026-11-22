@@ -19,6 +19,7 @@
 //! [`Bridge::layout_active`] to find the selected layout.
 //!
 //! Writes are sent once through `eval_json_once`; they are never replayed after an error.
+use steam_assets::i18n::tr_ref;
 use std::time::{Duration, Instant};
 
 use serde_json::{Map, Value};
@@ -510,7 +511,7 @@ pub const LIST_JS: &str = r#"(async () => {
                 row.owned = !!account && config.accountID == account;
                 row.authorName = config.accountID ? friends?.GetFriendState(config.accountID)?.display_name ?? '' : '';
                 row.gameName = window.appStore?.GetAppOverviewByAppID(config.appID)?.display_name ?? '';
-                row.titlePrefixWidth = titleCtx.measureText((row.gameName || (config.appID ? String(config.appID) : 'Шаблон')) + ': ').width * 1.5;
+                row.titlePrefixWidth = titleCtx.measureText((row.gameName || (config.appID ? String(config.appID) : {TEMPLATE_LABEL})) + ': ').width * 1.5;
                 rows.set(key, row);
             }
             row.sections |= section;
@@ -518,7 +519,7 @@ pub const LIST_JS: &str = r#"(async () => {
             if (section === 8) {
                 row.personalOrder = order;
                 if (Number(config.timeUpdated) > 0) {
-                    row.updatedLabel = new Date(Number(config.timeUpdated) * 1000).toLocaleString(navigator.languages, {
+                    row.updatedLabel = new Date(Number(config.timeUpdated) * 1000).toLocaleString({DATE_LOCALE}, {
                         year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: 'numeric',
                     });
                 }
@@ -730,11 +731,11 @@ pub const EXPORT_DESCRIPTION_MAX: usize = 512;
 /// Trimmed title and description of an export, or why the stock dialog would refuse them (empty or too long).
 pub fn check_export_text(title: &str, description: &str) -> Result<(String, String)> {
     let (title, description) = (title.trim(), description.trim());
-    if title.is_empty() { return Err(Error::Protocol("Название раскладки пусто".into())); }
+    if title.is_empty() { return Err(Error::Protocol(tr_ref("controller.layout_name_is_empty").into())); }
     if title.chars().count() > EXPORT_TITLE_MAX || description.chars().count() > EXPORT_DESCRIPTION_MAX {
-        return Err(Error::Protocol("Название или описание слишком длинное".into()));
+        return Err(Error::Protocol(tr_ref("controller.layout_name_or_description_is_too_long").into()));
     }
-    if title.chars().chain(description.chars()).any(|c| c.is_control()) { return Err(Error::Protocol("Недопустимые символы в названии".into())); }
+    if title.chars().chain(description.chars()).any(|c| c.is_control()) { return Err(Error::Protocol(tr_ref("controller.layout_name_contains_invalid_characters").into())); }
     Ok((title.to_owned(), description.to_owned()))
 }
 
@@ -747,11 +748,23 @@ pub fn export_local_expr(app: u32, idx: u32, active_url: &str, title: &str, desc
     Ok(format!("(async()=>{{const s=window.controllerConfiguratorStore;await s.m_updatingEditingConfigurationPromise;s.LoadEditingConfiguration({app},{idx});await s.m_updatingEditingConfigurationPromise;if(s.m_appId!=={app}||s.m_unControllerIndex!=={idx}||s.EditingConfiguration?.url!=={url})throw new Error('Editing layout changed');s.ExportEditingConfiguration({app},{EXPORT_PERSONAL_LOCAL},{title},{description},\"\");return true}})()"))
 }
 
-/// Historical Deck catalog, sanitized before display. Never use these rows as write targets.
-pub fn offline_catalog() -> Result<Vec<LayoutEntry>> {
+fn demo_layouts(locale: &steam_assets::i18n::Locale) -> Result<Vec<LayoutEntry>> {
     let rows: Value = serde_json::from_str(include_str!("../tests/fixtures/controller_layouts/list_balatro_deck.json"))
         .map_err(|err| Error::Protocol(err.to_string()))?;
     let mut entries = parse_layout_list(&rows)?;
+    for entry in &mut entries {
+        for text in [&mut entry.title, &mut entry.description] {
+            if text.starts_with("controller.demo.") {
+                *text = locale.tr(text);
+            }
+        }
+    }
+    Ok(entries)
+}
+
+/// Demo catalog projected from the sanitized fixture. Its rows are read-only.
+pub fn offline_catalog() -> Result<Vec<LayoutEntry>> {
+    let mut entries = demo_layouts(steam_assets::i18n::current())?;
     for entry in &mut entries {
         entry.author_account_id = None;
         entry.author_name.clear();
@@ -767,7 +780,7 @@ pub fn offline_catalog() -> Result<Vec<LayoutEntry>> {
     if let Some(template) = entries.iter().find(|entry| entry.sections & 2 != 0) {
         let mut personal = template.clone();
         personal.url = "autosave://fixture/example.vdf".into();
-        personal.title = "Геймпад — пример личной копии".into();
+        personal.title = tr_ref("controller.gamepad_sample_personal_copy").into();
         personal.description.clear();
         personal.sections = 8 | 16;
         personal.source = LayoutSource::User;
@@ -837,7 +850,15 @@ impl Bridge {
                 break;
             }
         }
-        let expr = fill(LIST_JS, app_id, controller_index, &[]);
+        let template_label = serde_json::Value::String(steam_assets::i18n::tr("controller.template"));
+        let date_locale = if steam_assets::i18n::current().code() == "ru" {
+            "navigator.languages"
+        } else {
+            "'en'"
+        };
+        let expr = fill(LIST_JS, app_id, controller_index, &[])
+            .replace("{TEMPLATE_LABEL}", &template_label.to_string())
+            .replace("{DATE_LOCALE}", date_locale);
         let read = || parse_layout_catalog(&self.eval_json(&expr)?, app_id);
         let mut catalog = read()?;
         for _ in 0..5 {
@@ -937,7 +958,7 @@ impl Bridge {
             std::thread::sleep(Duration::from_millis(250));
             if self.eval_json(&downloaded)?.as_bool() == Some(true) { return Ok(()); }
         }
-        Err(Error::Protocol("Steam не подтвердил загрузку раскладки".into()))
+        Err(Error::Protocol(tr_ref("controller.steam_did_not_confirm_the_layout_download").into()))
     }
 
     /// Details of community items (read-only). At most 50 ids per call.
@@ -1011,6 +1032,9 @@ mod tests {
     #[test]
     fn offline_catalog_has_each_requested_tab_without_account_ids() {
         let rows = offline_catalog().unwrap();
+        let en = demo_layouts(steam_assets::i18n::by_code("en").unwrap()).unwrap();
+        assert_eq!(en[0].title, "Gamepad");
+        assert!(en[0].description.starts_with("This template"));
         for section in [2, 4, 8] { assert!(rows.iter().any(|row| row.sections & section != 0)); }
         assert!(rows.iter().all(|row| row.author_account_id.is_none() && row.author_name.is_empty()));
     }
@@ -1123,13 +1147,14 @@ mod tests {
 
     #[test]
     fn search_matches_title_and_description_case_insensitively() {
-        let l = list();
+        let ru = steam_assets::i18n::by_code("ru").unwrap();
+        let l = demo_layouts(ru).unwrap();
         let q = LayoutQuery { text: "  SORT ".into(), ..Default::default() };
         let hits = select_layouts(&l, &q);
         assert_eq!(hits.len(), 1);
         assert_eq!(hits[0].url, "workshop://3177015367");
         // Description match (the official layout's description says «геймпад»).
-        let q = LayoutQuery { text: "ГЕЙМПАД".into(), ..Default::default() };
+        let q = LayoutQuery { text: ru.tr("controller.gamepad"), ..Default::default() };
         assert!(select_layouts(&l, &q).iter().any(|e| e.source == LayoutSource::Official));
         assert_eq!(select_layouts(&l, &LayoutQuery { text: "no such layout".into(), ..Default::default() }).len(), 0);
     }
@@ -1203,7 +1228,7 @@ mod tests {
         assert_eq!(d.len(), 2);
         let first = d.iter().find(|x| x.published_file_id == 3417625332).unwrap();
         assert_eq!(first.result, 1);
-        assert_eq!(first.title, "Haxell's Steam Controller Balatro Bindings");
+        assert_eq!(first.title, "Sample Steam Controller Balatro Bindings");
         assert_eq!(first.consumer_appid, 241100);
         assert_eq!(first.file_type, 12);
         assert_eq!(first.file_size, 15661);

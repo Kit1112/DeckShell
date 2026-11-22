@@ -4,12 +4,13 @@
 //!
 //! Sections (stock order): «Батарея» (percentage, charge limit + slider), «При работе от батареи и бездействии» /
 //! «При работе от сети и бездействии» («При бездействии» without a battery): sleep, screensaver, dim drop-downs,
-//! «Завершить загрузки перед переходом в спящий режим», «HDMI CEC». Strings are the pinned Russian Steam bundle
-//! (`power_ru.json`). Values come from the live client settings snapshot (`c.*`); nothing here suspends or powers off.
+//! «Завершить загрузки перед переходом в спящий режим», «HDMI CEC». Strings use the embedded catalogs
+//! and Steam tokens. Values come from the live client settings snapshot (`c.*`); nothing here suspends or powers off.
 //! Writes use the existing DRYRUN-gated `setters`; the table is in docs/power-page-2026-11-18.md.
 use super::*;
 use super::text_wrap;
 use serde_json::json;
+use steam_assets::i18n::{self, Locale};
 
 pub const PAGE: &str = "power";
 /// Stock geometry in device px (1280x800 captures, `~/.cache/deckshell/next-wave2/power`); `PRow` coordinates are divided by `SC`
@@ -37,27 +38,69 @@ pub const LIMIT_DEFAULT_MARK: i64 = 80;
 /// idle choices of the stock drop-downs (`B` in sp.js): off, 1, 5, 15, 30 min, 1 h, plus the current value
 const IDLE_CHOICES: [i64; 5] = [60, 300, 900, 1800, 3600];
 
-fn ru(key: &str) -> String {
-    static TABLE: std::sync::OnceLock<Value> = std::sync::OnceLock::new();
-    let t = TABLE.get_or_init(|| serde_json::from_str(include_str!("power_ru.json")).unwrap());
-    t[key].as_str().unwrap_or("").to_string()
+fn stock(locale: &Locale, token: &str, fallback: String, args: &[&str]) -> String {
+    if locale.code() != i18n::current().code() {
+        return fallback;
+    }
+    let mut translated = crate::assets::t_or(token, &fallback);
+    for (i, value) in args.iter().enumerate() {
+        translated = translated.replace(&format!("%{}$s", i + 1), value)
+            .replace(&format!("{{{i}}}"), value);
+    }
+    // The Russian page shipped pinned copy with measured wrapping. Keep it when
+    // Steam supplies different wording or falls back to its English bundle.
+    if locale.code() == "ru" && translated != fallback {
+        return fallback;
+    }
+    translated
 }
 
-/// Stock `Hq(sec, {eSuffix: None, bHighGranularity: true})` (library.js:22848) with the pinned Russian `TimeInterval_*` strings:
-/// 1 мин. / 20 мин. / 1 час / 2 ч. / 1 мин. 30 сек. / 1 час и 5 мин.
-pub fn idle_label(sec: i64) -> String {
-    if sec == 0 { return ru("Settings_System_IdleDisabled"); }
-    let (h, m, r) = (sec / 3600, sec % 3600 / 60, sec % 60);
-    match sec {
-        s if s >= 2 * 86400 => format!("{} дн.", s / 86400),
-        s if s >= 86400 => if (s - 86400) >= 7200 { format!("1 день и {} ч.", (s - 86400) / 3600) } else { "1 день".into() },
-        s if s >= 7200 => format!("{h} ч."),
-        s if s >= 3600 => if s - 3600 >= 120 { format!("1 час и {} мин.", (s - 3600) / 60) } else { "1 час".into() },
-        s if s >= 120 => match r { 0 => format!("{m} мин."), 1 => format!("{m} мин. 1 сек."), r => format!("{m} мин. {r} сек.") },
-        s if s >= 60 => match r { 0 => "1 мин.".into(), 1 => "1 мин. 1 сек.".into(), r => format!("1 мин. {r} сек.") },
-        1 => "1 сек.".into(),
-        s => format!("{s} сек."),
+fn label(locale: &Locale, key: &str) -> String {
+    let token = match key {
+        "Settings_Cancel" => "#Button_Cancel".into(),
+        _ => format!("#{key}"),
+    };
+    stock(locale, &token, locale.tr(key), &[])
+}
+
+pub(super) fn rail_label() -> String {
+    crate::assets::t_or("#Settings_Page_Power", &i18n::tr("Settings_Page_Power"))
+}
+
+/// Stock `Hq(sec, {eSuffix: None, bHighGranularity: true})` (library.js:22848).
+fn idle_label(sec: i64, locale: &Locale) -> String {
+    if sec == 0 {
+        return label(locale, "Settings_System_IdleDisabled");
     }
+    let (h, m, r) = (sec / 3600, sec % 3600 / 60, sec % 60);
+    let (key, token, values): (&str, &str, &[i64]) = match sec {
+        s if s >= 2 * 86400 => ("days", "#TimeInterval_XDays", &[s / 86400]),
+        s if s >= 86400 + 7200 => ("day_hours", "#TimeInterval_1DayXHours", &[(s - 86400) / 3600]),
+        s if s >= 86400 => ("day", "#TimeInterval_1Day", &[]),
+        s if s >= 7200 => ("hours", "#TimeInterval_XHours", &[h]),
+        s if s >= 3600 + 120 => ("hour_minutes", "#TimeInterval_1HourXMinutes", &[(s - 3600) / 60]),
+        s if s >= 3600 => ("hour", "#TimeInterval_1Hour", &[]),
+        s if s >= 120 => match r {
+            0 => ("minutes", "#TimeInterval_XMinutes", &[m]),
+            1 => ("minutes_second", "#TimeInterval_XMinutes1Second", &[m]),
+            _ => ("minutes_seconds", "#TimeInterval_XMinutesXSeconds", &[m, r]),
+        },
+        s if s >= 60 => match r {
+            0 => ("minute", "#TimeInterval_1Minute", &[]),
+            1 => ("minute_second", "#TimeInterval_1Minute1Second", &[]),
+            _ => ("minute_seconds", "#TimeInterval_1MinuteXSeconds", &[r]),
+        },
+        s => {
+            let token = if s == 1 { "#TimeInterval_1Second" } else { "#TimeInterval_XSeconds" };
+            let fallback = locale.tr_plural("power.time.seconds", s, &[]);
+            return stock(locale, token, fallback, &[&s.to_string()]);
+        }
+    };
+    let values: Vec<String> = values.iter().map(i64::to_string).collect();
+    let values: Vec<&str> = values.iter().map(String::as_str).collect();
+    let args: Vec<_> = ["0", "1"].into_iter().zip(values.iter().copied()).collect();
+    let fallback = locale.tr_args(&format!("power.time.{key}"), &args);
+    stock(locale, token, fallback, &values)
 }
 
 /// Drop-down key → (client setting key, Steam store write). Dim is not a client setting (`SetIdleBacklightDimSeconds`).
@@ -153,17 +196,21 @@ pub fn limit_range(s: &Value) -> (i64, i64, i64) {
 }
 
 pub fn rows_for(s: &Value) -> Vec<PRow> {
+    rows_for_locale(s, i18n::current())
+}
+
+fn rows_for_locale(s: &Value, locale: &Locale) -> Vec<PRow> {
     let mut l = Layout { rows: vec![], y: FIRST_Y };
     let battery = has_battery(s);
     if battery {
-        l.header(ru("Settings_Power_Battery_Title"));
-        l.toggle("pct", ru("Settings_Battery_Percentage"), ru("Settings_Battery_Percentage_Desc"));
+        l.header(label(locale, "Settings_Power_Battery_Title"));
+        l.toggle("pct", label(locale, "Settings_Battery_Percentage"), label(locale, "Settings_Battery_Percentage_Desc"));
         if limit_supported(s) {
-            l.toggle("limit", ru("Settings_Battery_ChargeLimitEnable"), String::new());
+            l.toggle("limit", label(locale, "Settings_Battery_ChargeLimitEnable"), String::new());
             if slider_visible(s) {
                 let limit = s["c"]["steamos_charge_limit"].as_i64();
                 l.y += 2.; // stock: the slider card sits 11 px below the switch
-                l.push(PRow { k: 27, tok: "power-slider".into(), lab: ru("Settings_Battery_ChargeLimitValue"), desc: limit.map(|v| format!("{v}%")).unwrap_or_else(|| "—".into()),
+                l.push(PRow { k: 27, tok: "power-slider".into(), lab: label(locale, "Settings_Battery_ChargeLimitValue"), desc: limit.map(|v| format!("{v}%")).unwrap_or_else(|| "—".into()),
                     x: CARD_X, y: l.y, w: CARD_W, h: 78., f: true, role: "slider".into(), pad: "A,FOCUS,DPAD,touch,mouse".into(), ..Default::default() });
                 l.y += 78. + CARD_GAP;
             }
@@ -172,30 +219,30 @@ pub fn rows_for(s: &Value) -> Vec<PRow> {
     }
     for (ac, section) in [(false, "Settings_System_Idle_OnBattery_Section"), (true, if battery { "Settings_System_Idle_PluggedIn_Section" } else { "Settings_System_Idle_NoBattery_Section" })] {
         if !ac && !battery { continue; }
-        l.header(ru(section));
+        l.header(label(locale, section));
         let sfx = if ac { "ac" } else { "battery" };
         // stock order (screens): dim, screensaver, sleep
         for (what, title) in [("dim", "Settings_System_Idle_Dim_Label"), ("saver", "Settings_System_Idle_Screensaver_Label"), ("sleep", "Settings_System_Idle_Sleep_Label")] {
             let tok = format!("{what}_{sfx}");
             let key = DROPDOWNS.iter().find(|d| d.0 == tok).unwrap().1;
-            let shown = value(s, key).as_f64().map(|v| idle_label(v.round() as i64)).unwrap_or_else(|| "Недоступно".into());
-            l.dropdown(&tok, ru(title), shown);
+            let shown = value(s, key).as_f64().map(|v| idle_label(v.round() as i64, locale)).unwrap_or_else(|| locale.tr("power.unavailable"));
+            l.dropdown(&tok, label(locale, title), shown);
         }
         l.gap();
     }
     if low_power_supported(s) {
-        l.header(ru("Settings_LowPowerDownloads_Section"));
-        l.toggle("lowpower", ru("Settings_LowPowerDownloads_Enable"), ru("Settings_LowPowerDownloads_Details").trim().to_string());
-        if battery { l.toggle("lowpower_battery", ru("Settings_LowPowerDownloads_AllowBattery"), ru("Settings_LowPowerDownloads_AllowBatteryDetails")); }
+        l.header(label(locale, "Settings_LowPowerDownloads_Section"));
+        l.toggle("lowpower", label(locale, "Settings_LowPowerDownloads_Enable"), label(locale, "Settings_LowPowerDownloads_Details").trim().to_string());
+        if battery { l.toggle("lowpower_battery", label(locale, "Settings_LowPowerDownloads_AllowBattery"), label(locale, "Settings_LowPowerDownloads_AllowBatteryDetails")); }
         l.gap();
     }
-    l.header(ru("Settings_CEC_Header_Long"));
-    l.toggle("cec", ru("Settings_CEC_Control"), String::new());
+    l.header(label(locale, "Settings_CEC_Header_Long"));
+    l.toggle("cec", label(locale, "Settings_CEC_Control"), String::new());
     let wake_supported = s["power"]["cec_wake_supported"].as_bool().unwrap_or(false);
-    l.toggle("cec_wake_device", ru("Settings_CEC_WakeDevice"), if wake_supported { String::new() } else { ru("Settings_CEC_WakeDeviceSupportedDesc") });
-    l.toggle("cec_suspend_device", ru("Settings_CEC_SuspendDevice"), String::new());
-    l.toggle("cec_wake_tv", ru("Settings_CEC_WakeTV"), String::new());
-    l.toggle("cec_suspend_tv", ru("Settings_CEC_SuspendTV"), String::new());
+    l.toggle("cec_wake_device", label(locale, "Settings_CEC_WakeDevice"), if wake_supported { String::new() } else { label(locale, "Settings_CEC_WakeDeviceSupportedDesc") });
+    l.toggle("cec_suspend_device", label(locale, "Settings_CEC_SuspendDevice"), String::new());
+    l.toggle("cec_wake_tv", label(locale, "Settings_CEC_WakeTV"), String::new());
+    l.toggle("cec_suspend_tv", label(locale, "Settings_CEC_SuspendTV"), String::new());
     l.rows
 }
 
@@ -228,11 +275,15 @@ pub fn slider_tick(s: &Value) -> String {
 
 /// Options of a drop-down: stock list plus the current custom value, sorted.
 pub fn options(key: &str, s: &Value) -> Option<Vec<(String, Value)>> {
+    options_for_locale(key, s, i18n::current())
+}
+
+fn options_for_locale(key: &str, s: &Value, locale: &Locale) -> Option<Vec<(String, Value)>> {
     let current = value(s, key).as_f64()?.round() as i64;
     let mut v: Vec<i64> = std::iter::once(0).chain(IDLE_CHOICES).chain([current]).collect();
     v.sort_unstable();
     v.dedup();
-    Some(v.into_iter().map(|x| (idle_label(x), json!(x))).collect())
+    Some(v.into_iter().map(|x| (idle_label(x, locale), json!(x))).collect())
 }
 
 /// Index of the row to focus after the layout was rebuilt: the same control; if it is gone, the focusable row just above its old spot
@@ -284,7 +335,7 @@ impl App {
         let rolled_back = shown.as_bool() != Some(want);
         self.se.snapshot["power"]["percent"] = shown;
         if self.se.page_id() == PAGE && self.se.recording_menu.is_none() {
-            if rolled_back { self.toast("Steam не сохранил настройку — значение возвращено"); }
+            if rolled_back { self.toast(&i18n::tr("power.toast.percent_rollback")); }
             self.push_settings();
         }
     }
@@ -308,7 +359,7 @@ impl App {
         let Some(r) = self.se.cf.and_then(|i| self.se.rows.get(i)) else { return false };
         if r.tok != "power-slider" || !matches!(a, Action::Left | Action::Right) { return false; }
         if available_on(r, &self.se.snapshot) < 0 {
-            self.toast("Включите ограничение предельного заряда батареи");
+            self.toast(&i18n::tr("power.toast.enable_limit"));
             return true;
         }
         let (min, max, _) = limit_range(&self.se.snapshot);
@@ -342,7 +393,7 @@ impl App {
         self.power_flush();
         if let Some(key) = dropdown_key(&r.tok) {
             let Some(values) = options(key, &self.se.snapshot) else {
-                self.toast("Не удалось прочитать значение из Steam");
+                self.toast(&i18n::tr("power.toast.read_failed"));
                 return true;
             };
             self.header_clear();
@@ -353,7 +404,7 @@ impl App {
                 self.se.rows.push(PRow { k: 26, lab: label.clone(), tok: format!("recording-option:{i}"), f: true, pad: "A,touch,mouse".into(), ..Default::default() });
             }
             // stock list ends with «Отмена» after a separator; its index is past the values, so choosing it only closes the list
-            self.se.rows.push(PRow { k: 26, lab: ru("Settings_Cancel"), tok: format!("recording-option:{}", values.len()), f: true, pad: "A,touch,mouse".into(), ..Default::default() });
+            self.se.rows.push(PRow { k: 26, lab: label(i18n::current(), "Settings_Cancel"), tok: format!("recording-option:{}", values.len()), f: true, pad: "A,touch,mouse".into(), ..Default::default() });
             self.se.power_menu_y = (r.y + r.h / 2. - self.se.vy) * SC;
             self.se.recording_menu = Some((r.tok.clone(), values));
             self.se.cf = Some(start + selected);
@@ -363,7 +414,13 @@ impl App {
         if let Some(key) = toggle_key(&r.tok) {
             let state = available_on(r, &self.se.snapshot);
             if state < 0 {
-                let msg = if key == "steamos_cec_wake_device" { ru("Settings_CEC_WakeDeviceSupportedDesc") } else if key.starts_with("steamos_cec_") && key != "steamos_cec_control" { "Сначала включите ввод с пульта управления".into() } else { "Настройка недоступна: Steam не вернул её значение".into() };
+                let msg = if key == "steamos_cec_wake_device" {
+                    label(i18n::current(), "Settings_CEC_WakeDeviceSupportedDesc")
+                } else if key.starts_with("steamos_cec_") && key != "steamos_cec_control" {
+                    i18n::tr("power.toast.enable_cec")
+                } else {
+                    i18n::tr("power.toast.unavailable")
+                };
                 self.toast(&msg);
                 return true;
             }
@@ -375,7 +432,7 @@ impl App {
         if r.tok == "power-tg:pct" {
             let state = available_on(r, &self.se.snapshot);
             if state < 0 {
-                self.toast("Настройка недоступна: Steam не вернул её значение");
+                self.toast(&i18n::tr("power.toast.unavailable"));
             } else {
                 self.power_write("percent", json!(state == 0));
                 crate::sound::play(if state == 0 { crate::sound::Snd::ToggleOn } else { crate::sound::Snd::ToggleOff });

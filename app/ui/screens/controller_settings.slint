@@ -1,3 +1,4 @@
+import { ControllerText } from "controller_text.slint";
 // Source fixture: Gaming Mode stick settings capture 24d, DPR 1.5.
 import { GStyle } from "../generated/style.slint";
 export struct ControllerSettingRow { kind: int, label: string, description: string, value: string, fraction: float, y: length, h: length, }
@@ -16,7 +17,7 @@ export component ControllerSettingsView inherits Rectangle {
     background: #0e141b;
     Rectangle { x: 0px; y: 0px; width: 360px; height: parent.height; background: #20252a;
         Text { x: 36px; y: 76px; width: 288px; height: 30px; text: root.source; color: #8b929a; font-size: 19px; font-weight: 700; horizontal-alignment: center; overflow: elide; font-family: GStyle.loc-font; }
-        Text { x: 36px; y: 110px; width: 288px; height: 34px; text: "Настройки Джойстик"; color: #dcdedf; font-size: 24px; horizontal-alignment: center; overflow: elide; font-family: GStyle.loc-font; }
+        Text { x: 36px; y: 110px; width: 288px; height: 34px; text: ControllerText.joystick-settings; color: #dcdedf; font-size: 24px; horizontal-alignment: center; overflow: elide; font-family: GStyle.loc-font; }
         for section[i] in root.sections: Rectangle { x: 0px; y: 181px + i * 63px; width: parent.width; height: 63px; background: root.active-section == i ? #40444b : transparent;
             TouchArea { clicked => { root.section-clicked(i); } }
             Text { x: 36px; y: 0px; width: 300px; height: parent.height; text: section; color: root.active-section == i ? #ffffff : #b8bcbf; font-size: 25px; vertical-alignment: center; overflow: elide; font-family: GStyle.loc-font; }

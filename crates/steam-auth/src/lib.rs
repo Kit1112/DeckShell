@@ -7,6 +7,7 @@
 //! передаёт их в `SteamClient.Auth.SetLoginToken(refresh, account)` и `SetSteamGuardData` (sp.js 414798, 535708);
 //! это делает поток смены аккаунта. Токены не пишутся на диск и не печатаются (`Debug` скрывает их).
 
+use steam_assets::i18n::tr_args;
 pub mod proto;
 pub mod qr;
 pub mod credentials;
@@ -43,9 +44,9 @@ pub enum Error {
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Error::Network(e) => write!(f, "сеть: {e}"),
+            Error::Network(e) => write!(f, "{}", tr_args("steam_auth.network", &[("e", &e.to_string())])),
             Error::Steam(r) => write!(f, "Steam EResult {r}"),
-            Error::Protocol(e) => write!(f, "протокол: {e}"),
+            Error::Protocol(e) => write!(f, "{}", tr_args("steam_auth.protocol", &[("e", &e.to_string())])),
         }
     }
 }
@@ -123,7 +124,7 @@ impl Drop for Secret {
     }
 }
 impl std::fmt::Debug for Secret {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { write!(f, "Secret(<{} байт>)", self.0.len()) }
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { write!(f, "{}", tr_args("steam_auth.secret_debug", &[("bytes", &(self.0.len()).to_string())])) }
 }
 
 /// Итог успешного входа. Передаётся потоку смены аккаунта: `SetLoginToken(refresh_token, account_name)`,

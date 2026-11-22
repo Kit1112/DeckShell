@@ -1,4 +1,5 @@
 //! /routes/library/home - recents carousel.
+use steam_assets::i18n;
 use std::rc::Rc;
 
 use slint::{ComponentHandle, Model, ModelRc, VecModel};
@@ -110,7 +111,7 @@ pub fn wire_models(app: &App, ui: &AppWindow) {
 }
 
 pub fn init_strings(ui: &AppWindow) {
-    ui.global::<HomeState>().set_lib_label(t_or("#GamepadHome_GoToLibrary", "Открыть библиотеку").into());
+    ui.global::<HomeState>().set_lib_label(t_or("#GamepadHome_GoToLibrary", i18n::tr_ref("home.view_more_in_your_library")).into());
 }
 
 fn first_focusable_item(items: &[Item]) -> Option<usize> {
@@ -243,11 +244,11 @@ impl App {
             st.set_hero_title(g.name.as_str().into());
             let fp = self.friends_playing(g.app_id);
             let sub = if fp > 0 {
-                format!("{} {fp}", t_or("#LibraryHome_FriendsPlaying", "Друзей играет:"))
+                format!("{} {fp}", t_or("#LibraryHome_FriendsPlaying", i18n::tr_ref("home.friends_play")))
             } else if self.is_running(g.app_id) {
-                t_or("#GameAction_ResumeGameInProgress", "Возобновить").to_uppercase()
+                t_or("#GameAction_ResumeGameInProgress", i18n::tr_ref("home.resume")).to_uppercase()
             } else if g.playtime_minutes == 0 {
-                t_or("#AppBox_NoPlayTimeYet", "Нет проведённого в игре времени").to_uppercase()
+                t_or("#AppBox_NoPlayTimeYet", i18n::tr_ref("home.no_playtime_yet")).to_uppercase()
             } else {
                 format!("{}: {}   {}: {}", t("#AppDetails_SectionTitle_PlayTime").to_uppercase(), fmt_playtime(g.playtime_minutes).to_uppercase(), t("#AppDetails_SectionTitle_LastPlayed").to_uppercase(), fmt_ago(g.last_played).to_uppercase())
             };
@@ -342,8 +343,8 @@ impl App {
         }
         crate::app::fmt_ago(Some(t as u64))
             .to_string()
-            .replace("Сегодня", "сегодня")
-            .replace("Вчера", "вчера")
+            .replace(i18n::tr_ref("home.today"), i18n::tr_ref("home.later_today"))
+            .replace(i18n::tr_ref("home.yesterday"), i18n::tr_ref("home.yesterday_2"))
     }
 
     /// The lower page rows of the selected tab (sp.js 392300 tabs; data = feed.rs).
@@ -358,25 +359,25 @@ impl App {
                 if let Some(f) = &f {
                     for e in f.events.iter().take(8) {
                         let gi = game_of(self, e.appid);
-                        let kind = if e.category.is_empty() { "НОВОСТЬ".to_string() } else { e.category.to_uppercase() };
+                        let kind = if e.category.is_empty() { i18n::tr_ref("home.news").to_string() } else { e.category.to_uppercase() };
                         let game = gi.map(|g| self.games()[g].name.clone()).unwrap_or_default();
                         v.push(Item { kind: 1, title: if e.name.is_empty() { game.clone() } else { e.name.clone() }, sub: if game.is_empty() { e.summary.clone() } else { format!("{game} - {}", e.summary) }, tag: format!("{kind}  {}", Self::ago(now, e.post)), gi, act: ItemAct::Game(e.appid) });
                     }
                     if !f.completed.is_empty() {
-                        v.push(hdr(t_or("#LibraryHome_RecentlyCompleted", "Недавно обновлено на этом устройстве")));
+                        v.push(hdr(t_or("#LibraryHome_RecentlyCompleted", i18n::tr_ref("home.recently_updated_on_this_device"))));
                         for c in f.completed.iter().take(8) {
                             let gi = game_of(self, c.appid);
                             let name = gi.map(|g| self.games()[g].name.clone()).unwrap_or_else(|| format!("AppID {}", c.appid));
-                            let gb = if c.bytes > 0 { format!("{:.1} ГБ", c.bytes as f64 / 1e9) } else { String::new() };
+                            let gb = if c.bytes > 0 { i18n::tr_args("home.gb", &[("e9", &format!("{:.1}", c.bytes as f64 / 1e9))]) } else { String::new() };
                             v.push(Item { kind: 1, title: name, sub: gb, tag: Self::ago(now, c.time), gi, act: ItemAct::Game(c.appid) });
                         }
                     }
                     let st: Vec<_> = f.store.iter().filter(|a| a.ready && !a.name.is_empty()).take(10).collect();
                     if !st.is_empty() {
-                        v.push(hdr(t_or("#LibraryHome_TrendingWithFriends", "Популярно у друзей")));
+                        v.push(hdr(t_or("#LibraryHome_TrendingWithFriends", i18n::tr_ref("home.trending_among_friends"))));
                         for a in st {
-                            let tag = if a.owned { String::new() } else if a.soon { "СКОРО".to_string() } else if a.free { "БЕСПЛАТНО".to_string() } else if a.pct > 0 { format!("-{}%  {}", a.pct, a.price) } else { a.price.clone() };
-                            v.push(Item { kind: 1, title: a.name.clone(), sub: if a.owned { "В БИБЛИОТЕКЕ".into() } else { String::new() }, tag, gi: game_of(self, a.appid), act: if a.owned { ItemAct::Game(a.appid) } else { ItemAct::Store(a.appid) } });
+                            let tag = if a.owned { String::new() } else if a.soon { i18n::tr_ref("home.soon").to_string() } else if a.free { i18n::tr_ref("home.free").to_string() } else if a.pct > 0 { format!("-{}%  {}", a.pct, a.price) } else { a.price.clone() };
+                            v.push(Item { kind: 1, title: a.name.clone(), sub: if a.owned { i18n::tr_ref("home.in_the_library").into() } else { String::new() }, tag, gi: game_of(self, a.appid), act: if a.owned { ItemAct::Game(a.appid) } else { ItemAct::Store(a.appid) } });
                         }
                     }
                 }
@@ -387,25 +388,25 @@ impl App {
                     fr.sort_by_key(|x| (x.gameid == 0 && x.game.is_empty(), x.name.to_lowercase()));
                     let playing = fr.iter().filter(|x| x.gameid != 0 || !x.game.is_empty()).count();
                     if playing > 0 {
-                        v.push(hdr(format!("{}: {playing}", t_or("#FriendsUI_InGame", "Сейчас в игре"))));
+                        v.push(hdr(format!("{}: {playing}", t_or("#FriendsUI_InGame", i18n::tr_ref("home.now_playing")))));
                     }
                     let mut shown_online = false;
                     for x in fr.iter().take(40) {
                         let in_game = x.gameid != 0 || !x.game.is_empty();
                         if !in_game && !shown_online {
-                            v.push(hdr("В сети".into()));
+                            v.push(hdr(i18n::tr_ref("home.online").into()));
                             shown_online = true;
                         }
                         let gi = game_of(self, x.gameid);
-                        v.push(Item { kind: 1, title: x.name.clone(), sub: if in_game { x.game.clone() } else { String::new() }, tag: if in_game { String::new() } else { "В СЕТИ".into() }, gi, act: if x.gameid != 0 { ItemAct::Game(x.gameid) } else { ItemAct::None } });
+                        v.push(Item { kind: 1, title: x.name.clone(), sub: if in_game { x.game.clone() } else { String::new() }, tag: if in_game { String::new() } else { i18n::tr_ref("home.online_2").into() }, gi, act: if x.gameid != 0 { ItemAct::Game(x.gameid) } else { ItemAct::None } });
                     }
                 }
             }
             _ => {
-                v.push(Item { kind: 2, title: t_or("#GamepadHome_RecommendationsButton", "ОТКРЫТЬ НОВЫЙ СПИСОК РЕКОМЕНДАЦИЙ"), sub: String::new(), tag: String::new(), gi: None, act: ItemAct::Discovery });
+                v.push(Item { kind: 2, title: t_or("#GamepadHome_RecommendationsButton", i18n::tr_ref("home.open_a_new_list_of_recommendations")), sub: String::new(), tag: String::new(), gi: None, act: ItemAct::Discovery });
                 if let Some(f) = &f {
                     if !f.play_next.is_empty() {
-                        v.push(hdr(t_or("#LibraryHome_PlayNext", "Во что поиграть дальше")));
+                        v.push(hdr(t_or("#LibraryHome_PlayNext", i18n::tr_ref("home.what_to_play_next"))));
                         for id in f.play_next.iter().take(12) {
                             if let Some(gi) = game_of(self, *id) {
                                 let g = &self.games()[gi];
@@ -478,9 +479,9 @@ impl App {
         }
         let in_game = self.friends_in_game();
         let tabs = vec![
-            ("#LibraryHome_WhatsNew", "Что нового", String::new()),
-            ("#FriendsUI_Friends", "Друзья", if in_game > 0 { in_game.to_string() } else { String::new() }),
-            ("#LibraryHome_Recommended", "Рекомендации", String::new()),
+            ("#LibraryHome_WhatsNew", i18n::tr_ref("home.what_s_new"), String::new()),
+            ("#FriendsUI_Friends", i18n::tr_ref("home.friends"), if in_game > 0 { in_game.to_string() } else { String::new() }),
+            ("#LibraryHome_Recommended", i18n::tr_ref("home.recommended"), String::new()),
         ];
         let tabs: Vec<crate::GTab> = tabs.into_iter().enumerate().map(|(i, (tok, fb, badge))| crate::GTab { label: t_or(tok, fb).into(), badge: badge.into(), selected: i == self.hm.tab }).collect();
         let ui = self.ui();
@@ -493,9 +494,9 @@ impl App {
         st.set_list_scroll(self.hm.scroll);
         st.set_content_h(y);
         let empty_txt = match self.hm.tab {
-            1 => t_or("#FriendsUI_NoFriendsOnline", "Нет друзей в сети"),
-            2 => t_or("#LibraryHome_Recommendations_Empty", "Рекомендации пока недоступны"),
-            _ => t_or("#LibraryHome_WhatsNew_Empty", "Здесь пока ничего нет"),
+            1 => t_or("#FriendsUI_NoFriendsOnline", i18n::tr_ref("home.no_friends_online")),
+            2 => t_or("#LibraryHome_Recommendations_Empty", i18n::tr_ref("home.recommendations_not_yet_available")),
+            _ => t_or("#LibraryHome_WhatsNew_Empty", i18n::tr_ref("home.there_s_nothing_here_yet")),
         };
         st.set_empty_text(empty_txt.into());
     }

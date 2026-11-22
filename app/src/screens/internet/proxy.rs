@@ -2,6 +2,7 @@
 //! «Применить» and «Сбросить». Applying goes through `SteamClient.System.Network.SetProxyInfo` (fire-and-forget setter,
 //! only logged under `DECKSHELL_DRYRUN`). Reference: `docs/stock-screens-capture-2026-11-21.md` (`settings-internet-proxy`,
 //! initial state: the toggle off, no fields).
+use steam_assets::i18n;
 use super::*;
 
 /// Applied proxy settings (what the dialog opens with).
@@ -37,11 +38,11 @@ impl ProxyForm {
     pub fn validate(&self) -> Result<ProxyCfg, (P, String)> {
         if !self.cfg.enabled { return Ok(ProxyCfg { enabled: false, ..self.saved.clone() }); }
         let host = self.cfg.host.trim().trim_start_matches("http://").trim_end_matches('/').to_string();
-        if host.is_empty() { return Err((P::Host, "Укажите адрес прокси-сервера".into())); }
-        if host.chars().any(|c| c.is_whitespace() || c == '/' || c == '@') { return Err((P::Host, "Неверный адрес прокси-сервера".into())); }
+        if host.is_empty() { return Err((P::Host, i18n::tr_ref("proxy.provide_the_address_of_the_proxy_server").into())); }
+        if host.chars().any(|c| c.is_whitespace() || c == '/' || c == '@') { return Err((P::Host, i18n::tr_ref("proxy.wrong_address_of_proxy_server").into())); }
         match self.cfg.port.parse::<u32>() {
             Ok(p) if (1..=65535).contains(&p) => Ok(ProxyCfg { enabled: true, host, port: p.to_string() }),
-            _ => Err((P::Port, "Порт должен быть числом от 1 до 65535".into())),
+            _ => Err((P::Port, i18n::tr_ref("proxy.the_port_must_be_between_1_and").into())),
         }
     }
 }
@@ -59,22 +60,22 @@ pub(super) fn sig(p: &ProxyForm) -> u64 { 7 + (p.focus as u64) * 16 + (p.cfg.ena
 
 pub(super) fn view(p: &ProxyForm, osk: bool, scroll: f32) -> DialogView {
     let mut b = B::new();
-    title_block(&mut b, &lt("#Settings_Internet_HTTPProxy", "HTTP-прокси"), p.error.as_deref());
+    title_block(&mut b, &lt("#Settings_Internet_HTTPProxy", i18n::tr_ref("proxy.http_proxy")), p.error.as_deref());
     let items = p.items();
     let mut focus_row = None;
     for (i, it) in items.iter().enumerate() {
         let foc = p.focus == *it;
         let row0 = b.rows.len();
         match it {
-            P::Toggle => b.push(DRow { kind: dk::TOGGLE, h: 68.0, label: lt("#Settings_Internet_UseProxy", "Использовать HTTP-прокси"), on: i32::from(p.cfg.enabled), focus: i32::from(foc), item: i as i32, ..Default::default() }, 78.0),
-            P::Host => field_row(&mut b, &lt("#Settings_Internet_ProxyHost", "Адрес прокси-сервера"), p.cfg.host.clone(), "", foc, i, None, false),
-            P::Port => field_row(&mut b, &lt("#Settings_Internet_ProxyPort", "Порт"), p.cfg.port.clone(), "", foc, i, None, true),
-            P::Reset => b.push(DRow { kind: dk::BUTTON_ROW, h: DLG_ROW_H, label: lt("#Settings_Internet_ProxyReset", "Сбросить настройки прокси"), value: lt("#Settings_Internet_ProxyResetButton", "Сбросить"), w2: 240.0, focus: i32::from(foc), item: i as i32, ..Default::default() }, DLG_PITCH),
+            P::Toggle => b.push(DRow { kind: dk::TOGGLE, h: 68.0, label: lt("#Settings_Internet_UseProxy", i18n::tr_ref("proxy.use_an_http_proxy")), on: i32::from(p.cfg.enabled), focus: i32::from(foc), item: i as i32, ..Default::default() }, 78.0),
+            P::Host => field_row(&mut b, &lt("#Settings_Internet_ProxyHost", i18n::tr_ref("proxy.address_of_the_proxy_server")), p.cfg.host.clone(), "", foc, i, None, false),
+            P::Port => field_row(&mut b, &lt("#Settings_Internet_ProxyPort", i18n::tr_ref("proxy.port")), p.cfg.port.clone(), "", foc, i, None, true),
+            P::Reset => b.push(DRow { kind: dk::BUTTON_ROW, h: DLG_ROW_H, label: lt("#Settings_Internet_ProxyReset", i18n::tr_ref("proxy.reset_the_proxy_settings")), value: lt("#Settings_Internet_ProxyResetButton", i18n::tr_ref("proxy.reset")), w2: 240.0, focus: i32::from(foc), item: i as i32, ..Default::default() }, DLG_PITCH),
             P::Apply | P::Cancel => {
                 if *it == P::Apply {
                     let pf = match p.focus { P::Apply => 1, P::Cancel => 2, _ => 0 };
                     b.y = b.last_bottom + 24.0;
-                    b.push(DRow { kind: dk::PAIR, h: DLG_BTN_H, label: lt("#Button_Cancel", "Отмена"), value: lt("#Button_Apply", "Применить"), on: 1, focus: pf, item: i as i32, ..Default::default() }, DLG_BTN_H);
+                    b.push(DRow { kind: dk::PAIR, h: DLG_BTN_H, label: lt("#Button_Cancel", i18n::tr_ref("proxy.cancel")), value: lt("#Button_Apply", i18n::tr_ref("proxy.apply")), on: 1, focus: pf, item: i as i32, ..Default::default() }, DLG_BTN_H);
                 }
                 if foc { focus_row = Some(b.rows.len() - 1); }
                 continue;

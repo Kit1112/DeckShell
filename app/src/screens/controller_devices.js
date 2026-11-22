@@ -1,19 +1,20 @@
 // Runs in SharedJSContext. These are the same native services used by the settings,
 // calibration and device-support pages in Steam's sp.js.
 (async (req) => {
+    const text = /*text*/;
     const store = window.ControllerStore;
-    if (!store) throw new Error("ControllerStore недоступен");
+    if (!store) throw new Error(text.controllerstore_unavailable);
     const input = SteamClient.Input;
     const settings = SteamClient.Settings;
     const checked = (reply, method) => {
         if (reply === false || (typeof reply?.BSuccess === "function" && !reply.BSuccess()))
-            throw new Error(method + ": " + (reply?.GetEResult?.() ?? "Steam отклонил запрос"));
+            throw new Error(method + ": " + (reply?.GetEResult?.() ?? text.steam_rejected_the_request));
         return reply;
     };
     const device = () => {
         const d = store.GetController(req.index);
         if (!d || d.eControllerType !== req.type || (d.strSerialNumber ?? "") !== req.serial)
-            throw new Error("Контроллер отключён или заменён");
+            throw new Error(text.controller_disconnected_or_replaced);
         return d;
     };
     const hasGyro = d => (BigInt(d?.unCapabilities ?? 0) & (1n << 11n)) !== 0n;
@@ -39,7 +40,7 @@
     const gyroSession = () => {
         const session = window[gyroSlot];
         if (!session || session.closed || session.token !== req.token)
-            throw new Error("Steam потерял сеанс калибровки");
+            throw new Error(text.steam_lost_the_calibration_session);
         return session;
     };
     const fields = [
@@ -69,7 +70,7 @@
             if (lease?.token !== req.token) {
                 if (lease) await lease.close();
                 if (req.mode === "test" && store.m_nSupportCounter !== 0)
-                    throw new Error("Steam уже выполняет тест контроллера");
+                    throw new Error(text.steam_is_already_running_a_controller_test);
                 const api = req.mode === "test" ? null : manager();
                 const modes = req.mode === "gyro" ? [4] : [1];
                 const started = [];
@@ -175,20 +176,20 @@
         case "gyro-target": {
             const d = req.type === undefined ? store.GetController(req.index) : device();
             const mode = gyroMode(d);
-            if (!mode) throw new Error("Гироскоп выбранного контроллера недоступен");
+            if (!mode) throw new Error(text.selected_controller_s_gyro_is_unavailable);
             if (req.token && !d.strSerialNumber)
                 window[gyroPrompt] = { token: req.token, controller: new WeakRef(d) };
             return {nControllerIndex: d.nControllerIndex, eControllerType: d.eControllerType,
                 strSerialNumber: d.strSerialNumber ?? "", name: d.strName ?? "", mode};
         }
         case "gyro-start": {
-            if (window[gyroSlot]) throw new Error("Калибровка уже выполняется");
+            if (window[gyroSlot]) throw new Error(text.calibration_is_already_running);
             const d = device();
             if (!req.serial && (window[gyroPrompt]?.token !== req.token || window[gyroPrompt].controller.deref() !== d))
-                throw new Error("Steam обновил контроллер без серийного номера");
+                throw new Error(text.steam_refreshed_the_controller_without_a_serial_number);
             if (window[gyroPrompt]?.token === req.token) delete window[gyroPrompt];
             if (gyroMode(d) !== req.mode)
-                throw new Error("Режим калибровки изменился. Откройте мастер заново");
+                throw new Error(text.calibration_mode_changed_reopen_the_wizard);
             const api = req.mode === "software" ? manager() : null;
             const args = { controller_index: req.index, side: gyroSide };
             const flow = { controller_index: req.index, flow_mode: 5 };
@@ -200,7 +201,7 @@
                     // Steam can refresh this object during one connection. Check its stable identity.
                     const current = device();
                     if (!req.serial && current !== this.controller)
-                        throw new Error("Steam обновил контроллер без серийного номера");
+                        throw new Error(text.steam_refreshed_the_controller_without_a_serial_number);
                     return current;
                 },
                 renew() {
@@ -234,7 +235,7 @@
                             }
                             break;
                         case 4:
-                            this.view = { stage: "failed", detail: "Steam сообщил об ошибке калибровки", retryable: true };
+                            this.view = { stage: "failed", detail: text.steam_reported_a_calibration_error, retryable: true };
                             break;
                     }
                 },
@@ -272,7 +273,7 @@
                 if (api) {
                     session.registration = api.RegisterForNotifyGyroCalibrationStateChanged(message => session.observe(message));
                     if (typeof session.registration?.unregister !== "function")
-                        throw new Error("Steam не предоставил подписку на калибровку");
+                        throw new Error(text.steam_did_not_provide_a_calibration_subscription);
                     session.flowed = true;
                     await rpc(api, "StartControllerStateFlow", flow);
                     if (session.closed) return;
@@ -306,7 +307,7 @@
             const d = session.sameDevice();
             const sample = session.completed;
             if (!session.acknowledged || session.saving || !sample || !session.view.savable)
-                throw new Error("Steam не предоставил новые допуски для сохранения");
+                throw new Error(text.steam_did_not_provide_new_calibration_tolerances_to);
             session.saving = true;
             session.renew();
             const oldAccel = d.flAccelerometerStationaryTolerance;
@@ -330,7 +331,7 @@
             await native("SetSteamControllerDonglePairingMode", [req.value, req.cancel]);
             break;
         default:
-            throw new Error("Неизвестное действие контроллера");
+            throw new Error(text.unknown_controller_action);
     }
     return true;
 })(/*request*/)

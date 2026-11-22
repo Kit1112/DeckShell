@@ -1,4 +1,5 @@
 //! Пассивная стопка уведомлений: три карточки, новые снизу, уход вправо.
+use steam_assets::i18n::tr_args;
 use std::{cell::RefCell, collections::VecDeque, time::Duration};
 use slint::{ComponentHandle, Model};
 use crate::{AppWindow, RecBadgeWindow, ToastState, ToastData};
@@ -18,9 +19,14 @@ pub struct Event {
     pub image: String,
 }
 impl Event {
-    pub fn message(text: &str) -> Self { Self { title: "Уведомление".into(), body: text.into(), ..Default::default() } }
-    pub fn capture(text: &str) -> Self {
-        Self { title: text.into(), kind: if text.starts_with("Скриншот") { "screenshot" } else { "recording" }.into(), ..Default::default() }
+    pub fn message(text: &str) -> Self { Self { title: steam_assets::i18n::tr("notification.title"), body: text.into(), ..Default::default() } }
+    pub fn recording(active: bool) -> Self {
+        let (kind, title) = if active {
+            ("recording", "capture.recording_started")
+        } else {
+            ("recording_finished", "capture.recording_finished")
+        };
+        Self { title: steam_assets::i18n::tr(title), kind: kind.into(), ..Default::default() }
     }
     pub fn resolve_screenshot(&mut self, root: &std::path::Path, user: Option<u32>) {
         if self.kind != "screenshot" { return; }
@@ -69,7 +75,7 @@ pub fn prepare(main: &AppWindow) {
                     w.window().set_size(main.window().size());
                     q.window = Some(w);
                 }
-                Err(e) => eprintln!("[deckshell] уведомления: окно не создано: {e}"),
+                Err(e) => eprintln!("{}", tr_args("notification.window_failed", &[("e", &e.to_string())])),
             }
         }
         q.ready = q.window.is_some();
@@ -95,7 +101,7 @@ fn ensure_mapped(main: &AppWindow) -> bool {
             }
             Err(e) => {
                 let _ = w.hide();
-                if q.failures % 20 == 0 { eprintln!("[deckshell] поверхность уведомлений недоступна: {e}"); }
+                if q.failures % 20 == 0 { eprintln!("{}", tr_args("notification.surface_unavailable", &[("e", &e.to_string())])); }
                 q.failures += 1;
                 false
             }
@@ -161,10 +167,14 @@ fn next(main: &AppWindow) {
         let id = q.serial;
         q.slots.push_back(Slot { id, row, leaving: false });
         let glyph = crate::assets::icon_image(match event.kind.as_str() {
-            "screenshot" => "Screenshot", "achievement" => "Achievement", "friend" => "controller", "recording" => "Video", _ => "SteamLogo",
+            "screenshot" => "Screenshot", "achievement" => "Achievement", "friend" => "controller", "recording" | "recording_finished" => "Video", _ => "SteamLogo",
         });
-        let logo = if event.kind == "recording" { recording_logo(event.title.contains("завершена")) }
-            else if event.kind.is_empty() { crate::assets::icon_image("SteamLogo") } else { Default::default() };
+        let logo = match event.kind.as_str() {
+            "recording" => recording_logo(false),
+            "recording_finished" => recording_logo(true),
+            "" => crate::assets::icon_image("SteamLogo"),
+            _ => Default::default(),
+        };
         q.model.set_row_data(row, ToastData {
             title: event.title.clone().into(), body: event.body.clone().into(), glyph, logo,
             friend: event.kind == "friend", screenshot: event.kind == "screenshot",
@@ -500,8 +510,8 @@ mod tests {
         QUEUE.with(|q| assert!(q.borrow().slots.is_empty()));
 
         // Exercise the real capture -> queue -> ToastData wiring, not just the fixture logo.
-        for title in ["Запись началась", "Запись завершена"] {
-            enqueue(&main, Event::capture(title), false);
+        for active in [true, false] {
+            enqueue(&main, Event::recording(active), false);
         }
         QUEUE.with(|q| {
             let q = q.borrow();

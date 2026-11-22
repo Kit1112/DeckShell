@@ -10,6 +10,7 @@
 //!  * started from outside (power button, Steam, `systemctl`): we hold a logind *delay* inhibitor (`shutdown:sleep`); on
 //!    `PrepareForSleep/Shutdown(true)` the animation plays, trimmed to `InhibitDelayMaxUSec` minus a safety margin, and the
 //!    lock is released when it ends - so the machine can no longer suspend / power off in the middle of it.
+use steam_assets::i18n::tr_ref;
 use crate::actions::dryrun;
 use crate::data::PowerAction;
 use crate::AppWindow;
@@ -572,38 +573,38 @@ pub fn active() -> bool {
 /// Full-screen preview of a specific animation with sound; any fresh input skips it. Nothing else changes.
 pub fn preview(id: &str, suspend: bool) -> Result<(), String> {
     if !active() {
-        return Err("Проигрыватель анимаций выключен: предпросмотр на весь экран недоступен".into());
+        return Err(tr_ref("animation.player_disabled").into());
     }
     if player::is_playing() {
-        return Err("Уже идёт воспроизведение".into());
+        return Err(tr_ref("animation.already_playing").into());
     }
     let kind = if suspend { Kind::Suspend } else { Kind::Boot };
     // "" = the default: the slot resolver falls back to uioverrides / Steam's stock movie
     let ok = play(Req { path: None, kind, id: Some(id.to_string()), end: End::FadeOut, skippable: true, budget: None, on_done: Box::new(|_| {}) });
-    ok.then_some(()).ok_or_else(|| "Файл анимации не найден".into())
+    ok.then_some(()).ok_or_else(|| tr_ref("animation.animation_missing").into())
 }
 
 /// Full-screen preview of a file that is not in the config (a catalog preview video).
 pub fn preview_file(path: PathBuf) -> Result<(), String> {
     if !active() {
-        return Err("Проигрыватель анимаций выключен: предпросмотр на весь экран недоступен".into());
+        return Err(tr_ref("animation.player_disabled").into());
     }
     if player::is_playing() {
-        return Err("Уже идёт воспроизведение".into());
+        return Err(tr_ref("animation.already_playing").into());
     }
     let ok = play(Req { path: Some(path), kind: Kind::Boot, id: None, end: End::FadeOut, skippable: true, budget: None, on_done: Box::new(|_| {}) });
-    ok.then_some(()).ok_or_else(|| "Файл не найден".into())
+    ok.then_some(()).ok_or_else(|| tr_ref("animation.file_missing").into())
 }
 
 /// Предпросмотр в карточке каталога с тем же декодером и микшером, что у ролика запуска.
 pub fn preview_catalog(ui: &AppWindow, path: PathBuf, on_done: impl FnOnce(Outcome) + 'static) -> Result<(), String> {
     if player::INPUT_MODE.load(Ordering::Relaxed) != 0 {
-        return Err("Уже идёт воспроизведение".into());
+        return Err(tr_ref("animation.already_playing").into());
     }
     let (cache_dir, volume, delay) = with_config(|c, _| (c.dirs.cache.clone(), c.x.volume, c.x.audio_latency_ms));
     player::set_ui(ui.as_weak());
     player::start(path, PlayOpts {
-        label: "Предпросмотр каталога".into(),
+        label: tr_ref("animation.catalog_preview").into(),
         in_catalog: true,
         defer_initial_show: false,
         skippable: false,

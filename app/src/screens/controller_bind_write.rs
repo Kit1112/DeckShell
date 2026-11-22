@@ -6,6 +6,7 @@
 //! Wire shapes are those of the stock configurator (`SetControllerInputBinding` / `SetControllerInputActivator`
 //! in sp.js): a new command appends with binding index -1; a removal omits `new_binding`; an activator without
 //! `new_activation` is deleted; `EControllerActivationType` numbers come from the stock enum module.
+use steam_assets::i18n::{tr_args, tr_ref};
 use super::controller_live as live;
 use crate::assets::t_or;
 use steam_bridge::controller_edit::BindingTarget;
@@ -59,13 +60,13 @@ pub fn remove_new_binding(ed: &dyn Editor, raw: &[u8], target: &BindingTarget) -
     let target = at_first(target);
     let mut current = ed.remove_binding(raw, &target)?;
     if live::binding_at(&current, &target).is_ok() {
-        return Err(steam_bridge::Error::Protocol("Steam не удалил команду".into()));
+        return Err(steam_bridge::Error::Protocol(tr_ref("controller.steam_did_not_remove_the_command").into()));
     }
     // The stock deletes an emptied activator too; leave the input exactly as it was (no activators).
     if live::activator_count(&current, &target) > target.activator_index as usize {
         current = ed.set_activator(&current, &target, None)?;
         if live::activator_count(&current, &target) > target.activator_index as usize {
-            return Err(steam_bridge::Error::Protocol("Steam не удалил пустой активатор".into()));
+            return Err(steam_bridge::Error::Protocol(tr_ref("controller.steam_did_not_remove_the_empty_activator").into()));
         }
     }
     Ok(current)
@@ -77,13 +78,13 @@ pub fn write_binding(ed: &dyn Editor, raw: &[u8], target: &BindingTarget, bindin
     let read = at_first(target);
     let old = (target.binding_index >= 0).then(|| live::binding_at(raw, target).ok()).flatten();
     if target.binding_index >= 0 && old.is_none() {
-        return Outcome::Unsure("Исходная команда не найдена в копии раскладки".into());
+        return Outcome::Unsure(tr_ref("controller.original_command_not_found_in_the_editing_copy").into());
     }
     let mut base = raw.to_vec();
     let why = match ed.set_binding(raw, target, binding) {
         Ok(reply) => match live::binding_at(&reply, &read).map_err(|e| e.to_string()).and_then(|got| live::same_command(&got, binding).map_err(|e| e.to_string())) {
             Ok(true) => return Outcome::Done(reply),
-            Ok(false) => { base = reply; "Steam вернул другую команду".to_string() }
+            Ok(false) => { base = reply; tr_ref("controller.steam_returned_a_different_command").to_string() }
             Err(e) => { base = reply; e }
         },
         Err(e) => e.to_string(),
@@ -127,9 +128,9 @@ pub fn activation_options(analog: bool, always_on: bool) -> Vec<(i64, &'static s
 /// Localized name of an activation type (`#ControllerBinding_ActivatorDropDown_<id>`).
 pub fn activation_label(value: i64) -> String {
     let (id, fallback) = match value {
-        1 => ("FullPress", "Обычное нажатие"), 2 => ("SoftPress", "Слабое нажатие"), 3 => ("StartPress", "Начало нажатия"),
-        4 => ("Release", "Завершение нажатия"), 5 => ("LongPress", "Долгое нажатие"), 6 => ("DoublePress", "Двойное нажатие"),
-        7 => ("Analog", "Аналоговый"), 8 => ("Chord", "Кнопка активатора"), _ => return format!("Тип {value}"),
+        1 => ("FullPress", tr_ref("controller.regular_press")), 2 => ("SoftPress", tr_ref("controller.soft_press")), 3 => ("StartPress", tr_ref("controller.start_press")),
+        4 => ("Release", tr_ref("controller.release_press")), 5 => ("LongPress", tr_ref("controller.long_press")), 6 => ("DoublePress", tr_ref("controller.double_tap")),
+        7 => ("Analog", tr_ref("controller.analog")), 8 => ("Chord", tr_ref("controller.chord_button")), _ => return tr_args("controller.type_value", &[("value", &value.to_string())]),
     };
     t_or(&format!("#ControllerBinding_ActivatorDropDown_{id}"), fallback)
 }
@@ -142,7 +143,7 @@ pub fn write_mode(ed: &dyn Editor, raw: &[u8], set_index: usize, source: i64, mo
     let target = match quick::mode_target_at(raw, set_index, source) { Ok(t) => t, Err(e) => return Outcome::Unsure(e.to_string()) };
     let (why, base) = match ed.set_mode(&target, mode) {
         Ok(reply) if quick::mode_in_set(&reply, set_index, source) == mode => return Outcome::Done(reply),
-        Ok(reply) => ("Steam вернул другой режим".to_string(), reply),
+        Ok(reply) => (tr_ref("controller.steam_returned_a_different_mode").to_string(), reply),
         Err(e) => (e.to_string(), raw.to_vec()),
     };
     let rolled = quick::mode_target_at(&base, set_index, source).and_then(|t| ed.set_mode(&t, old)).ok()
@@ -153,11 +154,11 @@ pub fn write_mode(ed: &dyn Editor, raw: &[u8], set_index: usize, source: i64, mo
 /// Change the activation type of an existing activator; rolls back to the previous type when readback differs.
 pub fn write_activation(ed: &dyn Editor, raw: &[u8], target: &BindingTarget, activation: i64) -> Outcome {
     let Some(old) = live::activation_at(raw, target) else {
-        return Outcome::Unsure("Активатор не найден в копии раскладки".into());
+        return Outcome::Unsure(tr_ref("controller.activator_not_found_in_the_editing_copy").into());
     };
     let (why, base) = match ed.set_activator(raw, target, Some(activation)) {
         Ok(reply) if live::activation_at(&reply, target) == Some(activation) => return Outcome::Done(reply),
-        Ok(reply) => ("Steam вернул другой способ включения".to_string(), reply),
+        Ok(reply) => (tr_ref("controller.steam_returned_a_different_activation_type").to_string(), reply),
         Err(e) => (e.to_string(), raw.to_vec()),
     };
     match ed.set_activator(&base, target, Some(old)) {
@@ -226,7 +227,7 @@ mod tests {
             // Steam answers with a different mode: restored and confirmed.
             let other = modes_layout(&[(source, 9, 5)]);
             let fake = Fake::new(vec![Ok(other), Ok(before.clone())]);
-            assert_eq!(write_mode(&fake, &before, 0, source, to), Outcome::RolledBack("Steam вернул другой режим".into(), before.clone()), "source {source}");
+            assert_eq!(write_mode(&fake, &before, 0, source, to), Outcome::RolledBack(tr_ref("controller.steam_returned_a_different_mode").into(), before.clone()), "source {source}");
             assert_eq!(*fake.calls.borrow(), ["mode", "mode"]);
             // Refusal then a failed restore: the copy is flagged.
             let fake = Fake::new(vec![err(), err()]);
@@ -252,7 +253,7 @@ mod tests {
         let emptied = layout(&[(1, vec![])]);
         let fake = Fake::new(vec![Ok(wrong), Ok(emptied), Ok(empty.clone())]);
         let out = write_binding(&fake, &empty, &target(0, -1), &gamepad_binding(5));
-        assert_eq!(out, Outcome::RolledBack("Steam вернул другую команду".into(), empty));
+        assert_eq!(out, Outcome::RolledBack(tr_ref("controller.steam_returned_a_different_command").into(), empty));
         assert_eq!(*fake.calls.borrow(), ["set", "remove", "drop-activator"]);
     }
 
@@ -272,7 +273,7 @@ mod tests {
         let wrong = layout(&[(1, vec![gamepad_binding(9)])]);
         let fake = Fake::new(vec![Ok(wrong), Ok(before.clone())]);
         let out = write_binding(&fake, &before, &target(0, 0), &gamepad_binding(4));
-        assert_eq!(out, Outcome::RolledBack("Steam вернул другую команду".into(), before));
+        assert_eq!(out, Outcome::RolledBack(tr_ref("controller.steam_returned_a_different_command").into(), before));
         assert_eq!(*fake.calls.borrow(), ["set", "set"]);
     }
 
@@ -304,7 +305,7 @@ mod tests {
         let fake = Fake::new(vec![Ok(after.clone())]);
         assert_eq!(write_activation(&fake, &before, &target(0, 0), 5), Outcome::Done(after));
         let fake = Fake::new(vec![Ok(layout(&[(6, vec![gamepad_binding(3)])])), Ok(before.clone())]);
-        assert_eq!(write_activation(&fake, &before, &target(0, 0), 5), Outcome::RolledBack("Steam вернул другой способ включения".into(), before.clone()));
+        assert_eq!(write_activation(&fake, &before, &target(0, 0), 5), Outcome::RolledBack(tr_ref("controller.steam_returned_a_different_activation_type").into(), before.clone()));
         let fake = Fake::new(vec![err(), err()]);
         assert!(matches!(write_activation(&fake, &before, &target(0, 0), 5), Outcome::Unsure(_)));
         assert!(matches!(write_activation(&Fake::new(vec![]), &before, &target(3, 0), 5), Outcome::Unsure(_)));

@@ -86,7 +86,21 @@ pub const ACTION_INSTALL_CONTINUE: &str = r#"SteamClient.Installs.ContinueInstal
 pub const ACTION_INSTALL_CANCEL: &str = r#"SteamClient.Installs.CancelInstall().then(()=>true)"#;
 /// Confirmed local uninstall, sp.js ShowUninstallDialog OK (task375).
 /// Void means dispatched, never completed. Keep guards and call in one JS turn.
-pub const ACTION_UNINSTALL: &str = r#"(async()=>{const id={APPID};const o=appStore.GetAppOverviewByAppID(id);const local=o&&o.local_per_client_data;if(!local||local.clientid!=="0"||(local.installed!==true&&local.installed!==1))throw Error('Игра не установлена локально или состояние недоступно');if(o.app_type===1073741824)throw Error('Сторонняя игра не является локальной установкой Steam');if(typeof o.BIsAppBlocked!=='function'||o.BIsAppBlocked())throw Error('Доступ к игре заблокирован или не удалось проверить ограничения');const w=SteamUIStore.ActiveWindowInstance;if(!w||!w.RunningApps)throw Error('Список запущенных игр недоступен');if([...w.RunningApps].some(a=>a.appid===id))throw Error('Закройте игру перед удалением');const r=await SteamClient.Installs.OpenUninstallWizard([id],"0",true);if(r!==undefined&&r!==true)throw Error('Steam отклонил удаление: '+JSON.stringify(r));return true})()"#;
+const ACTION_UNINSTALL: &str = r#"(async()=>{const id={APPID};const errors={ERRORS};const o=appStore.GetAppOverviewByAppID(id);const local=o&&o.local_per_client_data;if(!local||local.clientid!=="0"||(local.installed!==true&&local.installed!==1))throw Error(errors.not_installed);if(o.app_type===1073741824)throw Error(errors.shortcut);if(typeof o.BIsAppBlocked!=='function'||o.BIsAppBlocked())throw Error(errors.blocked);const w=SteamUIStore.ActiveWindowInstance;if(!w||!w.RunningApps)throw Error(errors.running_unknown);if([...w.RunningApps].some(a=>a.appid===id))throw Error(errors.still_running);const r=await SteamClient.Installs.OpenUninstallWizard([id],"0",true);if(r!==undefined&&r!==true)throw Error(errors.rejected+JSON.stringify(r));return true})()"#;
+
+pub fn action_uninstall(appid: u32) -> String {
+    let errors = serde_json::json!({
+        "not_installed": steam_assets::i18n::tr_ref("uninstall.bridge_not_installed"),
+        "shortcut": steam_assets::i18n::tr_ref("uninstall.bridge_shortcut"),
+        "blocked": steam_assets::i18n::tr_ref("uninstall.bridge_blocked"),
+        "running_unknown": steam_assets::i18n::tr_ref("uninstall.bridge_running_unknown"),
+        "still_running": steam_assets::i18n::tr_ref("uninstall.bridge_still_running"),
+        "rejected": steam_assets::i18n::tr_ref("uninstall.bridge_rejected"),
+    });
+    ACTION_UNINSTALL
+        .replace("{APPID}", &appid.to_string())
+        .replace("{ERRORS}", &errors.to_string())
+}
 /// Read local data, never most_available (which may describe a remote PC).
 /// Steam omits the protobuf false field after uninstall; require the local
 /// ReadyToInstall status (9) as positive evidence, not merely a missing bool.

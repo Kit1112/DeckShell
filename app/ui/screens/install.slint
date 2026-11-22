@@ -11,6 +11,11 @@ export struct InstallCompatRow {
 }
 
 export global InstallState {
+    in property <string> label-a-select-b-cancel;
+    in property <string> label-a-select-b-reject-lt-rt-read;
+    in property <string> label-launch-of-the-installation;
+    in property <string> label-steam-deck-compatibility;
+    in property <string> label-y-move-to-the-post-of-developer;
     in-out property <bool> open: false;
     in-out property <bool> busy: false;
     in-out property <bool> reading-eula: false;
@@ -78,7 +83,7 @@ export component InstallWizard inherits Rectangle {
                     }
                 }
             }
-            Text { text: InstallState.busy ? "Запуск установки…" : InstallState.reading-eula ? "A — выбрать   B — отклонить   LT / RT — читать" : "A — выбрать   B — отмена"; color: Tokens.text-dim; font-size: 16px; font-family: GStyle.loc-font; }
+            Text { text: InstallState.busy ? InstallState.label-launch-of-the-installation : InstallState.reading-eula ? InstallState.label-a-select-b-reject-lt-rt-read : InstallState.label-a-select-b-cancel; color: Tokens.text-dim; font-size: 16px; font-family: GStyle.loc-font; }
         }
     }
     Rectangle {
@@ -98,7 +103,7 @@ export component InstallWizard inherits Rectangle {
             spacing: 12px;
 
             Text {
-                text: "Совместимость со Steam Deck";
+                text: InstallState.label-steam-deck-compatibility;
                 color: Tokens.text; font-size: 26px; font-weight: 700; font-family: GStyle.loc-font;
             }
             Rectangle { height: 3px; background: @linear-gradient(90deg, transparent 2%, Theme.panel-hi 50%, transparent 98%); }
@@ -166,12 +171,12 @@ export component InstallWizard inherits Rectangle {
             }
             HorizontalBox {
                 padding: 0px; alignment: space-between;
-                Text { text: "A — выбрать   B — отмена"; color: Tokens.text-dim; font-size: 16px; font-family: GStyle.loc-font; }
+                Text { text: InstallState.label-a-select-b-cancel; color: Tokens.text-dim; font-size: 16px; font-family: GStyle.loc-font; }
                 if InstallState.developer-post: Rectangle {
                     accessible-role: button; accessible-label: post-label.text;
                     min-width: post-label.preferred-width; min-height: 24px;
                     post-label := Text {
-                        text: "Y — перейти к посту разработчика"; color: Tokens.text-body;
+                        text: InstallState.label-y-move-to-the-post-of-developer; color: Tokens.text-body;
                         font-size: 16px; font-family: GStyle.loc-font; vertical-alignment: center;
                     }
                     TouchArea { clicked => { InstallState.pick-compatibility(2); } }

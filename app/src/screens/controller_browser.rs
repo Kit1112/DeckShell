@@ -200,15 +200,17 @@ mod tests {
     }
     #[test]
     fn search_is_case_insensitive_and_rejects_other_siapi_games() {
-        let mut e = SearchEntry { title: "Геймпад".into(), description: "Desktop".into(), game_name: "Balatro".into(), app_id: 42, uses_siapi: false };
-        for q in ["ГЕЙМ", "desk", "LAT", ""] { assert!(matches_search(&e, 2379780, q)); }
+        let ru = steam_assets::i18n::by_code("ru").unwrap();
+        let mut e = SearchEntry { title: ru.tr("controller.gamepad_3").into(), description: "Desktop".into(), game_name: "Balatro".into(), app_id: 42, uses_siapi: false };
+        let query = ru.tr("controller.game_2");
+        for q in [query.as_str(), "desk", "LAT", ""] { assert!(matches_search(&e, 2379780, q)); }
         assert!(!matches_search(&e, 2379780, "missing"));
         e.uses_siapi = true;
-        assert!(!matches_search(&e, 2379780, "гейм"));
+        assert!(!matches_search(&e, 2379780, &ru.tr("controller.game_3")));
         e.app_id = 0;
-        assert!(matches_search(&e, 2379780, "гейм"));
+        assert!(matches_search(&e, 2379780, &ru.tr("controller.game_3")));
         e.app_id = 2379780;
-        assert!(matches_search(&e, 2379780, "гейм"));
+        assert!(matches_search(&e, 2379780, &ru.tr("controller.game_3")));
     }
     #[test]
     fn community_sort_is_descending_and_stable_on_ties() {

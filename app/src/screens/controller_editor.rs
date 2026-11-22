@@ -3,6 +3,7 @@
 //! The rail and row/gear layout are visible in Gaming Mode capture 12. Exact
 //! directional behaviour still requires the stock focus walk; keep this model
 //! isolated until that evidence and the Steam Input data contract are ready.
+use steam_assets::i18n::{tr_args, tr_ref};
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Column { Rail, Value, Gear }
 /// Controls present on an editor row. Action-set headings have only a gear;
@@ -188,12 +189,13 @@ pub fn keyboard_keys() -> Vec<Key> {
         &[("Tab",33.,59.),("Q",95.,53.),("W",151.,53.),("E",207.,53.),("R",263.,53.),("T",319.,53.),("Y",374.,53.),("U",430.,53.),("I",486.,53.),("O",542.,53.),("P",598.,53.),("{\n[",654.,53.),("}\n]",709.,53.),("|\n\\",765.,53.)],
         &[("Caps Lock",33.,77.),("A",113.,52.),("S",169.,52.),("D",224.,52.),("F",279.,52.),("G",335.,52.),("H",390.,52.),("J",446.,52.),("K",501.,52.),("L",556.,52.),(":\n;",612.,52.),("\"\n'",667.,52.),("Enter",723.,95.)],
         &[("Shift",33.,114.),("Z",150.,52.),("X",205.,52.),("C",261.,52.),("V",316.,52.),("B",372.,52.),("N",427.,52.),("M",482.,52.),("<\n,",538.,52.),(">\n.",593.,52.),("?\n/",649.,52.),("Shift",704.,114.)],
-        &[("Ctrl",33.,72.),("Win",108.,72.),("Alt",183.,72.),("Пробел",258.,410.),("Alt",671.,72.),("Ctrl",746.,72.)],
+        &[("Ctrl",33.,72.),("Win",108.,72.),("Alt",183.,72.),("Space",258.,410.),("Alt",671.,72.),("Ctrl",746.,72.)],
     ];
     let mut out = Vec::with_capacity(72);
     for (r, row) in ROWS.iter().enumerate() {
         for &(label, x, w) in row.iter() {
-            let space = label == "Пробел";
+            let space = label == "Space";
+            let label = if space { tr_ref("controller.space") } else { label };
             out.push(Key {
                 label: label.into(),
                 x: x * DPR,
@@ -212,15 +214,15 @@ pub fn keyboard_keys() -> Vec<Key> {
 pub fn picker_keys(tab: usize) -> Vec<Key> {
     match tab {
         0 => [
-            ("Левый триггер",51.,132.,210.,42.),("Левый бампер",51.,178.5,210.,42.),
-            ("Выбрать",475.5,154.5,123.,42.),("Начать",682.5,154.5,123.,42.),
-            ("Правый триггер",1020.,132.,210.,42.),("Правый бампер",1020.,178.5,210.,42.),
+            (tr_ref("controller.left_trigger"),51.,132.,210.,42.),(tr_ref("controller.left_bumper"),51.,178.5,210.,42.),
+            (tr_ref("controller.select"),475.5,154.5,123.,42.),(tr_ref("controller.start"),682.5,154.5,123.,42.),
+            (tr_ref("controller.right_trigger"),1020.,132.,210.,42.),(tr_ref("controller.right_bumper"),1020.,178.5,210.,42.),
             ("↑",154.5,237.,49.5,49.5),("↓",154.5,352.5,49.5,49.5),("←",96.,294.,49.5,49.5),("→",211.5,294.,49.5,49.5),("L",142.5,282.,75.,75.),
             ("↑",162.,438.,63.,63.),("↓",162.,543.,63.,63.),("←",109.5,490.5,63.,63.),("→",214.5,490.5,63.,63.),
             ("Y",1093.5,258.,63.,63.),("A",1093.5,363.,63.,63.),("X",1041.,310.5,63.,63.),("B",1146.,310.5,63.,63.),
             ("↑",1039.5,462.,49.5,49.5),("↓",1039.5,577.5,49.5,49.5),("←",982.5,520.5,49.5,49.5),("→",1098.,520.5,49.5,49.5),("R",1027.5,507.,75.,75.)
         ].into_iter().map(|(l,x,y,w,h)| key(l,x,y,w,h)).collect(),
-        1 => [("Нажатие левой кнопки мыши",211.,185.),("Нажатие средней кнопки",211.,260.),("Нажатие правой кнопки мыши",211.,335.),("Нажатие 4-й кнопки мыши",211.,434.),("Нажатие 5-й кнопки мыши",211.,509.),("Колесо мыши вверх",813.,185.),("Колесо мыши вниз",813.,260.),("Перемещение в позицию",813.,434.),("Перемещение на значение",813.,509.)].into_iter().map(|(l,x,y)|key(l,x,y,252.,57.)).collect(),
+        1 => [(tr_ref("controller.left_mouse_click"),211.,185.),(tr_ref("controller.middle_mouse_click"),211.,260.),(tr_ref("controller.right_mouse_click"),211.,335.),(tr_ref("controller.mouse_4_click"),211.,434.),(tr_ref("controller.mouse_5_click"),211.,509.),(tr_ref("controller.scroll_wheel_up"),813.,185.),(tr_ref("controller.scroll_wheel_down"),813.,260.),(tr_ref("controller.move_to_position"),813.,434.),(tr_ref("controller.move_by_amount"),813.,509.)].into_iter().map(|(l,x,y)|key(l,x,y,252.,57.)).collect(),
         2 => keyboard_keys(),
         3 => {
             let labels=["Insert","Home","Page Up","Delete","End","Page Down","↑","←","↓","→","▶","■","⏭","Num Lock","/","*","7","8","9","4","5","6","1","2","3","0",".","⏮","-","+","Enter"];
@@ -228,9 +230,9 @@ pub fn picker_keys(tab: usize) -> Vec<Key> {
                 let (x,y,w,h)=if i<6 {(313.+(i%3) as f32*90.,149.+(i/3) as f32*79.,85.,75.)}else if i<10 {let (c,r)=[(1,4),(0,5),(1,5),(2,5)][i-6];(313.+c as f32*90.,149.+r as f32*79.,85.,75.)}else if i<27 {let j=i-10;let (c,r)=if j<15 {(j%3,j/3)}else{(if j==15 {0}else{2},5)};(658.+c as f32*90.,149.+r as f32*79.,if i==25 {175.}else{85.},75.)}else{(928.,149.+[0.,79.,158.,316.][i-27],85.,if i>28 {154.}else{75.})};key(l,x,y,w,h)
             }).collect()
         },
-        4 => [("Изменить набор действий",511.5,204.),("Добавить слой в набор действий",255.,289.5),("Удалить слой из набора действий",511.5,289.5),("Слой при зажатии",768.,289.5),("Удалить из осн. набора действий",511.5,375.)].into_iter().map(|(l,x,y)|key(l,x,y,252.,57.)).collect(),
-        5 => ["Сделать скриншот", "Запись игры", "Метка записи", "Сохранить клип", "Показать клавиатуру", "Лупа", "Выйти из игры", "Номер игрока", "Сенсор: обычный", "Сенсор: левая кнопка", "Сенсор: правая кнопка", "Сенсор: средняя кнопка", "Сенсор: наведение", "Сенсор: выключен", "Громкость +", "Громкость −"].into_iter().enumerate().map(|(i,l)|key(l,70.+(i%4) as f32*300.,150.+(i/4) as f32*100.,280.,85.)).collect(),
-        _ => ["Сбросить горизонт камеры", "Калибровочный поворот", "Повернуться в направлении"].into_iter().enumerate().map(|(i,l)|key(l,110.+i as f32*360.,200.,330.,120.)).collect(),
+        4 => [(tr_ref("controller.change_action_set"),511.5,204.),(tr_ref("controller.add_action_set_layer"),255.,289.5),(tr_ref("controller.remove_action_set_layer"),511.5,289.5),(tr_ref("controller.hold_action_set_layer"),768.,289.5),(tr_ref("controller.cleared_from_parent"),511.5,375.)].into_iter().map(|(l,x,y)|key(l,x,y,252.,57.)).collect(),
+        5 => [tr_ref("controller.take_screenshot"), tr_ref("controller.game_recording"), tr_ref("controller.recording_marker"), tr_ref("controller.save_clip"), tr_ref("controller.show_keyboard"), tr_ref("controller.magnifier"), tr_ref("controller.exit_game"), tr_ref("controller.player_number"), tr_ref("controller.touch_normal"), tr_ref("controller.touch_left_click"), tr_ref("controller.touch_right_click"), tr_ref("controller.touch_middle_click"), tr_ref("controller.touch_hover"), tr_ref("controller.touch_disabled"), tr_ref("controller.volume"), tr_ref("controller.volume_2")].into_iter().enumerate().map(|(i,l)|key(l,70.+(i%4) as f32*300.,150.+(i/4) as f32*100.,280.,85.)).collect(),
+        _ => [tr_ref("controller.reset_camera_horizon"), tr_ref("controller.calibration_turn"), tr_ref("controller.turn_to_direction")].into_iter().enumerate().map(|(i,l)|key(l,110.+i as f32*360.,200.,330.,120.)).collect(),
     }
 }
 /// Spatial navigation uses nearest eligible key; preserves each tab's cursor.
@@ -266,8 +268,8 @@ pub fn picker_command(tab: usize, index: usize) -> Option<(i64,u32,i64)> {
 }
 pub fn command_label(binding:&[u8])->String {
     if let Ok(meta)=super::controller_live::msg(binding,2) {if let Some(meta)=meta.first() {if let Ok(name)=super::controller_live::string(meta,2) {if !name.is_empty(){return if name.starts_with('#'){crate::assets::t(&name)}else{name};}}}}
-    let Some((kind,value))=super::controller_live::identity(binding) else {return "Команда Steam".into()};
-    super::controller_commands::COMMANDS.iter().find(|r|r.3==kind&&r.1==value).map(|r|crate::assets::t(r.2)).unwrap_or_else(||format!("Команда {kind}:{value}"))
+    let Some((kind,value))=super::controller_live::identity(binding) else {return tr_ref("controller.steam_command").into()};
+    super::controller_commands::COMMANDS.iter().find(|r|r.3==kind&&r.1==value).map(|r|crate::assets::t(r.2)).unwrap_or_else(||tr_args("controller.command_kind_value", &[("kind", &kind.to_string()), ("value", &value.to_string())]))
 }
 pub fn command_glyph(binding:&[u8], focused:bool)->slint::Image {
     let Some((kind,value))=super::controller_live::identity(binding) else{return Default::default()};
@@ -296,7 +298,7 @@ mod keyboard_geometry_tests {
         assert!((f1.x - 133.5).abs() < 0.01 && (f1.w - 87.0).abs() < 0.01, "F1 {:?}", (f1.x, f1.w));
         let backspace = find("Backspace");
         assert!((backspace.x + backspace.w - 1227.0).abs() < 0.01);
-        let space = find("Пробел");
+        let space = find(tr_ref("controller.space"));
         assert!((space.w - 615.0).abs() < 0.01 && space.center && space.bottom);
         // Row 0 sits at picker y 148.5 (picker origin 60 px) = 208.5 device px, the capture's first key row.
         assert!((keys[0].y + 60.0 - 208.5).abs() < 0.01);

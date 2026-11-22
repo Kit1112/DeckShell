@@ -3,12 +3,14 @@
 //! UI thread against the thread-local `St`, workers (network, decoding, Steam calls) post results back through `post`.
 //! Locking rule: `st()` is borrowed once per entry point and passed down as `&mut St`; the lock-free mirrors (OPEN/MODE/SIG) are
 //! what `app.rs` reads (hint_spec, sound signature) while an entry point is running.
+use steam_assets::i18n::{tr, tr_args, tr_ref};
 pub mod api;
 pub mod apply;
 pub mod cache;
 pub mod hero_crop;
 pub mod logo_layout;
 
+use steam_assets::i18n;
 use std::cell::{RefCell, RefMut};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::{Path, PathBuf};
@@ -47,14 +49,14 @@ type HintRow = (&'static str, &'static str, i32, &'static str, Action);
 pub fn hints() -> Vec<HintRow> {
     let b = ("b", "#ActionButtonLabelBack", 1, "Esc", Action::B);
     if BATCH_RUNNING.load(Ordering::Relaxed) {
-        return vec![("b", "Отменить пакет", 1, "Esc", Action::B)];
+        return vec![("b", tr_ref("sgdb.cancel_batch"), 1, "Esc", Action::B)];
     }
     match MODE.load(Ordering::Relaxed) {
-        1 => vec![("a", "Выбрать", 1, "Enter", Action::A), b],
-        2 => vec![("a", "Ввод", 1, "Enter", Action::A), ("x", "Стереть", 1, "F3", Action::X), ("y", "Пробел", 1, "F4", Action::Y), ("menu", "Готово", 2, "F9", Action::Menu), b],
-        3 => vec![("a", "Привязка", 1, "Enter", Action::A), ("x", "Сброс", 1, "F3", Action::X), ("y", "Убрать своё", 1, "F4", Action::Y), ("menu", "Сохранить", 2, "F9", Action::Menu), ("b", "Отмена", 1, "Esc", Action::B)],
-        4 => vec![("a", "Нажать", 1, "Enter", Action::A), ("x", "Сброс", 1, "F3", Action::X), ("lb", "Меньше", 1, "[", Action::LB), ("rb", "Больше", 1, "]", Action::RB), ("b", "Отмена", 1, "Esc", Action::B)],
-        _ => vec![("a", "Применить", 1, "Enter", Action::A), ("x", "Фильтры", 1, "F3", Action::X), ("y", "Поиск", 1, "F4", Action::Y), ("menu", "Действия", 2, "F9", Action::Menu), b],
+        1 => vec![("a", crate::screens::stock_hint("#ActionButtonLabelSelect", "sgdb.select"), 1, "Enter", Action::A), b],
+        2 => vec![("a", tr_ref("sgdb.enter"), 1, "Enter", Action::A), ("x", tr_ref("sgdb.erase"), 1, "F3", Action::X), ("y", tr_ref("sgdb.space"), 1, "F4", Action::Y), ("menu", crate::screens::stock_hint("#ActionButtonLabelDone", "sgdb.done"), 2, "F9", Action::Menu), b],
+        3 => vec![("a", tr_ref("sgdb.anchor"), 1, "Enter", Action::A), ("x", tr_ref("sgdb.reset"), 1, "F3", Action::X), ("y", tr_ref("sgdb.remove_custom"), 1, "F4", Action::Y), ("menu", crate::screens::stock_hint("#Button_Save", "sgdb.save"), 2, "F9", Action::Menu), ("b", crate::screens::stock_hint("#ActionButtonLabelCancel", "sgdb.cancel"), 1, "Esc", Action::B)],
+        4 => vec![("a", tr_ref("sgdb.press"), 1, "Enter", Action::A), ("x", tr_ref("sgdb.reset"), 1, "F3", Action::X), ("lb", tr_ref("sgdb.decrease"), 1, "[", Action::LB), ("rb", tr_ref("sgdb.increase"), 1, "]", Action::RB), ("b", crate::screens::stock_hint("#ActionButtonLabelCancel", "sgdb.cancel"), 1, "Esc", Action::B)],
+        _ => vec![("a", tr_ref("sgdb.apply"), 1, "Enter", Action::A), ("x", tr_ref("sgdb.filters"), 1, "F3", Action::X), ("y", tr_ref("sgdb.search"), 1, "F4", Action::Y), ("menu", tr_ref("footer.actions"), 2, "F9", Action::Menu), b],
     }
 }
 
@@ -378,6 +380,17 @@ fn run_job(j: Job) {
 // ------------------------------------------------------------------ open / close
 pub fn wire(ui: &AppWindow) {
     let s = ui.global::<SgdbState>();
+    s.set_label_banner_position(i18n::tr("sgdb.banner_position").into());
+    s.set_label_cancel(crate::screens::stock_label("#Button_Cancel", "sgdb.cancel").into());
+    s.set_label_epilepsy(i18n::tr("sgdb.epilepsy").into());
+    s.set_label_humour(i18n::tr("sgdb.humor").into());
+    s.set_label_it_applies(i18n::tr("sgdb.it_applies").into());
+    s.set_label_logo_position(i18n::tr("sgdb.logo_position").into());
+    s.set_label_no_picture(i18n::tr("sgdb.no_picture").into());
+    s.set_label_reset(i18n::tr("sgdb.reset").into());
+    s.set_label_save(crate::screens::stock_label("#Button_Save", "sgdb.save").into());
+    s.set_label_the_crucifix_is_to_point_at_the(i18n::tr("sgdb.the_crucifix_is_to_point_at_the").into());
+    s.set_label_uploading(i18n::tr("sgdb.uploading").into());
     s.on_tab_clicked(|i| post(move |a| touch_tab(a, i as usize)));
     s.on_tile_clicked(|i| post(move |a| touch_tile(a, i as usize)));
     s.on_scrolled(|_| post(|a| {
@@ -473,12 +486,12 @@ pub fn open(a: &mut App, appid: u32) {
     });
     let ui = a.ui();
     let st_ = ui.global::<SgdbState>();
-    st_.set_title(format!("Сменить картинку: {}", g.name).into());
+    st_.set_title(tr_args("sgdb.artwork_title", &[("game", &g.name)]).into());
     let tabs: Vec<slint::SharedString> = AType::ALL.iter().map(|t| t.label().into()).collect();
     st_.set_tabs(ModelRc::new(VecModel::from(tabs)));
     st_.set_pname(g.name.as_str().into());
-    st_.set_lab_now("СЕЙЧАС".into());
-    st_.set_lab_new("БУДЕТ".into());
+    st_.set_lab_now(tr_ref("sgdb.current").into());
+    st_.set_lab_new(tr_ref("sgdb.new").into());
     st_.set_open(true);
     let gen_ = s.gen;
     request_locals(&mut s, a, gen_);
@@ -548,8 +561,8 @@ fn switch_tab(s: &mut St, a: &mut App, tab: usize) {
 fn game_line(s: &St) -> String {
     match &s.game {
         Some((_, n)) => format!("SteamGridDB: {n}"),
-        None if s.shortcut => "Не-Steam игра: поиск по названию (Y)".into(),
-        None => format!("Steam AppID {} · поиск по appid", s.appid),
+        None if s.shortcut => tr_ref("sgdb.shortcut_search").into(),
+        None => tr_args("sgdb.appid_search", &[("appid", &s.appid.to_string())]),
     }
 }
 
@@ -630,7 +643,7 @@ fn on_assets(a: &mut App, gen: u64, page: u32, r: Result<(Vec<Asset>, bool), Api
                 s.items.push(it);
             }
             if s.items.is_empty() && s.end {
-                s.status = "Ничего не найдено. X — фильтры, Y — поиск по названию".into();
+                s.status = tr_ref("sgdb.empty_filters").into();
             } else {
                 s.status.clear();
             }
@@ -641,17 +654,17 @@ fn on_assets(a: &mut App, gen: u64, page: u32, r: Result<(Vec<Asset>, bool), Api
         Err(ApiErr::NotFound) if s.game.is_none() => {
             // plugin: unknown game -> game selection dialog
             s.end = true;
-            s.status = "Игра не найдена на SteamGridDB. Выберите вручную.".into();
+            s.status = tr_ref("sgdb.choose_manually").into();
             let name = s.name.clone();
             open_osk(&mut s, a, OskFor::Search, &name);
         }
         Err(ApiErr::NoKey) => {
             s.end = true;
-            s.status = "Нужен ключ API SteamGridDB (steamgriddb.com/profile/preferences/api).\nSTART → «Ключ API…» или ~/.config/deckshell/sgdb.json".into();
+            s.status = tr_ref("sgdb.api_key_instructions").into();
         }
         Err(e) => {
             s.end = true;
-            s.status = format!("Ошибка: {e}");
+            s.status = tr_args("sgdb.error", &[("e", &e.to_string())]);
             a.toast(&format!("SteamGridDB: {e}"));
         }
     }
@@ -944,9 +957,9 @@ fn sync_all(s: &mut St, a: &mut App) {
     g.set_zone(s.zone as i32);
     g.set_focus(if s.items.is_empty() { -1 } else { s.focus as i32 });
     g.set_busy(s.loading);
-    g.set_status(if s.loading && s.items.is_empty() { "Загрузка…".into() } else { s.status.as_str().into() });
+    g.set_status(if s.loading && s.items.is_empty() { tr_ref("sgdb.loading").into() } else { s.status.as_str().into() });
     g.set_subtitle(game_line(s).into());
-    g.set_chip(if s.offline { "ОФЛАЙН · КЭШ".into() } else { "".into() });
+    g.set_chip(if s.offline { tr_ref("sgdb.offline_cache").into() } else { "".into() });
     sync_preview(s, a);
 }
 
@@ -994,7 +1007,7 @@ pub fn handle(a: &mut App, act: Action) {
             if let Some(c) = &s.batch_cancel {
                 c.store(true, Ordering::Relaxed);
             }
-            a.toast("Пакетное применение: отмена…");
+            a.toast(tr_ref("sgdb.batch_cancelling"));
         }
         return;
     }
@@ -1142,33 +1155,33 @@ fn open_filters(s: &mut St, a: &mut App) {
     s.fbefore = Some(f.clone());
     let rows = filter_rows(t, &f);
     s.frows = rows.iter().map(|r| r.1.clone()).collect();
-    open_list(s, a, ListKind::Filters, &format!("Фильтр: {}", t.label()), rows.into_iter().map(|r| r.0).collect(), false);
+    open_list(s, a, ListKind::Filters, &tr_args("sgdb.filter_title", &[("asset", t.label())]), rows.into_iter().map(|r| r.0).collect(), false);
 }
 
 fn filter_rows(t: AType, f: &Filters) -> Vec<(SgdbRow, FRow)> {
     let hdr = |l: &str| (SgdbRow { label: l.into(), kind: 2, on: false, sub: "".into() }, FRow::Header);
     let tog = |l: &str, on: bool, k: FRow| (SgdbRow { label: l.into(), kind: 1, on, sub: "".into() }, k);
-    let mut r = vec![hdr("ВИД"), tog("Статичные", f.stat, FRow::Stat), tog("Анимированные (webp / apng / webm)", f.animated, FRow::Anim)];
-    r.push(hdr("МЕТКИ"));
-    r.push(tog("Без меток", f.untagged, FRow::Untagged));
-    r.push(tog("Взрослый контент", f.adult, FRow::Adult));
-    r.push(tog("Юмор", f.humor, FRow::Humor));
-    r.push(tog("Эпилепсия", f.epilepsy, FRow::Epilepsy));
-    r.push(hdr("СТИЛИ"));
+    let mut r = vec![hdr(tr_ref("sgdb.type")), tog(tr_ref("sgdb.static"), f.stat, FRow::Stat), tog(tr_ref("sgdb.animated"), f.animated, FRow::Anim)];
+    r.push(hdr(tr_ref("sgdb.tags")));
+    r.push(tog(tr_ref("sgdb.untagged"), f.untagged, FRow::Untagged));
+    r.push(tog(tr_ref("sgdb.adult"), f.adult, FRow::Adult));
+    r.push(tog(tr_ref("sgdb.humor"), f.humor, FRow::Humor));
+    r.push(tog(tr_ref("sgdb.epilepsy"), f.epilepsy, FRow::Epilepsy));
+    r.push(hdr(tr_ref("sgdb.styles")));
     for (v, l) in t.style_opts() {
         r.push(tog(l, f.styles.iter().any(|x| x == v), FRow::Style(v.into())));
     }
     if !t.dim_opts().is_empty() {
-        r.push(hdr("РАЗМЕРЫ"));
+        r.push(hdr(tr_ref("sgdb.sizes")));
         for d in t.dim_opts() {
             r.push(tog(&d.replace('x', "×"), f.dimensions.contains(&d), FRow::Dim(d)));
         }
     }
-    r.push(hdr("ТИПЫ ФАЙЛОВ"));
+    r.push(hdr(tr_ref("sgdb.file_types")));
     for (v, l) in t.mime_opts() {
         r.push(tog(l, f.mimes.iter().any(|x| x == v), FRow::Mime(v.into())));
     }
-    r.push((SgdbRow { label: "Сбросить фильтры".into(), kind: 0, on: false, sub: "".into() }, FRow::Reset));
+    r.push((SgdbRow { label: tr_ref("sgdb.reset_filters").into(), kind: 0, on: false, sub: "".into() }, FRow::Reset));
     r
 }
 
@@ -1177,34 +1190,34 @@ fn open_actions(s: &mut St, a: &mut App) {
     let mut rows: Vec<(String, String, Op)> = vec![];
     let undo = apply::undo_state(s.appid, t);
     if undo != apply::Undo::Nothing {
-        rows.push(("Отменить последнее изменение".into(), t.label().into(), Op::Undo));
+        rows.push((tr_ref("sgdb.undo_last").into(), t.label().into(), Op::Undo));
     }
-    rows.push(("Сбросить на стандартную".into(), t.label().into(), Op::Reset));
+    rows.push((tr_ref("sgdb.reset_default").into(), t.label().into(), Op::Reset));
     if t != AType::Icon {
-        rows.push(("Невидимая картинка".into(), "".into(), Op::Blank));
+        rows.push((tr_ref("sgdb.blank").into(), "".into(), Op::Blank));
     }
     if matches!(t, AType::Logo | AType::Hero) {
-        rows.push(("Положение логотипа…".into(), "".into(), Op::LogoEdit));
-        if logo_layout::can_undo(s.appid) { rows.push(("Отменить положение логотипа".into(), "".into(), Op::LogoUndo)); }
-        rows.push(("Сбросить положение логотипа".into(), "".into(), Op::LogoReset));
+        rows.push((tr_ref("sgdb.logo_edit").into(), "".into(), Op::LogoEdit));
+        if logo_layout::can_undo(s.appid) { rows.push((tr_ref("sgdb.logo_undo").into(), "".into(), Op::LogoUndo)); }
+        rows.push((tr_ref("sgdb.logo_reset").into(), "".into(), Op::LogoReset));
     }
     if t == AType::Hero {
-        rows.push(("Положение баннера…".into(), "".into(), Op::HeroEdit));
+        rows.push((tr_ref("sgdb.hero_edit").into(), "".into(), Op::HeroEdit));
         if hero_crop::can_undo(s.appid) {
-            rows.push(("Отменить положение баннера".into(), "".into(), Op::HeroUndo));
+            rows.push((tr_ref("sgdb.hero_undo").into(), "".into(), Op::HeroUndo));
         }
-        rows.push(("Сбросить положение баннера".into(), "".into(), Op::HeroReset));
+        rows.push((tr_ref("sgdb.hero_reset").into(), "".into(), Op::HeroReset));
     }
-    rows.push(("Фильтры…".into(), "X".into(), Op::Filters));
-    rows.push(("Найти игру по названию…".into(), "Y".into(), Op::Search));
-    rows.push(("Выбрать игру SteamGridDB…".into(), "".into(), Op::Pick));
+    rows.push((tr_ref("sgdb.filters_option").into(), "X".into(), Op::Filters));
+    rows.push((tr_ref("sgdb.search_by_name").into(), "Y".into(), Op::Search));
+    rows.push((tr_ref("sgdb.pick_game").into(), "".into(), Op::Pick));
     let missing = missing_for(a, t).len();
-    rows.push((format!("Применить всем без картинки ({missing})"), t.label().into(), Op::Batch));
-    rows.push(("Ключ API SteamGridDB…".into(), if s.client.key.is_some() { "задан" } else { "нет" }.into(), Op::Key));
-    rows.push(("Закрыть".into(), "".into(), Op::Close));
+    rows.push((tr_args("sgdb.batch_apply", &[("missing", &missing.to_string())]), t.label().into(), Op::Batch));
+    rows.push((tr_ref("sgdb.api_key_option").into(), if s.client.key.is_some() { tr_ref("sgdb.key_set") } else { tr_ref("sgdb.key_unset") }.into(), Op::Key));
+    rows.push((tr_ref("sgdb.close").into(), "".into(), Op::Close));
     s.ops = rows.iter().map(|r| r.2).collect();
     let srows = rows.into_iter().map(|r| SgdbRow { label: r.0.into(), kind: 0, on: false, sub: r.1.into() }).collect();
-    open_list(s, a, ListKind::Actions, "Действия", srows, false);
+    open_list(s, a, ListKind::Actions, tr_ref("footer.actions"), srows, false);
 }
 
 fn handle_list(s: &mut St, a: &mut App, act: Action) {
@@ -1315,25 +1328,25 @@ fn run_op(s: &mut St, a: &mut App, op: Op) {
         Op::HeroReset => match hero_crop::reset(s.appid) {
             Ok(true) => {
                 a.update_bg();
-                a.toast("Положение баннера сброшено");
+                a.toast(tr_ref("sgdb.hero_reset_done"));
             }
-            Ok(false) => a.toast("Положение баннера уже стандартное"),
-            Err(e) => a.toast(&format!("Ошибка: {e}")),
+            Ok(false) => a.toast(tr_ref("sgdb.hero_already_default")),
+            Err(e) => a.toast(&tr_args("sgdb.error", &[("e", &e.to_string())])),
         },
         Op::HeroUndo => match hero_crop::undo(s.appid) {
             Ok(true) => {
                 a.update_bg();
-                a.toast("Положение баннера отменено");
+                a.toast(tr_ref("sgdb.hero_undo_done"));
             }
-            Ok(false) => a.toast("Нечего отменять"),
-            Err(e) => a.toast(&format!("Ошибка: {e}")),
+            Ok(false) => a.toast(tr_ref("sgdb.nothing_to_undo")),
+            Err(e) => a.toast(&tr_args("sgdb.error", &[("e", &e.to_string())])),
         },
         Op::LogoReset | Op::LogoUndo => {
             let r = if matches!(op, Op::LogoReset) { logo_layout::reset(s.appid) } else { logo_layout::undo(s.appid) };
             match r {
-                Ok(true) => { a.refresh_game_page(); a.toast("Положение логотипа сохранено"); }
-                Ok(false) => a.toast("Положение логотипа не изменилось"),
-                Err(e) => a.toast(&format!("Ошибка: {e}")),
+                Ok(true) => { a.refresh_game_page(); a.toast(tr_ref("sgdb.logo_saved")); }
+                Ok(false) => a.toast(tr_ref("sgdb.logo_unchanged")),
+                Err(e) => a.toast(&tr_args("sgdb.error", &[("e", &e.to_string())])),
             }
             sync_preview(s, a);
         }
@@ -1345,11 +1358,11 @@ fn run_op(s: &mut St, a: &mut App, op: Op) {
                 if !apply::dry() && t != AType::Icon && prev.is_some() {
                     apply::save_undo(id, t, prev.as_deref());
                 }
-                let r = if t == AType::Icon { Err("сброс иконки: перезапустите Steam или используйте «Отменить»".to_string()) } else { apply::clear_art(b.as_ref(), id, t) };
+                let r = if t == AType::Icon { Err(tr("sgdb.icon_reset_hint")) } else { apply::clear_art(b.as_ref(), id, t) };
                 post(move |a| {
                     a.toast(&match &r {
-                        Ok(()) => format!("{}: стандартная картинка", t.label()),
-                        Err(e) => format!("Ошибка: {e}"),
+                        Ok(()) => tr_args("sgdb.artwork_reset", &[("asset", t.label())]),
+                        Err(e) => tr_args("sgdb.error", &[("e", &e.to_string())]),
                     });
                     if r.is_ok() {
                         refresh_art(a, vec![id], expect_art(t, false));
@@ -1367,7 +1380,7 @@ fn run_op(s: &mut St, a: &mut App, op: Op) {
             match apply::undo_state(s.appid, t) {
                 apply::Undo::Restore(p) => spawn_apply_file(s, a, p),
                 apply::Undo::Clear => run_op(s, a, Op::Reset),
-                apply::Undo::Nothing => a.toast("Нечего отменять"),
+                apply::Undo::Nothing => a.toast(tr_ref("sgdb.nothing_to_undo")),
             };
         }
         Op::Batch => start_batch(s, a),
@@ -1397,9 +1410,9 @@ fn spawn_game_search(s: &mut St, term: String) {
                 Ok((rows, _)) if !rows.is_empty() => {
                     s.games = rows.clone();
                     let srows = rows.into_iter().map(|g| SgdbRow { label: g.1.into(), kind: 0, on: false, sub: format!("#{}", g.0).into() }).collect();
-                    open_list(&mut s, a, ListKind::Games, "Выберите игру на SteamGridDB", srows, true);
+                    open_list(&mut s, a, ListKind::Games, tr_ref("sgdb.choose_game"), srows, true);
                 }
-                Ok(_) => a.toast("Ничего не найдено"),
+                Ok(_) => a.toast(tr_ref("sgdb.no_results")),
                 Err(e) => a.toast(&format!("SteamGridDB: {e}")),
             }
             finish(&mut s, a);
@@ -1448,8 +1461,8 @@ fn sync_osk(s: &St, a: &App) {
     let ui = a.ui();
     let g = ui.global::<SgdbState>();
     g.set_osk_prompt(match s.osk_for {
-        OskFor::Search => "Название игры для поиска на SteamGridDB".into(),
-        OskFor::Key => "Ключ API SteamGridDB (steamgriddb.com/profile/preferences/api)".into(),
+        OskFor::Search => tr_ref("sgdb.search_prompt").into(),
+        OskFor::Key => tr_ref("sgdb.api_key_prompt").into(),
     });
     g.set_osk_text(s.osk_text.as_str().into());
 }
@@ -1465,7 +1478,7 @@ fn osk_submit(s: &mut St, a: &mut App) {
             s.settings.set_api_key(&text);
             s.client = Client::from(&s.settings);
             *CLIENT.lock().unwrap() = Some(s.client.clone());
-            a.toast("Ключ API сохранён");
+            a.toast(tr_ref("sgdb.api_key_saved"));
             start_search(s, a);
         }
         OskFor::Search => spawn_game_search(s, text),
@@ -1560,7 +1573,7 @@ fn hero_edit_info(s: &St, a: &App) {
     // Logo: Y is shown on the stock scale (stock position = +100%); the banner shows the stored pan.
     let (px, py) = if s.mode == Mode::Edit { s.lc.readout() } else { ((c.pan_x * 100.0).round() as i32, (c.pan_y * 100.0).round() as i32) };
     let ui = a.ui();
-    ui.global::<SgdbState>().set_hero_edit_info(format!("Масштаб {:.1}×\nСдвиг по X {:+}%\nСдвиг по Y {:+}%", c.zoom, px, py).into());
+    ui.global::<SgdbState>().set_hero_edit_info(tr_args("sgdb.hero_position", &[("zoom", &format!("{:.1}", c.zoom)), ("x", &format!("{:+}", px)), ("y", &format!("{:+}", py))]).into());
 }
 
 /// Everything the editor shows after a change: readout, focus ring, preview frame.
@@ -1578,9 +1591,9 @@ fn hero_leave(s: &mut St, a: &mut App, save: bool) {
     if logo {
         if save {
             match logo_layout::set(s.appid, s.lc) {
-                Ok(true) => { a.refresh_game_page(); a.toast("Положение логотипа сохранено"); },
-                Ok(false) => a.toast("Положение логотипа не изменилось"),
-                Err(e) => a.toast(&format!("Ошибка: {e}")),
+                Ok(true) => { a.refresh_game_page(); a.toast(tr_ref("sgdb.logo_saved")); },
+                Ok(false) => a.toast(tr_ref("sgdb.logo_unchanged")),
+                Err(e) => a.toast(&tr_args("sgdb.error", &[("e", &e.to_string())])),
             }
         }
         return sync_preview(s, a);
@@ -1588,9 +1601,9 @@ fn hero_leave(s: &mut St, a: &mut App, save: bool) {
     if save {
         let id = s.appid;
         match hero_crop::set(id, s.hc) {
-            Ok(true) => a.toast("Положение баннера сохранено"),
-            Ok(false) => a.toast("Положение баннера не изменилось"),
-            Err(e) => a.toast(&format!("Ошибка: {e}")),
+            Ok(true) => a.toast(tr_ref("sgdb.hero_saved")),
+            Ok(false) => a.toast(tr_ref("sgdb.hero_unchanged")),
+            Err(e) => a.toast(&tr_args("sgdb.error", &[("e", &e.to_string())])),
         }
         a.update_bg();
     }
@@ -1696,7 +1709,7 @@ fn fresh_assets(known: &mut HashSet<u64>, assets: Vec<Asset>) -> Vec<Asset> {
 fn apply_focused(s: &mut St, a: &mut App) {
     if s.applying {
         // Say why the press did nothing instead of only playing the select sound.
-        a.toast("Предыдущее изображение ещё загружается…");
+        a.toast(tr_ref("sgdb.previous_loading"));
         return;
     }
     let Some(ApplyPick { idx, id: asset_id, url }) = apply_pick(&s.items, s.focus) else { return };
@@ -1734,12 +1747,12 @@ fn apply_focused(s: &mut St, a: &mut App) {
                     spawn_apply_file(&mut s, a, full)
                 }
                 Ok(()) => {}
-                Err(e) => a.toast(&format!("Не удалось скачать: {e}")),
+                Err(e) => a.toast(&tr_args("sgdb.download_failed", &[("e", &e.to_string())])),
             }
             finish(&mut s, a);
         });
     });
-    a.toast(&format!("{}: загрузка…", t.label()));
+    a.toast(&tr_args("sgdb.artwork_loading", &[("asset", t.label())]));
 }
 
 /// Steam side of an apply (worker thread): undo snapshot -> Clear -> wait 500 ms -> Set (+ logo position for shortcuts) -> refresh.
@@ -1752,7 +1765,7 @@ fn spawn_apply_file(s: &mut St, a: &mut App, file: PathBuf) {
         let r: Result<Option<PathBuf>, String> = (|| {
             if t == AType::Icon {
                 if shortcut {
-                    return Err("иконки не-Steam игр хранятся в shortcuts.vdf — пока не поддерживается".into());
+                    return Err(tr_ref("sgdb.shortcut_icon_path").into());
                 }
                 let expected = std::fs::read(&file).map_err(|e| e.to_string())?;
                 let path = apply::set_steam_icon(b.as_ref(), &root, id, &file)?;
@@ -1780,9 +1793,9 @@ fn spawn_apply_file(s: &mut St, a: &mut App, file: PathBuf) {
         })();
         post(move |a| {
             match &r {
-                Ok(_) if t == AType::Icon && apply::dry() => a.toast("Иконка: пробный запуск, изменение не подтверждено"),
-                Ok(_) => a.toast(&format!("{}: применено", t.label())),
-                Err(e) => a.toast(&format!("Ошибка применения: {e}")),
+                Ok(_) if t == AType::Icon && apply::dry() => a.toast(tr_ref("sgdb.icon_dry_run")),
+                Ok(_) => a.toast(&tr_args("sgdb.artwork_applied", &[("asset", t.label())])),
+                Err(e) => a.toast(&tr_args("sgdb.apply_failed", &[("e", &e.to_string())])),
             }
             if let Ok(icon) = r {
                 if t == AType::Icon {
@@ -1905,7 +1918,7 @@ fn refresh_art(a: &mut App, ids: Vec<u32>, e: Option<Expect>) {
 // Steam's resolver may still prefer a stale grid icon or be temporarily unavailable.
 fn confirmed_icon(path: &Path, expected: &[u8]) -> Result<(), String> {
     let bytes = std::fs::read(path).map_err(|e| e.to_string())?;
-    if bytes.is_empty() || bytes != expected { return Err("иконка не подтверждена".into()); }
+    if bytes.is_empty() || bytes != expected { return Err(tr_ref("sgdb.icon_unconfirmed").into()); }
     Ok(())
 }
 
@@ -1997,10 +2010,10 @@ fn start_batch(s: &mut St, a: &mut App) {
     let t = s.t();
     let todo = missing_for(a, t);
     if todo.is_empty() {
-        return a.toast("Все игры уже с картинками этого типа");
+        return a.toast(tr_ref("sgdb.batch_none"));
     }
     if s.client.key.is_none() {
-        return a.toast("Нужен ключ API SteamGridDB");
+        return a.toast(tr_ref("sgdb.key_required"));
     }
     let cancel = Arc::new(AtomicBool::new(false));
     s.batch_cancel = Some(cancel.clone());
@@ -2008,7 +2021,7 @@ fn start_batch(s: &mut St, a: &mut App) {
     let (client, settings, filters) = (s.client.clone(), s.settings.clone(), s.filters.get(&t).cloned().unwrap_or_else(|| Filters::default_for(t)));
     let (b, root, acct) = (crate::actions::bridge(), a.base.steam_root.clone(), a.lib.active_user);
     let total = todo.len();
-    a.toast(&format!("Пакет: {total} игр без «{}» (B — отмена)", t.label()));
+    a.toast(&tr_args("sgdb.batch_start", &[("total", &total.to_string()), ("asset", t.label())]));
     std::thread::spawn(move || {
         let (mut ok, mut fail) = (0usize, 0usize);
         let mut done_ids = vec![];
@@ -2022,21 +2035,21 @@ fn start_batch(s: &mut St, a: &mut App) {
                 let game = if shortcut {
                     match settings.game_for(id) {
                         Some(g) => Some(g.0),
-                        None => Some(client.search_games(&name).map_err(|e| e.to_string())?.0.into_iter().next().ok_or("нет на SteamGridDB")?.0),
+                        None => Some(client.search_games(&name).map_err(|e| e.to_string())?.0.into_iter().next().ok_or(tr_ref("sgdb.batch_game_missing"))?.0),
                     }
                 } else {
                     None
                 };
                 let (assets, _) = client.assets(t, id, game, &filters, 0).map_err(|e| e.to_string())?;
                 let assets: Vec<Asset> = assets.into_iter().filter(|x| !filters.animated_only() || t.fits_tab(x)).collect();
-                let pick = assets.iter().find(|x| !x.animated()).or(assets.first()).ok_or("нет подходящих")?;
+                let pick = assets.iter().find(|x| !x.animated()).or(assets.first()).ok_or(tr_ref("sgdb.batch_no_artwork"))?;
                 let full = cache::full_path(&pick.url);
                 if !full.is_file() {
                     client.download(&pick.url, &full)?;
                 }
                 if t == AType::Icon {
-                    if shortcut { return Err("иконки не-Steam игр не поддерживаются".into()); }
-                    if apply::dry() { return Err("пробный запуск: изменение иконки не подтверждено".into()); }
+                    if shortcut { return Err(tr_ref("sgdb.shortcut_icon_unsupported").into()); }
+                    if apply::dry() { return Err(tr_ref("sgdb.batch_dry_icon").into()); }
                     let expected = std::fs::read(&full).map_err(|e| e.to_string())?;
                     let path = apply::set_steam_icon(b.as_ref(), &root, id, &full)?;
                     confirmed_icon(&path, &expected)?;
@@ -2064,7 +2077,7 @@ fn start_batch(s: &mut St, a: &mut App) {
                     eprintln!("[deckshell] sgdb batch {}/{total}: {name} ({id}) skipped: {e}", n + 1);
                 }
             }
-            let msg = format!("Пакет {}/{total}: {name}", n + 1);
+            let msg = tr_args("sgdb.batch_progress", &[("current", &(n + 1).to_string()), ("total", &total.to_string()), ("name", &name)]);
             post(move |a| a.toast(&msg));
             std::thread::sleep(Duration::from_millis(350));
         }
@@ -2072,7 +2085,7 @@ fn start_batch(s: &mut St, a: &mut App) {
         std::thread::sleep(Duration::from_millis(if apply::dry() { 0 } else { 1500 }));
         let sets = settled_sets(b.as_ref(), &root, acct, &done_ids, expect_art(t, true));
         post(move |a| {
-            a.toast(&format!("Пакет завершён: применено {ok}, пропущено {fail}"));
+            a.toast(&tr_args("sgdb.batch_done", &[("ok", &ok.to_string()), ("fail", &fail.to_string())]));
             if !done_ids.is_empty() {
                 apply_art_refresh(a, done_ids, sets);
                 for (id, path) in icons { refresh_icon(a, id, path); }

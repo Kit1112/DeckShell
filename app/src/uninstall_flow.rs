@@ -1,5 +1,7 @@
 //! A native void reply proves dispatch only. Completion comes from Steam's overview;
 //! missing data and timeouts stay uncertain. Never retry a destructive request.
+use steam_assets::i18n::{tr_args, tr_ref};
+
 pub(crate) trait Backend {
     fn dispatch(&mut self, id: u32) -> Result<bool, String>;
     fn installed(&mut self, id: u32) -> Result<Option<bool>, String>;
@@ -7,9 +9,9 @@ pub(crate) trait Backend {
 }
 impl Backend for steam_bridge::Bridge {
     fn dispatch(&mut self, id: u32) -> Result<bool, String> {
-        let accepted = self.uninstall(id).map_err(|e| format!("Ошибка Steam: {e}. Завершение удаления не подтверждено; проверьте состояние игры перед повтором."))?;
+        let accepted = self.uninstall(id).map_err(|e| tr_args("uninstall.steam_error", &[("e", &e.to_string())]))?;
         if accepted {
-            crate::screens::defer(|a| a.toast("Запрос удаления отправлен Steam; ожидается обновление состояния."));
+            crate::screens::defer(|a| a.toast(tr_ref("uninstall.waiting_for_update")));
         }
         Ok(accepted)
     }
@@ -20,16 +22,16 @@ impl Backend for steam_bridge::Bridge {
 }
 
 pub(crate) fn observe(b: &mut impl Backend, id: u32) -> Result<(), String> {
-    if !b.dispatch(id)? { return Err("Steam не подтвердил приём запроса. Удаление не подтверждено.".into()); }
+    if !b.dispatch(id)? { return Err(tr_ref("uninstall.request_unconfirmed").into()); }
     for _ in 0..60 {
         b.wait();
         match b.installed(id) {
             Ok(Some(false)) => return Ok(()),
             Ok(_) => {},
-            Err(e) => return Err(format!("Связь со Steam потеряна: {e}. Результат удаления неизвестен.")),
+            Err(e) => return Err(tr_args("uninstall.steam_disconnected", &[("e", &e)])),
         }
     }
-    Err("Steam не подтвердил завершение удаления. Результат неизвестен; проверьте состояние игры перед повтором.".into())
+    Err(tr_ref("uninstall.completion_unconfirmed").into())
 }
 
 #[cfg(test)]
@@ -63,14 +65,14 @@ mod tests {
     fn unknown_or_unchanged_state_is_not_completion() {
         for states in [vec![], vec![Ok(Some(true)); 60]] {
             let mut b = fake(Ok(true), states);
-            assert!(observe(&mut b, 42).unwrap_err().contains("неизвестен"));
+            assert!(observe(&mut b, 42).unwrap_err().contains(crate::screens::expected_text("неизвестен", "unknown")));
             assert_eq!(b.sent, vec![42]); assert_eq!(b.polls, 60);
         }
     }
     #[test]
     fn disconnect_after_dispatch_is_uncertain_without_retry() {
         let mut b = fake(Ok(true), vec![Err("offline".into())]);
-        assert!(observe(&mut b, 42).unwrap_err().contains("неизвестен"));
+        assert!(observe(&mut b, 42).unwrap_err().contains(crate::screens::expected_text("неизвестен", "unknown")));
         assert_eq!(b.sent, vec![42]);
     }
 }

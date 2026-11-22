@@ -7,6 +7,7 @@
 //!  * `randomize_current_set` picks one *enabled* set and takes all three slots from it;
 //! Автоматическое перемешивание DeckShell ограничено слотами boot и suspend.
 //! При импорте общее значение плагина преобразуется в два переключателя.
+use steam_assets::i18n::{tr_args, tr_ref};
 use serde_json::{json, Map, Value};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -563,7 +564,7 @@ impl Config {
             "remaining": remaining,
         });
         if small_pool {
-            entry["warning"] = json!("пул слишком мал");
+            entry["warning"] = json!(tr_ref("anim_config.pool_too_small"));
         }
         let path = &self.dirs.picks_log;
         let result = std::fs::create_dir_all(path.parent().unwrap_or(Path::new(".")))
@@ -713,12 +714,12 @@ impl Config {
     pub fn remove(&mut self, id: &str) -> Result<Removed, String> {
         let origin = self.origin(id);
         if origin == Origin::Local {
-            return Err("Анимация из папки набора: удалите папку вручную".into());
+            return Err(tr_ref("animation.pack_delete").into());
         }
         let mut r = Removed::default();
         let own = self.own_download(id);
         if own.is_file() {
-            std::fs::remove_file(&own).map_err(|e| format!("Не удалось удалить файл: {e}"))?;
+            std::fs::remove_file(&own).map_err(|e| tr_args("animation.delete_failed", &[("e", &e.to_string())]))?;
             r.deleted_file = true;
         }
         if self.plugin_download(id).is_file() {
@@ -939,17 +940,17 @@ mod tests {
         let d = Dirs::under(&root);
         std::fs::create_dir_all(d.plugin_data.join("downloads")).unwrap();
         std::fs::create_dir_all(d.plugin_config.parent().unwrap()).unwrap();
-        for (id, len) in [("PDkKY", 3000), ("ndbjY", 1000), ("Extra", 500)] {
+        for (id, len) in [("BootB", 3000), ("Sleep", 1000), ("Extra", 500)] {
             let mut v = vec![0x1A, 0x45, 0xDF, 0xA3];
             v.resize(len, 1);
             std::fs::write(d.plugin_data.join("downloads").join(format!("{id}.webm")), v).unwrap();
         }
         std::fs::write(&d.plugin_config, serde_json::to_vec(&json!({
-            "boot": "PDkKY", "suspend": "ndbjY", "throbber": "ndbjY", "randomize": "all", "current_set": "", "force_ipv4": true,
+            "boot": "BootB", "suspend": "Sleep", "throbber": "Sleep", "randomize": "all", "current_set": "", "force_ipv4": true,
             "custom_animations": [], "custom_sets": [], "shuffle_exclusions": [],
             "downloads": [
-                {"id": "PDkKY", "name": "Playstation 2", "author": "Parimak", "target": "boot", "likes": 262, "downloads": 60373, "last_changed": "2022-10-11T21:25:37.000000Z"},
-                {"id": "ndbjY", "name": "minimal glitch logo suspend", "author": "x", "target": "suspend", "likes": 1, "downloads": 2, "last_changed": "2023-01-01T00:00:00.000000Z"}
+                {"id": "BootB", "name": "Retro Console", "author": "Fixture Creator B", "target": "boot", "likes": 262, "downloads": 60373, "last_changed": "2022-10-11T21:25:37.000000Z"},
+                {"id": "Sleep", "name": "Minimal Sleep", "author": "x", "target": "suspend", "likes": 1, "downloads": 2, "last_changed": "2023-01-01T00:00:00.000000Z"}
             ]})).unwrap()).unwrap();
         d
     }
@@ -960,12 +961,12 @@ mod tests {
         let path = Config::config_path(&dirs);
         for (legacy, enabled) in [(json!(true), true), (json!(false), false), (json!("all"), true), (json!("set"), true), (json!(""), false)] {
             write_atomic(&path, &serde_json::to_vec(&json!({
-                "randomize": legacy, "shuffle_exclusions": ["ndbjY"]
+                "randomize": legacy, "shuffle_exclusions": ["Sleep"]
             })).unwrap()).unwrap();
             let mut c = Config::load_from(dirs.clone());
             assert_eq!(c.shuffle_enabled(ShuffleSlot::Boot), enabled);
             assert_eq!(c.shuffle_enabled(ShuffleSlot::Suspend), enabled);
-            assert!(c.is_excluded("ndbjY"));
+            assert!(c.is_excluded("Sleep"));
             c.set_shuffle(ShuffleSlot::Boot, false);
             c.set_shuffle(ShuffleSlot::Suspend, true);
             c.save();
@@ -973,17 +974,17 @@ mod tests {
             assert!(!reloaded.shuffle_enabled(ShuffleSlot::Boot));
             assert!(reloaded.shuffle_enabled(ShuffleSlot::Suspend));
             assert!(!reloaded.v.contains_key("randomize"));
-            assert!(reloaded.is_excluded("ndbjY"));
+            assert!(reloaded.is_excluded("Sleep"));
         }
         write_atomic(&path, br#"{"randomize":"all","randomize_boot":false}"#).unwrap();
         let mut c = Config::load_from(dirs.clone());
         assert!(!c.shuffle_enabled(ShuffleSlot::Boot));
         assert!(c.shuffle_enabled(ShuffleSlot::Suspend));
-        let plugin = br#"{"randomize":"set","shuffle_exclusions":["PDkKY"]}"#;
+        let plugin = br#"{"randomize":"set","shuffle_exclusions":["BootB"]}"#;
         write_atomic(&dirs.plugin_config, plugin).unwrap();
         assert!(c.import_plugin_settings());
         assert!(c.shuffle_enabled(ShuffleSlot::Boot) && c.shuffle_enabled(ShuffleSlot::Suspend));
-        assert!(c.is_excluded("PDkKY"));
+        assert!(c.is_excluded("BootB"));
         assert_eq!(std::fs::read(&dirs.plugin_config).unwrap(), plugin);
         std::fs::remove_dir_all(dirs.own.parent().unwrap()).unwrap();
     }
@@ -998,18 +999,18 @@ mod tests {
         c.set("throbber", "сон из загрузки");
         c.toggle_exclusion("Extra");
         c.set_shuffle(ShuffleSlot::Suspend, false);
-        assert_eq!(c.shuffled(ShuffleSlot::Boot).as_deref(), Some("PDkKY"));
+        assert_eq!(c.shuffled(ShuffleSlot::Boot).as_deref(), Some("BootB"));
         assert_eq!(sleep_pick(&mut c, Kind::Suspend), None);
         c.set_shuffle(ShuffleSlot::Boot, false);
         c.set_shuffle(ShuffleSlot::Suspend, true);
         assert_eq!(c.shuffled(ShuffleSlot::Boot), None);
-        assert_eq!(sleep_pick(&mut c, Kind::Suspend).as_deref(), Some("ndbjY"));
+        assert_eq!(sleep_pick(&mut c, Kind::Suspend).as_deref(), Some("Sleep"));
         assert_eq!(sleep_pick(&mut c, Kind::Throbber), None);
         assert_eq!(sleep_pick(&mut c, Kind::Shutdown), None);
         assert_eq!(c.slot("shutdown"), "ручной сон");
         assert_eq!(c.get("throbber"), "сон из загрузки");
         assert_eq!(c.get("boot"), "ручной запуск");
-        c.toggle_exclusion("ndbjY");
+        c.toggle_exclusion("Sleep");
         assert_eq!(sleep_pick(&mut c, Kind::Suspend), None);
         assert_eq!(c.get("suspend"), "ручной сон");
 
@@ -1017,11 +1018,11 @@ mod tests {
             .lines().map(|line| serde_json::from_str(line).unwrap()).collect();
         assert_eq!(entries.len(), 3);
         assert!(entries[0].get("warning").is_none());
-        for (entry, id, size) in [(&entries[1], json!("ndbjY"), 1), (&entries[2], Value::Null, 0)] {
+        for (entry, id, size) in [(&entries[1], json!("Sleep"), 1), (&entries[2], Value::Null, 0)] {
             assert_eq!(entry["slot"], "suspend");
             assert_eq!(entry["id"], id);
             assert_eq!(entry["bag_size"], size);
-            assert_eq!(entry["warning"], "пул слишком мал");
+            assert_eq!(entry["warning"], crate::screens::expected_text("пул слишком мал", "pool is too small"));
             assert!(chrono::DateTime::parse_from_rfc3339(entry["time"].as_str().unwrap()).is_ok());
         }
         std::fs::remove_dir_all(dirs.own.parent().unwrap()).unwrap();
@@ -1122,16 +1123,16 @@ mod tests {
         let d = plugin_fixture("reload");
         let mut c = Config::load_from(d.clone());
         assert_eq!(c.downloads().len(), 3, "two with metadata + one found on disk");
-        assert_eq!(c.get("boot"), "PDkKY");
+        assert_eq!(c.get("boot"), "BootB");
         assert!(c.force_ipv4());
         assert!(c.shuffle_enabled(ShuffleSlot::Boot));
         assert!(c.shuffle_enabled(ShuffleSlot::Suspend));
-        assert!(c.toggle_favorite("PDkKY"));
+        assert!(c.toggle_favorite("BootB"));
         assert!(c.toggle_exclusion("Extra"));
         c.set_extra(|x| { x.boot_on_resume = true; x.volume = 0.5; });
         c.save();
         let c2 = Config::load_from(d.clone());
-        assert!(c2.is_favorite("PDkKY") && c2.is_excluded("Extra"));
+        assert!(c2.is_favorite("BootB") && c2.is_excluded("Extra"));
         assert!(c2.x.boot_on_resume && (c2.x.volume - 0.5).abs() < 1e-6);
         let _ = std::fs::remove_dir_all(d.own.parent().unwrap());
     }
@@ -1140,13 +1141,13 @@ mod tests {
     fn import_copies_plugin_files_once_and_never_touches_homebrew() {
         let d = plugin_fixture("import");
         let mut c = Config::load_from(d.clone());
-        assert_eq!(c.origin("PDkKY"), Origin::Plugin);
+        assert_eq!(c.origin("BootB"), Origin::Plugin);
         let r = c.import_files(&|_| Some(1 << 40));
         assert_eq!((r.copied, r.present, r.failed, r.no_space), (3, 0, 0, false));
         assert_eq!(r.bytes, 4500);
-        assert_eq!(c.origin("PDkKY"), Origin::Own);
-        assert!(c.plugin_download("PDkKY").is_file(), "the plugin's file stays");
-        assert_eq!(c.entry("PDkKY").unwrap()["author"], json!("Parimak"));
+        assert_eq!(c.origin("BootB"), Origin::Own);
+        assert!(c.plugin_download("BootB").is_file(), "the plugin's file stays");
+        assert_eq!(c.entry("BootB").unwrap()["author"], json!("Fixture Creator B"));
         let again = c.import_files(&|_| Some(1 << 40));
         assert_eq!((again.copied, again.present), (0, 3));
         // not enough room: stops, nothing half-copied
@@ -1165,25 +1166,25 @@ mod tests {
     fn remove_clears_slots_and_hides_plugin_files() {
         let d = plugin_fixture("remove");
         let mut c = Config::load_from(d.clone());
-        c.toggle_favorite("ndbjY");
-        c.set_extra(|x| x.shutdown = "ndbjY".into());
+        c.toggle_favorite("Sleep");
+        c.set_extra(|x| x.shutdown = "Sleep".into());
         // plugin-only file: entry goes, file stays, rescans do not bring it back
-        let r = c.remove("ndbjY").unwrap();
+        let r = c.remove("Sleep").unwrap();
         assert_eq!(r, Removed { deleted_file: false, plugin_file_kept: true, cleared_slots: vec!["suspend", "throbber", "shutdown"] });
-        assert!(c.plugin_download("ndbjY").is_file());
-        assert!(c.entry("ndbjY").is_none() && !c.is_favorite("ndbjY"));
+        assert!(c.plugin_download("Sleep").is_file());
+        assert!(c.entry("Sleep").is_none() && !c.is_favorite("Sleep"));
         c.sync_downloads();
-        assert!(c.entry("ndbjY").is_none(), "hidden");
+        assert!(c.entry("Sleep").is_none(), "hidden");
         // own copy: really deleted
         c.import_files(&|_| Some(1 << 40));
-        assert_eq!(c.origin("PDkKY"), Origin::Own);
-        let r = c.remove("PDkKY").unwrap();
+        assert_eq!(c.origin("BootB"), Origin::Own);
+        let r = c.remove("BootB").unwrap();
         assert!(r.deleted_file && r.plugin_file_kept);
         assert_eq!(c.get("boot"), "");
-        assert!(!c.own_download("PDkKY").exists());
+        assert!(!c.own_download("BootB").exists());
         // downloading again un-hides
-        c.add_download(json!({"id": "ndbjY", "name": "again", "target": "suspend"}));
-        assert!(!c.id_list("hidden").contains(&"ndbjY".to_string()));
+        c.add_download(json!({"id": "Sleep", "name": "again", "target": "suspend"}));
+        assert!(!c.id_list("hidden").contains(&"Sleep".to_string()));
         assert_eq!(c.path_for("suspend"), None.or(c.fallback("suspend")), "slot stays default until chosen");
         let _ = std::fs::remove_dir_all(d.own.parent().unwrap());
     }

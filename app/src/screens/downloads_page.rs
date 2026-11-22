@@ -4,6 +4,7 @@
 //! строки по-русски. Источник правил — стоковый клиент (`tools/cdp/build/src/sp.js`, `downloadsStore`),
 //! контракт: docs/steam-downloads-page-contract-2026-11-18.md и docs/downloads-page-2026-11-18.md.
 //! Секции, статусы и действия берутся из `downloads_menu` (тот же порт стока), чтобы страница и боковое меню не расходились.
+use steam_assets::i18n;
 use steam_bridge::{DownloadItem, DownloadOverview, DownloadSettings, Downloads, HistorySample};
 
 use super::downloads_menu::{find, item_actions, item_name, percent_of, primary, sections, speed, state_text, status, ItemAction, Op, Section, Status, Txt};
@@ -91,20 +92,12 @@ pub fn queue_size(d: &Downloads) -> QueueSize {
 /// Оставшееся время словами: стоковые «Ещё N сек.» / «Ещё N мин.» дополнены часами. Отрицательное — «Подсчёт…».
 pub fn eta_words(sec: i64, t: &Txt) -> String {
     if sec < 0 {
-        return (t.tr)("#Downloads_State_Calculating", "Подсчёт...");
+        return (t.tr)("#Downloads_State_Calculating", i18n::tr_ref("downloads_page.calculating"));
     }
     match sec {
-        0..=60 => format!("{sec} сек."),
-        61..=3599 => format!("{} мин.", (sec + 59) / 60),
-        _ => format!("{} ч {} мин.", sec / 3600, (sec % 3600 + 59) / 60 % 60),
-    }
-}
-
-fn plural_games(n: usize) -> &'static str {
-    match (n % 10, n % 100) {
-        (1, r) if r != 11 => "игра",
-        (2..=4, r) if !(12..=14).contains(&r) => "игры",
-        _ => "игр",
+        0..=60 => i18n::tr_args("downloads_page.sec", &[("sec", &(sec).to_string())]),
+        61..=3599 => i18n::tr_args("downloads_page.min", &[("sec", &((sec + 59) / 60).to_string())]),
+        _ => i18n::tr_args("downloads_page.hr_min", &[("sec", &(sec / 3600).to_string()), ("sec_2", &((sec % 3600 + 59) / 60 % 60).to_string())]),
     }
 }
 
@@ -126,7 +119,7 @@ pub struct Summary {
 pub fn summary(d: Option<&Downloads>, s: Option<&DownloadSettings>, t: &Txt) -> Summary {
     let bits = s.and_then(|s| s.rate_bits);
     let Some(d) = d else {
-        return Summary { headline: "Нет данных от Steam".into(), detail: "Steam не передал список загрузок: состояние неизвестно.".into(), net: String::new(), peak: String::new(), disc: String::new(), counts: Counts::default(), size: QueueSize::default() };
+        return Summary { headline: i18n::tr_ref("downloads_page.no_data_from_steam").into(), detail: i18n::tr_ref("downloads_page.steam_did_not_hand_over_the_download").into(), net: String::new(), peak: String::new(), disc: String::new(), counts: Counts::default(), size: QueueSize::default() };
     };
     let ov = &d.overview;
     let counts = Counts::of(d);
@@ -134,34 +127,34 @@ pub fn summary(d: Option<&Downloads>, s: Option<&DownloadSettings>, t: &Txt) -> 
     let busy = ov.appid != 0 && ov.state != "None" && !ov.state.is_empty();
     let headline = if ov.paused == Some(true) {
         match counts.queued {
-            0 => (t.tr)("#BottomBar_DownloadsPaused", "Загрузки приостановлены"),
-            n => format!("Загрузка приостановлена — {n} в очереди"),
+            0 => (t.tr)("#BottomBar_DownloadsPaused", i18n::tr_ref("downloads_page.downloads_paused")),
+            n => i18n::tr_args("downloads_page.download_paused_queued", &[("count", &(n).to_string())]),
         }
     } else if ov.state == "Downloading" && !ov.is_upload {
-        format!("Загрузка {} из {}", counts.index(), counts.total())
+        i18n::tr_args("downloads_page.downloading_of", &[("index", &(counts.index()).to_string()), ("total", &(counts.total()).to_string())])
     } else if busy {
         state_text(&ov.state, t)
     } else if counts.total() > 0 && counts.queued == 0 {
-        format!("Загрузки — завершено {} из {}", counts.completed, counts.total())
+        i18n::tr_args("downloads_page.downloads_of_complete", &[("completed", &(counts.completed).to_string()), ("total", &(counts.total()).to_string())])
     } else if counts.queued > 0 {
-        format!("В очереди: {}", counts.queued)
+        i18n::tr_args("downloads_page.in_queue", &[("queued", &(counts.queued).to_string())])
     } else {
-        "Нет активных загрузок".into()
+        i18n::tr_ref("downloads_page.no_active_downloads").into()
     };
     let mut parts: Vec<String> = Vec::new();
     if size.total > 0 {
-        parts.push(format!("Осталось {} из {}", (t.size)(size.remaining()), (t.size)(size.total)));
+        parts.push(i18n::tr_args("downloads_page.of_remaining", &[("remaining", &((t.size)(size.remaining())).to_string()), ("total", &((t.size)(size.total)).to_string())]));
     }
     if size.unknown > 0 {
-        parts.push(format!("размер неизвестен у {} {}", size.unknown, plural_games(size.unknown)));
+        parts.push(i18n::tr_plural("downloads_page.unknown_sizes", size.unknown as i64, &[]));
     }
     let games = d.items.iter().filter(|i| !i.completed && i.queue_index != -1 && i.deferred_time == 0).count();
     if games > 0 {
-        parts.push(format!("{games} {}", plural_games(games)));
+        parts.push(i18n::tr_plural("downloads_page.games_in_queue", games as i64, &[]));
     }
     if busy && ov.paused != Some(true) {
         if let Some(e) = ov.eta_sec {
-            parts.push(format!("{}: {}", "Текущая игра", if e < 0 { eta_words(e, t) } else { format!("осталось примерно {}", eta_words(e, t)) }));
+            parts.push(format!("{}: {}", i18n::tr_ref("downloads_page.current_game"), if e < 0 { eta_words(e, t) } else { i18n::tr_args("downloads_page.about_remaining", &[("eta", &eta_words(e, t))]) }));
         }
     }
     let rate = |v: u64| if v > 0 { speed(v, bits) } else { String::new() };
@@ -224,9 +217,9 @@ pub fn badges(i: &DownloadItem, ov: Option<&DownloadOverview>, t: &Txt) -> Vec<B
         .filter(|(k, _)| *k <= 2)
         .map(|&(k, done)| {
             let (tok, fb) = match k {
-                1 => ("#Downloads_ContentType_Workshop", "Мастерская"),
-                2 => ("#Downloads_ContentType_Shader", "Кэш шейдеров"),
-                _ => ("#Downloads_ContentType_Content", "Контент"),
+                1 => ("#Downloads_ContentType_Workshop", i18n::tr_ref("downloads_page.workshop")),
+                2 => ("#Downloads_ContentType_Shader", i18n::tr_ref("downloads_page.shader_pre_caching_update")),
+                _ => ("#Downloads_ContentType_Content", i18n::tr_ref("downloads_page.content")),
             };
             let now = live.is_some_and(|o| match k {
                 1 => o.is_workshop,
@@ -304,27 +297,27 @@ pub fn card(section: Section, i: &DownloadItem, d: &Downloads, t: &Txt) -> Card 
     let all_paused = d.overview.paused == Some(true) && matches!(st, Status::Active | Status::ActiveDownloading | Status::ActivePaused);
     let waiting = !all_paused && matches!(st, Status::Active | Status::ActiveDownloading) && d.overview.appid != 0 && d.overview.appid != i.appid;
     let state = match st {
-        _ if all_paused => (t.tr)("#Downloads_State_Paused", "Приостановлено"),
-        _ if waiting => (t.tr)("#Downloads_State_WaitingForPrevious", "Остановка предыдущей загрузки"),
+        _ if all_paused => (t.tr)("#Downloads_State_Paused", i18n::tr_ref("downloads_page.paused")),
+        _ if waiting => (t.tr)("#Downloads_State_WaitingForPrevious", i18n::tr_ref("downloads_page.stopping_previous_download")),
         Status::ActiveDownloading | Status::Active => {
             if d.overview.state == "Downloading" && bytes.is_some_and(|(b, n)| n > 0 && b >= n) {
-                (t.tr)("#Downloads_DetailedState_Downloading_Complete", "Загрузка завершена")
+                (t.tr)("#Downloads_DetailedState_Downloading_Complete", i18n::tr_ref("downloads_page.downloading_complete"))
             } else if d.overview.state == "Downloading" {
-                (t.tr)("#Downloads_DetailedState_Downloading", "Загрузка данных")
+                (t.tr)("#Downloads_DetailedState_Downloading", i18n::tr_ref("downloads_page.downloading_data"))
             } else {
                 state_text(&d.overview.state, t)
             }
         }
-        Status::ActivePaused | Status::RemovedFromQueue => (t.tr)("#Downloads_State_Paused", "Приостановлено"),
-        Status::Queued => (t.tr)("#Downloads_State_Queued", "В очереди"),
-        Status::QueuedNext => (t.tr)("#Downloads_State_UpNext", "Далее"),
-        Status::Scheduled => format!("{} {}", (t.tr)("#Downloads_State_Scheduled", "Запланировано"), (t.time)(i.deferred_time)),
-        Status::Error if no_space => (t.tr)(&format!("#Steam_AppUpdateError_{code}"), "Недостаточно свободного места на диске"),
-        Status::Error => (t.tr)(&format!("#Steam_AppUpdateError_{code}"), &format!("Ошибка обновления (код {code})")),
-        Status::DisabledByUser => (t.tr)("#Downloads_AutoUpdate_DoNotUpdate", "Обновляется только при запуске"),
-        Status::DisabledByApp => (t.tr)("#Downloads_State_UpdatesDiabledByApp", "В приложении временно отключены обновления"),
-        Status::Completed => format!("{} {}", (t.tr)("#Downloads_State_Complete", "Завершено:").trim_end_matches(':'), (t.time)(i.completed_time)).replacen(" ", ": ", 1),
-        Status::Unknown => "Steam не сообщил состояние".into(),
+        Status::ActivePaused | Status::RemovedFromQueue => (t.tr)("#Downloads_State_Paused", i18n::tr_ref("downloads_page.paused")),
+        Status::Queued => (t.tr)("#Downloads_State_Queued", i18n::tr_ref("downloads_page.queued")),
+        Status::QueuedNext => (t.tr)("#Downloads_State_UpNext", i18n::tr_ref("downloads_page.next")),
+        Status::Scheduled => format!("{} {}", (t.tr)("#Downloads_State_Scheduled", i18n::tr_ref("downloads_page.scheduled")), (t.time)(i.deferred_time)),
+        Status::Error if no_space => (t.tr)(&format!("#Steam_AppUpdateError_{code}"), i18n::tr_ref("downloads_page.not_enough_free_disk_space")),
+        Status::Error => (t.tr)(&format!("#Steam_AppUpdateError_{code}"), &i18n::tr_args("downloads_page.update_error_code", &[("code", &(code).to_string())])),
+        Status::DisabledByUser => (t.tr)("#Downloads_AutoUpdate_DoNotUpdate", i18n::tr_ref("downloads_page.updated_only_at_launch")),
+        Status::DisabledByApp => (t.tr)("#Downloads_State_UpdatesDiabledByApp", i18n::tr_ref("downloads_page.the_application_has_temporarily_disabled_updates")),
+        Status::Completed => format!("{} {}", (t.tr)("#Downloads_State_Complete", i18n::tr_ref("downloads_page.completed")).trim_end_matches(':'), (t.time)(i.completed_time)).replacen(" ", ": ", 1),
+        Status::Unknown => i18n::tr_ref("downloads_page.steam_did_not_report_a_condition").into(),
     };
     let size = if st == Status::Completed {
         bytes.filter(|p| p.1 > 0).map(|p| (t.size)(p.1)).unwrap_or_default()
@@ -332,7 +325,7 @@ pub fn card(section: Section, i: &DownloadItem, d: &Downloads, t: &Txt) -> Card 
         match bytes {
             Some((b, n)) if b > 0 && n > 0 => format!("{} / {}", (t.size)(b), (t.size)(n)),
             Some((_, n)) if n > 0 => (t.size)(n),
-            _ => "размер неизвестен".into(),
+            _ => i18n::tr_ref("downloads_page.size_unknown").into(),
         }
     };
     let active_now = matches!(st, Status::ActiveDownloading | Status::Active) && !waiting && !all_paused;
@@ -355,7 +348,7 @@ pub fn card(section: Section, i: &DownloadItem, d: &Downloads, t: &Txt) -> Card 
         progress,
         percent,
         speed: if active_now { live.map(|o| o.net_bytes_per_sec).filter(|&v| v > 0).map(|v| speed(v, None)).unwrap_or_default() } else { String::new() },
-        eta: if active_now { live.and_then(|o| o.eta_sec).filter(|&e| e >= 0).map(|e| format!("Осталось примерно {}", eta_words(e, t))).unwrap_or_default() } else { String::new() },
+        eta: if active_now { live.and_then(|o| o.eta_sec).filter(|&e| e >= 0).map(|e| i18n::tr_args("downloads_page.about_remaining_2", &[("error", &(eta_words(e, t)).to_string())])).unwrap_or_default() } else { String::new() },
         order,
         error: st == Status::Error,
         no_space,
@@ -389,26 +382,26 @@ pub struct Page {
 
 pub fn section_title(s: Section, n: usize, t: &Txt) -> String {
     let (tok, fb) = match s {
-        Section::Active => ("#Downloads_Section_Active", "В процессе"),
-        Section::Queued => ("#Downloads_Section_Current", "Далее"),
-        Section::Scheduled => ("#Downloads_Section_Scheduled", "Запланировано"),
-        Section::NotQueued => ("#Downloads_Section_NotQueued", "Не запланировано"),
-        Section::Completed => ("#Downloads_Section_Completed", "Завершено"),
+        Section::Active => ("#Downloads_Section_Active", i18n::tr_ref("downloads_page.active")),
+        Section::Queued => ("#Downloads_Section_Current", i18n::tr_ref("downloads_page.up_next")),
+        Section::Scheduled => ("#Downloads_Section_Scheduled", i18n::tr_ref("downloads_page.scheduled")),
+        Section::NotQueued => ("#Downloads_Section_NotQueued", i18n::tr_ref("downloads_page.unscheduled")),
+        Section::Completed => ("#Downloads_Section_Completed", i18n::tr_ref("downloads_page.completed_2")),
     };
     format!("{} ({n})", (t.tr)(tok, fb))
 }
 
 /// Кнопка автообновлений (стоковый `xe`): расписание, если оно включено в настройках, иначе «Автообновления включены».
 pub fn auto_label(s: Option<&DownloadSettings>, t: &Txt) -> String {
-    let Some(s) = s else { return "Настройки загрузок".into() };
+    let Some(s) = s else { return i18n::tr_ref("downloads_page.loading_settings").into() };
     if s.restrict_auto_updates == Some(true) {
         let hour = |h: Option<i64>| h.and_then(|h| s.hours.iter().find(|x| x.0 == h).map(|x| x.1.clone()));
         if let (Some(a), Some(b)) = (hour(s.restrict_start), hour(s.restrict_end)) {
-            return format!("Автообновления запланированы с {a} по {b}");
+            return i18n::tr_args("downloads_page.auto_updates_scheduled_from_to", &[("start", &(a).to_string()), ("end", &(b).to_string())]);
         }
-        return (t.tr)("#DownloadSettings_ScheduleAutoUpdates", "Автообновление по расписанию");
+        return (t.tr)("#DownloadSettings_ScheduleAutoUpdates", i18n::tr_ref("downloads_page.schedule_auto_updates"));
     }
-    (t.tr)("#Downloads_AutoUpdates_Enabled", "Автообновления включены")
+    (t.tr)("#Downloads_AutoUpdates_Enabled", i18n::tr_ref("downloads_page.auto_updates_enabled"))
 }
 
 pub fn page(d: Option<&Downloads>, s: Option<&DownloadSettings>, t: &Txt) -> Page {
@@ -450,189 +443,5 @@ pub fn section_of(d: &Downloads, appid: u32) -> Option<Section> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use serde_json::Value;
-    use steam_bridge::{parse_download_settings, parse_downloads};
-
-    const FIXTURE: &str = include_str!("downloads_menu_fixture.json");
-
-    fn fixture() -> (Downloads, DownloadSettings) {
-        let v: Value = serde_json::from_str(FIXTURE).unwrap();
-        (parse_downloads(&v["downloads"]).unwrap(), parse_download_settings(&v["settings"]).unwrap())
-    }
-    fn txt() -> Txt<'static> {
-        Txt { tr: &|_, fallback| fallback.to_string(), time: &|ts| format!("T{ts}"), size: &|b| format!("{b}B") }
-    }
-
-    #[test]
-    fn bytes_are_the_download_stage_only() {
-        // js::DOWNLOADS присылает progress[2]: сумма стадий 0..6 (в 2–4 раза больше) больше не попадает в bytes/total.
-        let v: Value = serde_json::from_str(include_str!("downloads_page_native_fixture.json")).unwrap();
-        let d = parse_downloads(&v["downloads"]).unwrap();
-        let i = &d.items[0];
-        assert_eq!((i.dl_bytes, i.dl_total), (Some(2_000), Some(8_000)));
-        assert_eq!((i.bytes, i.total), (2_000, 8_000), "bytes/total — тоже стадия 2, не сумма всех стадий");
-        assert_eq!(item_bytes(i, item_ov(&d, i)), Some((2_000, 8_000)));
-    }
-    fn item_ov<'a>(d: &'a Downloads, i: &DownloadItem) -> Option<&'a DownloadOverview> {
-        super::super::downloads_menu::item_overview(i, &d.overview)
-    }
-
-    #[test]
-    fn counts_are_games_not_bytes() {
-        let (d, _) = fixture();
-        // Очередь без расписания: 100 (активная), 200, 300, 350 и «Не запланировано» (queue_index -1) не входят; завершено: 2.
-        let c = Counts::of(&d);
-        assert_eq!(c, Counts { queued: 4, completed: 2 });
-        assert_eq!((c.index(), c.total()), (3, 6));
-        let s = summary(Some(&d), None, &txt());
-        assert_eq!(s.headline, "Загрузка 3 из 6");
-    }
-
-    #[test]
-    fn queue_size_uses_stage_two_and_known_sizes_only() {
-        let (d, _) = fixture();
-        // Alpha: числа обзора 4000/10000, Beta 0/6000, Gamma 500/2000, Broken 0/100 → всего 18100, скачано 4500.
-        let q = queue_size(&d);
-        assert_eq!(q, QueueSize { total: 18_100, done: 4_500, unknown: 0 });
-        assert_eq!(q.remaining(), 13_600);
-        let s = summary(Some(&d), None, &txt());
-        assert!(s.detail.starts_with("Осталось 13600B из 18100B · 4 игры"), "{}", s.detail);
-        assert!(s.detail.ends_with("Текущая игра: осталось примерно 5 мин."), "{}", s.detail);
-    }
-
-    #[test]
-    fn unknown_sizes_are_counted_not_guessed() {
-        let (mut d, _) = fixture();
-        d.items.iter_mut().find(|i| i.appid == 200).map(|i| { i.dl_bytes = None; i.dl_total = None; i.bytes = 0; i.total = 0; });
-        let q = queue_size(&d);
-        assert_eq!((q.total, q.unknown), (12_100, 1));
-        assert!(summary(Some(&d), None, &txt()).detail.contains("размер неизвестен у 1 игре") == false);
-        assert!(summary(Some(&d), None, &txt()).detail.contains("размер неизвестен у 1 игра"));
-    }
-
-    #[test]
-    fn headline_follows_the_stock_status_string() {
-        let (mut d, _) = fixture();
-        d.overview.paused = Some(true);
-        assert_eq!(summary(Some(&d), None, &txt()).headline, "Загрузка приостановлена — 4 в очереди");
-        d.overview.paused = Some(false);
-        d.overview.state = "None".into();
-        d.overview.appid = 0;
-        assert_eq!(summary(Some(&d), None, &txt()).headline, "В очереди: 4");
-        d.items.retain(|i| i.completed);
-        assert_eq!(summary(Some(&d), None, &txt()).headline, "Загрузки — завершено 2 из 2");
-        d.items.clear();
-        assert_eq!(summary(Some(&d), None, &txt()).headline, "Нет активных загрузок");
-        assert_eq!(summary(None, None, &txt()).headline, "Нет данных от Steam");
-        let (mut d, _) = fixture();
-        d.overview.state = "Unpacking".into();
-        assert_eq!(summary(Some(&d), None, &txt()).headline, "Распаковка");
-    }
-
-    #[test]
-    fn hero_card_shows_stage_speed_and_progress() {
-        let (d, _) = fixture();
-        let p = page(Some(&d), None, &txt());
-        let h = p.hero.as_ref().unwrap();
-        assert_eq!((h.name.as_str(), h.state.as_str(), h.size.as_str(), h.percent), ("Alpha", "Загрузка данных", "4000B / 10000B", Some(41)));
-        assert_eq!((h.speed.as_str(), h.eta.as_str()), ("2,0 МБ/с", "Осталось примерно 5 мин."));
-        assert_eq!(h.progress, 0.41);
-        assert!(h.primary.as_ref().is_some_and(|a| a.op == Op::EnableAll(false)));
-        assert!(h.remove.is_none(), "стоковая кнопка удаления не показывается у активной загрузки");
-    }
-
-    #[test]
-    fn stage_text_waiting_and_complete() {
-        let (mut d, _) = fixture();
-        d.overview.dl_bytes = Some(10_000);
-        assert_eq!(page(Some(&d), None, &txt()).hero.unwrap().state, "Загрузка завершена");
-        let (mut d, _) = fixture();
-        d.overview.state = "Verifying".into();
-        assert_eq!(page(Some(&d), None, &txt()).hero.unwrap().state, "Проверка");
-        let (mut d, _) = fixture();
-        d.overview.appid = 999;
-        assert_eq!(page(Some(&d), None, &txt()).hero.unwrap().state, "Остановка предыдущей загрузки");
-    }
-
-    #[test]
-    fn sections_and_cards_of_the_queue() {
-        let (d, s) = fixture();
-        let p = page(Some(&d), Some(&s), &txt());
-        let titles: Vec<&str> = p.blocks.iter().map(|b| b.title.as_str()).collect();
-        assert_eq!(titles, vec!["Далее (3)", "Запланировано (1)", "Не запланировано (3)", "Завершено (2)"]);
-        let q = &p.blocks[0];
-        assert_eq!(q.cards.iter().map(|c| c.order).collect::<Vec<_>>(), vec![Some(1), Some(2), Some(3)]);
-        let beta = &q.cards[0];
-        assert_eq!((beta.state.as_str(), beta.size.as_str(), beta.progress), ("Далее", "6000B", -1.0));
-        assert!(beta.primary.as_ref().is_some_and(|a| a.token == "#Downloads_MoveToTop_Tooltip"));
-        assert!(beta.remove.is_some());
-        let broken = &q.cards[2];
-        assert!(broken.error && !broken.no_space);
-        assert_eq!(broken.state, "Ошибка обновления (код 6)");
-        assert!(broken.primary.as_ref().is_some_and(|a| a.token == "#Downloads_Retry_Tooltip"));
-        let done = &p.blocks[3].cards[0];
-        assert_eq!((done.name.as_str(), done.state.as_str(), done.size.as_str()), ("Newest", "Завершено: T1780000500", "50B"));
-        assert!(done.primary.as_ref().is_some_and(|a| a.op == Op::ViewInLibrary(900)));
-        let unq = &p.blocks[2].cards;
-        assert_eq!(unq[1].state, "Приостановлено");
-        assert_eq!(unq[2].state, "В приложении временно отключены обновления");
-        assert!(unq[2].primary.is_none(), "обновления отключены приложением — кнопки нет");
-        assert_eq!(order(&p), vec![100, 200, 300, 350, 400, 600, 500, 700, 900, 800]);
-    }
-
-    #[test]
-    fn no_space_error_has_its_own_text() {
-        let (mut d, _) = fixture();
-        d.items.iter_mut().find(|i| i.appid == 350).unwrap().update_result = Some(12);
-        let p = page(Some(&d), None, &txt());
-        let c = &p.blocks[0].cards[2];
-        assert!(c.no_space && c.error);
-        assert_eq!(c.state, "Недостаточно свободного места на диске");
-        // 14 в локализации Steam — «Ожидание установочного диска», а не нехватка места (контракт Gemini ошибался)
-        d.items.iter_mut().find(|i| i.appid == 350).unwrap().update_result = Some(14);
-        assert!(!page(Some(&d), None, &txt()).blocks[0].cards[2].no_space);
-    }
-
-    #[test]
-    fn everything_paused_shows_paused_not_speed() {
-        let (mut d, _) = fixture();
-        d.overview.paused = Some(true);
-        let p = page(Some(&d), None, &txt());
-        let h = p.hero.unwrap();
-        assert_eq!(h.state, "Приостановлено");
-        assert!((h.speed.as_str(), h.eta.as_str()) == ("", "") && h.dim, "на паузе скорость и оставшееся время не показываются");
-        assert!(p.summary.net.is_empty() && p.summary.disc.is_empty());
-        assert!(!p.summary.detail.contains("Текущая игра"));
-    }
-
-    #[test]
-    fn auto_updates_button_follows_the_schedule() {
-        let (_, mut s) = fixture();
-        assert_eq!(auto_label(Some(&s), &txt()), "Автообновления запланированы с 01:00 по 05:00");
-        s.restrict_auto_updates = Some(false);
-        assert_eq!(auto_label(Some(&s), &txt()), "Автообновления включены");
-        assert_eq!(auto_label(None, &txt()), "Настройки загрузок");
-    }
-
-    #[test]
-    fn eta_words_pick_the_unit() {
-        let t = txt();
-        assert_eq!(eta_words(45, &t), "45 сек.");
-        assert_eq!(eta_words(61, &t), "2 мин.");
-        assert_eq!(eta_words(3700, &t), "1 ч 2 мин.");
-        assert_eq!(eta_words(-1, &t), "Подсчёт...");
-    }
-
-    #[test]
-    fn empty_page_has_the_stock_placeholder_state() {
-        let (mut d, _) = fixture();
-        d.items.clear();
-        d.overview = DownloadOverview { state: "None".into(), paused: Some(false), ..Default::default() };
-        let p = page(Some(&d), None, &txt());
-        assert!(p.empty && p.hero.is_none());
-        assert_eq!(p.blocks.len(), 1, "«Далее (0)» с кнопкой автообновлений остаётся");
-        assert_eq!(p.blocks[0].title, "Далее (0)");
-    }
-}
+#[path = "downloads_page_tests.rs"]
+mod tests;

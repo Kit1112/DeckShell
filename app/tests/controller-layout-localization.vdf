@@ -1,0 +1,4 @@
+"controller_mappings" { "title" "#Title" "localization" { "english" { "title" "Eng" } "russian" { "title" "Рус" } }
+ "group" { "id" "18" "mode" "gyro_to_mouse" "settings" { "gyro_natural_sensitivity" "20" } }
+ "group" { "id" "12" "mode" "mouse_joystick" }
+ "preset" { "id" "0" "group_source_bindings" { "18" "gyro active" "12" "right_trackpad active" } } }

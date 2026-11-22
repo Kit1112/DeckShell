@@ -160,7 +160,7 @@ export component GHomeRecents inherits Rectangle {
 // states: selected (bg rgba(255, 255, 255, 0.15)), normal (transparent, rgb(220, 222, 223)), focused (white bg, rgb(35, 38, 46), shadow rgba(0, 0, 0, 0.32) 0px 3px 6px 0px); 100ms cubic-bezier(0.25, 0.1, 0.25, 1).
 export struct GTab { label: string, badge: string, selected: bool }
 export component GHomeTabs inherits Rectangle {
-    in property <[GTab]> tabs: [ { label: "Что нового", badge: "", selected: true }, { label: "Друзья", badge: "4", selected: false }, { label: "Рекомендации", badge: "", selected: false } ];
+    in property <[GTab]> tabs;
     in property <int> focused-tab: -1;
     in property <length> scroll-y: 0px;
     callback activated(int);

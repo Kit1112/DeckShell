@@ -328,7 +328,8 @@ mod tests {
         put_int(&mut binding, 1, 1);
         let mut kb = Vec::new();
         put_str(&mut kb, 1, "A");
-        put_str(&mut kb, 2, "Кнопка A");
+        let ru = steam_assets::i18n::by_code("ru").unwrap();
+        put_str(&mut kb, 2, &ru.tr("controller.a_button"));
         put_bytes(&mut binding, 2, &kb);
 
         let mut activator = Vec::new();
@@ -343,16 +344,16 @@ mod tests {
         put_int(&mut mode, 1, 2);
         put_int(&mut mode, 2, 7);
         put_bytes(&mut mode, 4, &input);
-        put_str(&mut mode, 6, "Лицевые кнопки");
+        put_str(&mut mode, 6, &ru.tr("controller.face_buttons_2"));
 
         let mut set = Vec::new();
         put_str(&mut set, 1, "Gameplay");
-        put_str(&mut set, 2, "Игра");
+        put_str(&mut set, 2, &ru.tr("controller.game_4"));
         put_bytes(&mut set, 4, &[]);
         put_bytes(&mut set, 4, &[]);
 
         let mut msg = Vec::new();
-        put_str(&mut msg, 2, "Официальная раскладка Balatro - Геймпад");
+        put_str(&mut msg, 2, &ru.tr("controller.official_layout_for_balatro_gamepad"));
         put_str(&mut msg, 4, "Official Creator");
         put_int(&mut msg, 5, 4);
         put_int(&mut msg, 7, 2);
@@ -366,24 +367,25 @@ mod tests {
 
     #[test]
     fn decodes_layout_fields_by_descriptor_numbers() {
+        let ru = steam_assets::i18n::by_code("ru").unwrap();
         let l = parse_layout(&fixture()).unwrap();
-        assert_eq!(l.display_name, "Официальная раскладка Balatro - Геймпад");
+        assert_eq!(l.display_name, ru.tr("controller.official_layout_for_balatro_gamepad"));
         assert_eq!(l.creator, "Official Creator");
         assert_eq!(l.controller_type, 4);
         assert_eq!(l.controller_style, 2);
         assert_eq!(l.url, "workshop/official-balatro");
         assert_eq!(
             l.action_sets,
-            vec![ActionSet { key: "Gameplay".into(), display_name: "Игра".into(), layer_count: 2 }]
+            vec![ActionSet { key: "Gameplay".into(), display_name: ru.tr("controller.game_4").into(), layer_count: 2 }]
         );
         assert_eq!(l.modes.len(), 1);
         let m = &l.modes[0];
-        assert_eq!((m.mode, m.modeid, m.friendly_name.as_str()), (2, 7, "Лицевые кнопки"));
+        assert_eq!((m.mode, m.modeid, m.friendly_name.as_str()), (2, 7, ru.tr("controller.face_buttons_2").as_str()));
         assert_eq!(m.inputs[0].key, 1);
         assert_eq!(m.inputs[0].activators[0].activation, 1);
         assert_eq!(
             m.inputs[0].activators[0].bindings,
-            vec![Binding { kind: 1, label: "Кнопка A".into(), gamepad_value: None }]
+            vec![Binding { kind: 1, label: ru.tr("controller.a_button").into(), gamepad_value: None }]
         );
     }
 

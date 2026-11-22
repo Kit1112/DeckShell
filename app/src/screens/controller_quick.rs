@@ -2,6 +2,7 @@
 //! `StartEditing…`, что у редактора), как их строит sp.js `ControllerConfigurationQuickSettings`:
 //! тумблер кнопок хвата, «Функции: Гироскоп», «Функции: Правый трекпад» (+ шестерёнка), инверсии оси Y.
 //! Запись идёт теми же вызовами, что и в редакторе (`SetEditingControllerConfigurationSourceMode`).
+use steam_assets::i18n::{tr_args, tr_ref};
 use super::controller_live::{msg, number, string};
 use super::controller_pages as pages;
 use super::controller_pad as pad;
@@ -68,9 +69,9 @@ pub fn mode_choices(source: i64) -> &'static [i64] {
 /// Пункты «Создать …» стока после списка режимов (`*-mode-options`): создают дочерние режимы, вызовы не
 /// подтверждены на Деке, поэтому показываются как в стоке, а A даёт тост о недоступности.
 pub fn create_entries(source: i64) -> &'static [(&'static str, &'static str)] {
-    const RADIAL: (&str, &str) = ("#ControllerConfigurator_SourceMode_RadialMenu_Title", "Создать круговое меню");
-    const TOUCH: (&str, &str) = ("#ControllerConfigurator_SourceMode_TouchMenu_Title", "Создать сенсорное меню");
-    const HOTBAR: (&str, &str) = ("#ControllerConfigurator_SourceMode_Hotbar_Title", "Создать панель быстрого доступа");
+    const RADIAL: (&str, &str) = ("#ControllerConfigurator_SourceMode_RadialMenu_Title", "controller.create_radial_menu");
+    const TOUCH: (&str, &str) = ("#ControllerConfigurator_SourceMode_TouchMenu_Title", "controller.create_touch_menu");
+    const HOTBAR: (&str, &str) = ("#ControllerConfigurator_SourceMode_Hotbar_Title", "controller.create_hotbar_menu");
     match source {
         RPAD | LPAD | RSTICK | LSTICK => &[RADIAL, TOUCH, HOTBAR],
         FACE => &[RADIAL],
@@ -99,7 +100,7 @@ pub fn list_rows(source: i64, simple_view: bool, current: i64) -> Vec<(String, i
         .map(|m| (mode_name(source, m), mode_icon(source, m)))
         .chain(creates.iter().map(|(token, fallback)| {
             let icon = if token.contains("Radial") { 6 } else if token.contains("Touch") { 7 } else { 8 };
-            (crate::assets::t_or(token, fallback), icon)
+            (crate::assets::t_or(token, tr_ref(fallback)), icon)
         }))
         .collect()
 }
@@ -108,10 +109,10 @@ pub fn list_rows(source: i64, simple_view: bool, current: i64) -> Vec<(String, i
 pub fn mode_name(source: i64, mode: i64) -> String {
     use crate::assets::t_or;
     let (token, fallback) = match (source, mode) {
-        (GYRO, 22) => ("Gyro_To_Mouse", "Гироскоп как мышь"),
-        (GYRO, 23) => ("Gyro_To_JoystickCamera", "Гироскоп как джойстик: камера"),
-        (GYRO, 24) => ("Gyro_To_JoystickDeflection", "Гироскоп как джойстик: отклонение"),
-        (RPAD | LPAD, 4) => ("AbsoluteMouse", "Как мышь"),
+        (GYRO, 22) => ("Gyro_To_Mouse", tr_ref("controller.gyro_to_mouse")),
+        (GYRO, 23) => ("Gyro_To_JoystickCamera", tr_ref("controller.gyro_to_joystick_camera")),
+        (GYRO, 24) => ("Gyro_To_JoystickDeflection", tr_ref("controller.gyro_to_joystick_deflection")),
+        (RPAD | LPAD, 4) => ("AbsoluteMouse", tr_ref("controller.as_mouse")),
         _ => return pages::mode_label(mode),
     };
     t_or(&format!("#ControllerConfigurator_SourceMode_{token}_Title"), fallback)
@@ -133,7 +134,7 @@ pub fn mode_icon(_source: i64, mode: i64) -> i32 {
 }
 
 fn set0(raw: &[u8]) -> Result<&[u8]> {
-    msg(raw, 8)?.into_iter().next().ok_or_else(|| Error::Protocol("В раскладке нет наборов действий".into()))
+    msg(raw, 8)?.into_iter().next().ok_or_else(|| Error::Protocol(tr_ref("controller.the_layout_has_no_action_sets").into()))
 }
 
 pub fn source_group(raw: &[u8], key: i64) -> Option<(i64, i64)> {
@@ -155,7 +156,7 @@ pub fn mode_in_set(raw: &[u8], set_index: usize, key: i64) -> i64 {
 /// Адрес записи режима источника в наборе `set_index` (источник без группы получает режим 0 и modeid 0).
 pub fn mode_target_at(raw: &[u8], set_index: usize, key: i64) -> Result<BindingTarget> {
     let sets = msg(raw, 8)?;
-    let set = sets.get(set_index).ok_or_else(|| Error::Protocol("Набор действий недоступен".into()))?;
+    let set = sets.get(set_index).ok_or_else(|| Error::Protocol(tr_ref("controller.action_set_unavailable").into()))?;
     let (mode, modeid) = group_at(set, key, false).unwrap_or((0, 0));
     target_address(set, key, false, mode, modeid)
 }
@@ -166,7 +167,7 @@ pub fn mode_target_at(raw: &[u8], set_index: usize, key: i64) -> Result<BindingT
 /// lists the input and is reachable from a source group is used (grips, bumpers and menu buttons).
 pub fn empty_input_target(raw: &[u8], set_index: usize, input: i64, source: Option<i64>) -> Result<BindingTarget> {
     let sets = msg(raw, 8)?;
-    let set = *sets.get(set_index).ok_or_else(|| Error::Protocol("Набор действий недоступен".into()))?;
+    let set = *sets.get(set_index).ok_or_else(|| Error::Protocol(tr_ref("controller.action_set_unavailable").into()))?;
     let wanted = match source {
         Some(key) => group_at(set, key, false).filter(|(mode, _)| !matches!(mode, 0 | 20)),
         None => None,
@@ -185,7 +186,7 @@ pub fn empty_input_target(raw: &[u8], set_index: usize, input: i64, source: Opti
         target.binding_index = -1;
         return Ok(target);
     }
-    Err(Error::Protocol("Для этого входа в раскладке нет режима источника".into()))
+    Err(Error::Protocol(tr_ref("controller.this_input_has_no_source_mode_in_the_2").into()))
 }
 
 fn group_at(set: &[u8], key: i64, shift: bool) -> Option<(i64, i64)> {
@@ -207,9 +208,9 @@ pub fn target(raw: &[u8], key: i64) -> Result<BindingTarget> {
 
 pub fn target_at(raw: &[u8], set_index: usize, key: i64, shift: bool) -> Result<BindingTarget> {
     let sets = msg(raw, 8)?;
-    let set = sets.get(set_index).ok_or_else(|| Error::Protocol("Набор действий недоступен".into()))?;
+    let set = sets.get(set_index).ok_or_else(|| Error::Protocol(tr_ref("controller.action_set_unavailable").into()))?;
     let (mode, modeid) = group_at(set, key, shift).filter(|(mode, _)| !matches!(mode, 0 | 20))
-        .ok_or_else(|| Error::Protocol("Источник не выбран в раскладке".into()))?;
+        .ok_or_else(|| Error::Protocol(tr_ref("controller.no_source_selected_in_the_layout").into()))?;
     target_address(set, key, shift, mode, modeid)
 }
 
@@ -265,13 +266,13 @@ fn mode_row(out: &mut Vec<QRow>, raw: &[u8], source: i64, label: String) {
         value: mode_name(source, mode), on: false, gear: mode != 0 });
     if let Ok(target) = target_at(raw, 0, source, true) {
         out.push(QRow { action: Action::Shift(source), kind: Kind::Dropdown,
-            label: format!("{label} (сменный режим)"), value: mode_name(source, target.source_mode),
+            label: tr_args("controller.label_mode_shift", &[("label", &label.to_string())]), value: mode_name(source, target.source_mode),
             on: false, gear: true });
     }
 }
 
 fn mode_row_label(source: i64) -> String {
-    crate::assets::t_or("#ControllerConfigurator_SourceMode_Group_Behavior", "Функции: %1$s")
+    crate::assets::t_or("#ControllerConfigurator_SourceMode_Group_Behavior", tr_ref("controller.1_s_behavior"))
         .replace("%1$s", &pages::source_title(source))
 }
 
@@ -286,28 +287,28 @@ pub fn rows(raw: &[u8], deck_controls: bool) -> Vec<QRow> {
     let mut out = Vec::new();
     if deck_controls {
         out.push(QRow { action: Action::Grips, kind: Kind::Toggle,
-            label: crate::assets::t_or("#ControllerConfigurationQuickSettings_EnableGrips", "Включить кнопки хвата на обратной стороне"),
+            label: crate::assets::t_or("#ControllerConfigurationQuickSettings_EnableGrips", tr_ref("controller.enable_back_grip_buttons")),
             value: String::new(), on: grips_on(raw), gear: false });
         mode_row(&mut out, raw, GYRO, mode_row_label(GYRO));
         let gyro = settings(GYRO);
         let key = if mode(GYRO) == 4 { NATURAL } else { SENSITIVITY };
-        slider(&mut out, GYRO, &gyro, key, "#ControllerConfigurationQuickSettings_GyroSensitivity", "Чувствительность гироскопа");
+        slider(&mut out, GYRO, &gyro, key, "#ControllerConfigurationQuickSettings_GyroSensitivity", tr_ref("controller.gyro_sensitivity_2"));
         if key != NATURAL {
-            slider(&mut out, GYRO, &gyro, NATURAL, "#ControllerConfigurationQuickSettings_GyroNaturalSensitivity", "Чувствительность гироскопа (в °)");
+            slider(&mut out, GYRO, &gyro, NATURAL, "#ControllerConfigurationQuickSettings_GyroNaturalSensitivity", tr_ref("controller.gyro_sensitivity"));
         }
         let pixels_source = if mode(GYRO) == 22 { Some(GYRO) }
             else { [RSTICK, LSTICK, RPAD, LPAD].into_iter().find(|&source| mode(source) == 17) };
         if let Some(source) = pixels_source {
-            slider(&mut out, source, &settings(source), PIXELS, "#ControllerConfigurationQuickSettings_PixelsPerRevolution", "Точек на 360°");
+            slider(&mut out, source, &settings(source), PIXELS, "#ControllerConfigurationQuickSettings_PixelsPerRevolution", tr_ref("controller.dots_per_360"));
         }
-        toggle(&mut out, raw, GYRO, "#ControllerConfigurationQuickSettings_GyroInvert", "Инвертировать ось Y гироскопа");
-        slider(&mut out, GYRO, &gyro, CAMERA_MIN, "#ControllerConfigurationQuickSettings_GyroToJoystickCameraMinOutput", "Минимальный вывод гироскопа");
+        toggle(&mut out, raw, GYRO, "#ControllerConfigurationQuickSettings_GyroInvert", tr_ref("controller.invert_gyro_y_axis"));
+        slider(&mut out, GYRO, &gyro, CAMERA_MIN, "#ControllerConfigurationQuickSettings_GyroToJoystickCameraMinOutput", tr_ref("controller.minimum_gyro_output"));
         mode_row(&mut out, raw, RPAD, mode_row_label(RPAD));
-        slider(&mut out, RPAD, &settings(RPAD), SENSITIVITY, "#ControllerConfigurationQuickSettings_RPadSensitivity", "Чувствительность правого трекпада");
-        toggle(&mut out, raw, RPAD, "#ControllerConfigurationQuickSettings_RPadInvert", "Инвертировать ось Y правого трекпада");
+        slider(&mut out, RPAD, &settings(RPAD), SENSITIVITY, "#ControllerConfigurationQuickSettings_RPadSensitivity", tr_ref("controller.right_trackpad_sensitivity"));
+        toggle(&mut out, raw, RPAD, "#ControllerConfigurationQuickSettings_RPadInvert", tr_ref("controller.invert_right_trackpad_y_axis"));
     }
-    slider(&mut out, RSTICK, &settings(RSTICK), SENSITIVITY, "#ControllerConfigurationQuickSettings_RStickSensitivity", "Чувствительность правого джойстика");
-    toggle(&mut out, raw, RSTICK, "#ControllerConfigurationQuickSettings_RStickInvert", "Инвертировать ось Y правого джойстика");
+    slider(&mut out, RSTICK, &settings(RSTICK), SENSITIVITY, "#ControllerConfigurationQuickSettings_RStickSensitivity", tr_ref("controller.right_joystick_sensitivity"));
+    toggle(&mut out, raw, RSTICK, "#ControllerConfigurationQuickSettings_RStickInvert", tr_ref("controller.invert_right_joystick_y_axis"));
     if deck_controls && source_group(raw, LPAD).is_some() {
         mode_row(&mut out, raw, LPAD, mode_row_label(LPAD));
     }
@@ -329,11 +330,11 @@ pub enum Plan {
 pub fn activate(raw: &[u8], row: &QRow) -> Plan {
     match row.action {
         Action::Adjust(_) => Plan::Adjust,
-        Action::Grips => Plan::Refuse("Кнопки хвата: запись пока недоступна — способ записи привязок не подтверждён на Деке"),
+        Action::Grips => Plan::Refuse(tr_ref("controller.grip_button_writes_are_unavailable_binding_writes_are")),
         Action::Mode(source) | Action::Shift(source) => Plan::OpenList(source),
         Action::InvertY(source) => match invert_y(raw, source) {
             Some(on) => Plan::Setting { source, key: INVERT_Y_KEY, value: if on { 0 } else { 1 } },
-            None => Plan::Refuse("Для текущего режима инверсия оси недоступна"),
+            None => Plan::Refuse(tr_ref("controller.axis_inversion_is_unavailable_in_the_current_mode")),
         },
     }
 }
@@ -394,7 +395,7 @@ pub(super) mod tests {
         let r = rows(&raw, true);
         assert_eq!(r.iter().map(|r| r.action).collect::<Vec<_>>(), vec![Action::Grips, Action::Mode(GYRO), Action::Mode(RPAD), Action::InvertY(RPAD), Action::InvertY(RSTICK)]);
         assert!(r[0].on);
-        assert_eq!(r[1].value, "Не выбрано");
+        assert_eq!(r[1].value, tr_ref("controller.none"));
         assert!(!r[1].gear && r[2].gear);
         assert!(!r[3].on && r[4].on);
     }
@@ -404,7 +405,7 @@ pub(super) mod tests {
         let r = rows(&raw, true);
         assert!(!r[0].on);
         assert_eq!(r.len(), 3);
-        assert!(r[1].value != "Не выбрано");
+        assert!(r[1].value != tr_ref("controller.none"));
     }
     #[test]
     fn invert_toggle_flips_the_live_value_and_matches_the_stock_setting_message() {
@@ -483,27 +484,27 @@ pub(super) mod tests {
         assert_eq!(mode_choices(GYRO), &[0, 22, 23, 24]);
         assert_eq!(list_modes(RPAD, true, 12), [0, 4, 12]);
         assert_eq!(list_modes(RPAD, true, 6), [0, 4, 12, 6]);
-        assert_eq!(mode_name(GYRO, 22), "Гироскоп как мышь");
-        assert_eq!(mode_name(GYRO, 23), "Гироскоп как джойстик: камера");
-        assert_eq!(mode_name(GYRO, 24), "Гироскоп как джойстик: отклонение");
-        assert_eq!(mode_name(RPAD, 4), "Как мышь");
-        assert_eq!(mode_name(RPAD, 12), "Как джойстик");
+        assert_eq!(mode_name(GYRO, 22), tr_ref("controller.gyro_to_mouse"));
+        assert_eq!(mode_name(GYRO, 23), tr_ref("controller.gyro_to_joystick_camera"));
+        assert_eq!(mode_name(GYRO, 24), tr_ref("controller.gyro_to_joystick_deflection"));
+        assert_eq!(mode_name(RPAD, 4), tr_ref("controller.as_mouse"));
+        assert_eq!(mode_name(RPAD, 12), tr_ref("controller.as_joystick"));
         assert_eq!((mode_icon(GYRO, 22), mode_icon(GYRO, 23), mode_icon(RPAD, 4), mode_icon(RPAD, 12), mode_icon(RPAD, 0)), (1, 2, 1, 2, 0));
     }
     #[test]
     fn editor_lists_follow_the_stock_frames_for_every_source() {
         let names = |source: i64| mode_choices(source).iter().map(|&m| mode_name(source, m)).collect::<Vec<_>>();
-        assert_eq!(names(RSTICK), ["Не выбрано", "Джойстик-мышь", "Flick Stick", "Область действия мыши", "Джойстик", "Крестовина", "Колесо прокрутки"]);
+        assert_eq!(names(RSTICK), [tr_ref("controller.none"), tr_ref("controller.joystick_mouse"), "Flick Stick", tr_ref("controller.mouse_region"), tr_ref("controller.output_joystick"), tr_ref("controller.dpad"), tr_ref("controller.scroll_wheel")]);
         assert_eq!(names(LSTICK), names(RSTICK));
         assert_eq!(mode_icon(RPAD, 18), 3);
-        assert_eq!(names(RTRIGGER), ["Не выбрано", "Триггер"]);
+        assert_eq!(names(RTRIGGER), [tr_ref("controller.none"), tr_ref("controller.trigger")]);
         assert_eq!(names(LTRIGGER), names(RTRIGGER));
-        assert_eq!(names(FACE), ["Не выбрано", "Джойстик", "Крестовина", "Блок кнопок"]);
-        assert_eq!(&names(LPAD)[..4], ["Не выбрано", "Как мышь", "Flick Stick", "Область действия мыши"]);
+        assert_eq!(names(FACE), [tr_ref("controller.none"), tr_ref("controller.output_joystick"), tr_ref("controller.dpad"), tr_ref("controller.button_pad")]);
+        assert_eq!(&names(LPAD)[..4], [tr_ref("controller.none"), tr_ref("controller.as_mouse"), "Flick Stick", tr_ref("controller.mouse_region")]);
         let rows = |source| list_rows(source, false, 0).into_iter().map(|r| r.0).collect::<Vec<_>>();
-        assert_eq!(&rows(RSTICK)[7..], ["Создать круговое меню", "Создать сенсорное меню", "Создать панель быстрого доступа"]);
-        assert_eq!(&rows(FACE)[4..], ["Создать круговое меню"]);
-        assert_eq!(&names(RPAD)[9..], ["Свайп в сторону", "Колесо прокрутки"]);
+        assert_eq!(&rows(RSTICK)[7..], [tr_ref("controller.create_radial_menu"), tr_ref("controller.create_touch_menu"), tr_ref("controller.create_hotbar_menu")]);
+        assert_eq!(&rows(FACE)[4..], [tr_ref("controller.create_radial_menu")]);
+        assert_eq!(&names(RPAD)[9..], [tr_ref("controller.directional_swipe"), tr_ref("controller.scroll_wheel")]);
         assert_eq!(rows(RTRIGGER).len(), 2);
     }
     #[test]
@@ -582,6 +583,6 @@ pub(super) mod tests {
         assert_eq!(mode_choices(VMENU), &[14, 11, 19]);
         let names: Vec<String> = list_rows(VMENU, false, 14).into_iter().map(|r| r.0).collect();
         assert_eq!(names.len(), 3);
-        assert!(names.iter().all(|n| !n.starts_with("Режим ")));
+        assert!(names.iter().all(|n| !n.starts_with(tr_ref("controller.mode"))));
     }
 }

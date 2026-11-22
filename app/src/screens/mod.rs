@@ -78,3 +78,27 @@ pub fn defer(f: impl FnOnce(&mut crate::app::App) + Send + 'static) {
 }
 
 pub mod controller_sticks;
+
+/// Prefer Steam's English label while keeping the existing Russian screen copy.
+pub(crate) fn stock_label(token: &str, key: &str) -> String {
+    let fallback = steam_assets::i18n::tr(key);
+    if steam_assets::i18n::current().code() == "ru" {
+        fallback
+    } else {
+        crate::assets::t_or(token, &fallback)
+    }
+}
+
+/// Return the token itself so the footer retains Steam localization metadata.
+pub(crate) fn stock_hint(token: &'static str, key: &'static str) -> &'static str {
+    if steam_assets::i18n::current().code() != "ru" && steam_assets::has_loc(token) {
+        token
+    } else {
+        steam_assets::i18n::tr_ref(key)
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn expected_text<'a>(russian: &'a str, english: &'a str) -> &'a str {
+    if steam_assets::i18n::current().code() == "ru" { russian } else { english }
+}

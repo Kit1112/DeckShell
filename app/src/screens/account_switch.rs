@@ -2,11 +2,12 @@
 //! sp.js 72654/35200), страница 1 — «Войти» (QR + имя/пароль, `account_auth`), страница 2 — Steam Guard.
 //! Выбор передаётся потоку смены через общую модель `account_request::LoginRequest`.
 //! UI stays mapped; native writes run on one bounded worker per attempt.
+use steam_assets::i18n;
 use super::account_auth;
 use super::account_request::LoginRequest;
 use crate::{app::App, input::Action, AccountRow, AccountState, AccountTile, ChooserState};
 use slint::{ComponentHandle, ModelRc, VecModel};
-use steam_bridge::account_switch::Account;
+use steam_bridge::account_switch::{Account, Progress};
 use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
 use std::time::{Duration, Instant};
 
@@ -74,6 +75,33 @@ fn take_password() -> steam_auth::Secret {
 }
 
 pub fn wire(ui: &crate::AppWindow) {
+    let account = ui.global::<AccountState>();
+    account.set_label_back(i18n::tr("account_switch.back").into());
+    account.set_label_cancel(crate::screens::stock_label("#Button_Cancel", "account_switch.cancel").into());
+    account.set_label_confirm(crate::screens::stock_label("#Button_Confirm", "account_switch.confirm").into());
+    account.set_label_create_a_new_account(i18n::tr("account_switch.create_a_new_account").into());
+    account.set_label_enter_the_code(i18n::tr("account_switch.enter_the_code").into());
+    account.set_label_enter_the_code_from_your_steam_mobile(crate::screens::stock_label("#Login_EnterMobileCode", "account_switch.enter_the_code_from_your_steam_mobile").into());
+    account.set_label_enter_the_code_received_to_the_email(i18n::tr("account_switch.enter_the_code_received_to_the_email").into());
+    account.set_label_help_i_can_t_sign_in(crate::screens::stock_label("#Login_Help_SignIn", "account_switch.help_i_can_t_sign_in").into());
+    account.set_label_log_in(i18n::tr("account_switch.log_in").into());
+    account.set_label_menue(i18n::tr("account_switch.menue").into());
+    account.set_label_mobile_app(i18n::tr("account_switch.mobile_app").into());
+    account.set_label_password(i18n::tr("account_switch.password").into());
+    account.set_label_remember_me(crate::screens::stock_label("#Login_RememberMe_Short", "account_switch.remember_me").into());
+    account.set_label_select(i18n::tr("account_switch.select").into());
+    account.set_label_sign_in(crate::screens::stock_label("#Login_Login", "account_switch.sign_in").into());
+    account.set_label_sign_in_using_the_account_name(i18n::tr("account_switch.sign_in_using_the_account_name").into());
+    account.set_label_so_that(i18n::tr("account_switch.so_that").into());
+    account.set_label_use_it(i18n::tr("account_switch.use_it").into());
+    account.set_label_use_the_steam_mobile_app_to_confirm(i18n::tr("account_switch.use_the_steam_mobile_app_to_confirm").into());
+    account.set_label_you_have_a_mobile_authenticator_protecting_this(crate::screens::stock_label("#Login_MobileProtectingAccount", "account_switch.you_have_a_mobile_authenticator_protecting_this").into());
+    account.set_label_you_have_an_email_authenticator_protecting_this(crate::screens::stock_label("#Login_EmailProtectingAccount", "account_switch.you_have_an_email_authenticator_protecting_this").into());
+    let chooser = ui.global::<ChooserState>();
+    chooser.set_label_add_account(crate::screens::stock_label("#Login_AddAccount", "account_chooser.add_account").into());
+    chooser.set_label_ask_which_account_to_use_each_time(i18n::tr("account_chooser.ask_which_account_to_use_each_time").into());
+    chooser.set_label_change_account(i18n::tr("account_chooser.change_account").into());
+    chooser.set_label_select_a_user_or_sign_in_with(crate::screens::stock_label("#Login_CachedUsers", "account_chooser.select_a_user_or_sign_in_with").into());
     ui.global::<AccountState>().on_pick(|i| super::defer(move |a| pick(a, i)));
     ui.global::<ChooserState>().on_activate(|i| super::defer(move |a| chooser_activate(a, i)));
 }
@@ -127,8 +155,8 @@ pub fn open(a: &mut App) {
     if a.ds.is_mock() { load_users(a, mock_users(), false); return; }
     std::thread::spawn(move || {
         let bridge = crate::actions::bridge();
-        let result = bridge.as_ref().ok_or_else(|| "Steam недоступен".to_string())
-            .and_then(|b| b.login_accounts().map_err(|_| "Не удалось прочитать аккаунты Steam. Закройте экран и повторите.".to_string()));
+        let result = bridge.as_ref().ok_or_else(|| i18n::tr_ref("account_switch.steam_is_not_available").to_string())
+            .and_then(|b| b.login_accounts().map_err(|_| i18n::tr_ref("account_switch.i_couldn_t_read_the_steam_accounts").to_string()));
         let ask = bridge.and_then(|b| b.login_device_info().ok()).is_some_and(|d| d.always_show_user_chooser);
         super::defer(move |a| {
             if generation != a.account.generation || !a.account.open { return; }
@@ -141,7 +169,7 @@ pub fn open(a: &mut App) {
 }
 /// Мок (`DECKSHELL_MOCK`): три сохранённых аккаунта, первый — текущий.
 fn mock_users() -> Vec<Account> {
-    (0..3).map(|i| Account { account_name: format!("mock{i}"), persona_name: format!("Игрок {i}"), avatar_url: String::new(),
+    (0..3).map(|i| Account { account_name: format!("mock{i}"), persona_name: i18n::tr_args("account_switch.player", &[("index", &(i).to_string())]), avatar_url: String::new(),
         steamid: String::new(), remembered: true, has_pin: false, current: i == 0 }).collect()
 }
 pub(crate) fn load_users(a: &mut App, users: Vec<Account>, ask: bool) {
@@ -151,7 +179,7 @@ pub(crate) fn load_users(a: &mut App, users: Vec<Account>, ask: bool) {
     a.account.tiles = tiles_for(&a.account.users);
     a.account.selected = a.account.users.iter().position(|u| u.current);
     if a.account.uncertain {
-        a.ui().global::<AccountState>().set_message("Результат предыдущего входа неизвестен. Новый запрос заблокирован до проверки состояния Steam.".into());
+        a.ui().global::<AccountState>().set_message(i18n::tr_ref("account_switch.the_result_of_the_previous_login_is").into());
     }
     // Сток (35200): при единственном сохранённом аккаунте выбора нет — сразу экран входа.
     if a.account.tiles.is_empty() { go_login(a); } else { sync(a); }
@@ -228,11 +256,11 @@ pub fn run_request(a: &mut App, req: LoginRequest) {
 fn token_login(a: &mut App, tokens: steam_auth::Tokens) {
     let ui = a.ui(); let st = ui.global::<AccountState>();
     if std::env::var_os("DECKSHELL_DRYRUN").is_some() || deck_system::guard::active() || a.ds.is_mock() {
-        st.set_message(format!("DRYRUN: вход подтверждён для «{}», смена аккаунта отключена.", tokens.account_name).into());
+        st.set_message(i18n::tr_args("account_switch.dryrun_sign_in_confirmed_for_account_change", &[("account_name", &(tokens.account_name).to_string())]).into());
         return;
     }
     if !a.live.running.is_empty() {
-        st.set_message("Закройте запущенные игры перед сменой аккаунта.".into()); return;
+        st.set_message(i18n::tr_ref("account_switch.close_the_running_games_before_changing_your").into()); return;
     }
     a.account.busy = true; sync(a);
     let generation = a.account.generation;
@@ -256,10 +284,10 @@ fn token_login(a: &mut App, tokens: steam_auth::Tokens) {
             a.account.busy = false;
             if completed { close(a); a.navigate(crate::router::Route::Home); return; }
             let msg = match phase.as_str() {
-                "restart_required" => "Вход подтверждён. Смена активного аккаунта выполняется перезапуском Steam (поток смены).",
-                "rejected" => "Steam отклонил вход по токену. Попробуйте ещё раз.",
-                "busy" => "Steam уже выполняет вход. Дождитесь окончания.",
-                _ => "Steam не подтвердил вход. Результат неизвестен; повтор не отправлен.",
+                "restart_required" => i18n::tr_ref("account_switch.sign_in_confirmed_the_active_account_is"),
+                "rejected" => i18n::tr_ref("account_switch.steam_rejected_the_token_entry_try_again"),
+                "busy" => i18n::tr_ref("account_switch.steam_s_already_logging_in_wait_till"),
+                _ => i18n::tr_ref("account_switch.steam_hasn_t_confirmed_entry_result_unknown"),
             };
             a.ui().global::<AccountState>().set_message(msg.into()); sync(a);
         });
@@ -282,7 +310,7 @@ fn pick(a: &mut App, i: i32) {
         }
         if let Some(cancel) = &a.account.cancel {
             cancel.store(true, Ordering::SeqCst);
-            a.ui().global::<AccountState>().set_message("Отмена запроса входа…".into());
+            a.ui().global::<AccountState>().set_message(i18n::tr_ref("account_switch.cancellation_of_entry_request").into());
         } else { back(a); }
         return;
     }
@@ -299,22 +327,61 @@ fn pick(a: &mut App, i: i32) {
         2 => { a.account.remember = !a.account.remember; sync_login(a); }
         3 => login(a),
         // Сток открывает help.steampowered.com / store…/join / store…/mobile во встроенном браузере.
-        5 => st.set_message("Помощь со входом: help.steampowered.com — откройте с телефона или ПК.".into()),
-        6 => st.set_message("Создать аккаунт можно на store.steampowered.com/join с телефона или ПК, затем войдите здесь по QR-коду.".into()),
-        7 => st.set_message("Мобильное приложение Steam: в магазине приложений найдите «Steam». В приложении: Steam Guard → значок QR.".into()),
+        5 => st.set_message(i18n::tr_ref("account_switch.help_with_login_help_steampowered_com_open").into()),
+        6 => st.set_message(i18n::tr_ref("account_switch.you_can_create_an_account_at_store").into()),
+        7 => st.set_message(i18n::tr_ref("account_switch.steam_mobile_app_search_the_app_store").into()),
         8 if st.get_qr_state() == account_auth::QR_FAILED => account_auth::qr_start(a),
         _ => {}
     }
 }
+fn progress_text(progress: &Progress) -> String {
+    let key = match progress.phase.as_str() {
+        "complete" => "account_progress.complete",
+        "restart_required" => "account_progress.restart_required",
+        "unavailable" => "account_progress.unavailable",
+        "password" => "account_progress.password",
+        "pin" => "account_progress.pin",
+        "missing" => "account_progress.missing",
+        "cancelled" => "account_progress.cancelled",
+        "unknown" => "account_progress.unknown",
+        "rejected" => match progress.auth_result {
+            Some(63 | 65 | 85 | 88) => "account_progress.guard",
+            Some(3 | 16 | 20 | 48) => "account_progress.connection",
+            Some(5 | 15 | 18 | 86) => "account_progress.credentials",
+            Some(84) => "account_progress.rate_limited",
+            code => {
+                let code = code.map_or_else(|| i18n::tr("account_progress.code_unknown"), |value| value.to_string());
+                return i18n::tr_args("account_progress.rejected", &[("code", &code)]);
+            }
+        },
+        _ => match progress.state {
+            Some(2) => "account_progress.waiting_network",
+            Some(3) => "account_progress.waiting_steam",
+            Some(4) => {
+                let percent = (progress.percentage.unwrap_or(0.0).clamp(0.0, 1.0) * 100.0).round();
+                return i18n::tr_args("account_progress.loading_library", &[("percent", &percent.to_string())]);
+            }
+            Some(6) => "account_progress.shutting_down",
+            _ => {
+                return i18n::tr_args("account_progress.signing_in", &[
+                    ("state", &progress.state.unwrap_or(0).to_string()),
+                    ("result", &progress.result.unwrap_or(0).to_string()),
+                ]);
+            }
+        },
+    };
+    i18n::tr(key)
+}
+
 fn start(a: &mut App) {
     let Some(user) = a.account.selected.and_then(|i| a.account.users.get(i)).cloned() else { return; };
     if a.account.busy || a.account.uncertain { return; }
     if user.current { close(a); a.navigate(crate::router::Route::Home); return; }
     if !a.live.running.is_empty() {
-        a.ui().global::<AccountState>().set_message("Закройте запущенные игры перед сменой аккаунта.".into()); return;
+        a.ui().global::<AccountState>().set_message(i18n::tr_ref("account_switch.close_the_running_games_before_changing_your").into()); return;
     }
     if std::env::var_os("DECKSHELL_DRYRUN").is_some() || deck_system::guard::active() || a.ds.is_mock() {
-        a.ui().global::<AccountState>().set_message("DRYRUN: смена аккаунта отключена.".into()); return;
+        a.ui().global::<AccountState>().set_message(i18n::tr_ref("account_switch.dryrun_change_of_account_disabled").into()); return;
     }
     a.account.busy = true;
     a.account.generation = a.account.generation.wrapping_add(1);
@@ -323,17 +390,17 @@ fn start(a: &mut App) {
     let cancel = Arc::new(AtomicBool::new(false)); a.account.cancel = Some(cancel.clone());
     let id = format!("{}-{}-{}", std::process::id(), crate::app::now_secs(), generation);
     a.account.last_id = Some(id.clone());
-    a.ui().global::<AccountState>().set_message("Вход в Steam…".into()); sync(a);
+    a.ui().global::<AccountState>().set_message(i18n::tr_ref("account_switch.logging_in_to_steam").into()); sync(a);
     std::thread::spawn(move || {
         let mut uncertain = true;
         let result = (|| {
-            let b = crate::actions::bridge().ok_or_else(|| { uncertain = false; "Steam недоступен. Запрос входа не отправлен.".to_string() })?;
-            if cancel.load(Ordering::SeqCst) { uncertain = false; return Err("Вход отменён до отправки запроса.".into()); }
+            let b = crate::actions::bridge().ok_or_else(|| { uncertain = false; i18n::tr_ref("account_switch.steam_is_unavailable_no_login_request_has").to_string() })?;
+            if cancel.load(Ordering::SeqCst) { uncertain = false; return Err(i18n::tr_ref("account_switch.entry_is_cancelled_before_the_request_is").into()); }
             let mut progress = b.login_cached_account(&id, &user.account_name)
-                .map_err(|_| "Steam не подтвердил отправку. Результат неизвестен; автоматического повтора нет.".to_string())?;
+                .map_err(|_| i18n::tr_ref("account_switch.steam_has_not_confirmed_the_shipment_the").to_string())?;
             let deadline = Instant::now() + Duration::from_secs(90);
             loop {
-                let message = progress.message();
+                let message = progress_text(&progress);
                 super::defer(move |a| { if a.account.generation == generation { a.ui().global::<AccountState>().set_message(message.into()); } });
                 if progress.terminal() {
                     uncertain = progress.phase == "unknown";
@@ -343,21 +410,21 @@ fn start(a: &mut App) {
                     }
                     if progress.phase == "complete" {
                         crate::backend::refresh_profile(&b, Some(&user.account_name));
-                        if !crate::backend::reload_account(&b) { return Err("Вход выполнен, но новая библиотека пока недоступна. Закройте экран и проверьте соединение.".into()); }
+                        if !crate::backend::reload_account(&b) { return Err(i18n::tr_ref("account_switch.entrance_is_complete_but_the_new_library").into()); }
                         return Ok(());
                     }
-                    return Err(progress.message());
+                    return Err(progress_text(&progress));
                 }
                 if cancel.load(Ordering::SeqCst) {
                     // Ready can arrive between the poll above and cancellation. Feed
                     // its response through the same completion/library reload boundary.
                     progress = b.cancel_account_login(&id)
-                        .map_err(|_| "Отмена не подтверждена Steam. Результат входа неизвестен.".to_string())?;
+                        .map_err(|_| i18n::tr_ref("account_switch.the_cancellation_has_not_been_confirmed_by").to_string())?;
                     continue;
                 }
-                if Instant::now() >= deadline { return Err("Steam не завершил вход за 90 секунд. Результат неизвестен; повтор не отправлен.".into()); }
+                if Instant::now() >= deadline { return Err(i18n::tr_ref("account_switch.steam_didn_t_complete_the_login_in").into()); }
                 std::thread::sleep(Duration::from_millis(300));
-                progress = b.login_progress(&id).map_err(|_| "Связь со Steam потеряна. Результат входа неизвестен; повтор не отправлен.".to_string())?;
+                progress = b.login_progress(&id).map_err(|_| i18n::tr_ref("account_switch.the_connection_to_steam_is_lost_the").to_string())?;
             }
         })();
         super::defer(move |a| {
@@ -377,7 +444,7 @@ fn cancel_uncertain(a: &mut App) {
     let Some(id) = a.account.last_id.clone() else { close(a); return; };
     a.account.busy = true;
     let generation = a.account.generation;
-    a.ui().global::<AccountState>().set_message("Отмена запроса входа…".into()); sync(a);
+    a.ui().global::<AccountState>().set_message(i18n::tr_ref("account_switch.cancellation_of_entry_request").into()); sync(a);
     std::thread::spawn(move || {
         let result = crate::actions::bridge().and_then(|b| b.cancel_account_login(&id).ok().map(|p| (b, p)));
         let completed = result.as_ref().is_some_and(|(b,p)| p.phase == "complete" && crate::backend::reload_account(b));
@@ -388,7 +455,7 @@ fn cancel_uncertain(a: &mut App) {
             if !a.account.uncertain { a.account.last_id = None; }
             close(a);
             if completed { a.navigate(crate::router::Route::Home); }
-            else if a.account.uncertain { a.toast("Steam не подтвердил отмену. Повторная смена аккаунта заблокирована."); }
+            else if a.account.uncertain { a.toast(i18n::tr_ref("account_switch.steam_has_not_confirmed_the_cancellation_re")); }
         });
     });
 }
@@ -442,213 +509,5 @@ pub fn handle(a: &mut App, action: Action, repeat: bool) -> bool {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::screens::osk::field_tests::{app, shot};
-
-    fn users(n: usize) -> Vec<Account> {
-        (0..n).map(|i| Account { account_name: format!("fixture{i}"), persona_name: format!("Игрок {i}"), avatar_url: String::new(),
-            steamid: String::new(), remembered: true, has_pin: false, current: i == 0 }).collect()
-    }
-    fn snap(ui: &crate::AppWindow) -> slint::SharedPixelBuffer<slint::Rgba8Pixel> {
-        for _ in 0..3 { i_slint_backend_testing::mock_elapsed_time(Duration::from_millis(300)); let _ = ui.window().take_snapshot(); }
-        ui.window().take_snapshot().unwrap()
-    }
-    fn px(b: &slint::SharedPixelBuffer<slint::Rgba8Pixel>, x: u32, y: u32) -> (u8, u8, u8) {
-        let p = b.as_slice()[(y * b.width() + x) as usize]; (p.r, p.g, p.b)
-    }
-    /// Цветные «аватары» для PNG-сравнения со стоком (у фикстур нет avatarcache).
-    fn paint_avatars(ui: &crate::AppWindow) {
-        use slint::Model;
-        let ch = ui.global::<ChooserState>();
-        let tiles: Vec<AccountTile> = (0..ch.get_tiles().row_count()).map(|i| {
-            use slint::Model;
-            let mut t = ch.get_tiles().row_data(i).unwrap();
-            let mut buf = slint::SharedPixelBuffer::<slint::Rgba8Pixel>::new(64, 64);
-            for (k, p) in buf.make_mut_slice().iter_mut().enumerate() {
-                *p = slint::Rgba8Pixel { r: (40 * i as u8).wrapping_add((k % 64) as u8), g: 90 + (k / 64) as u8, b: 160 - 15 * i as u8, a: 255 };
-            }
-            t.avatar = slint::Image::from_rgba8(buf); t.has_avatar = true; t
-        }).collect();
-        ch.set_tiles(ModelRc::new(VecModel::from(tiles)));
-    }
-
-    #[test]
-    fn chooser_shows_saved_accounts_without_current_and_plus_last() {
-        let (ui, mut a) = app();
-        a.account.open = true;
-        load_users(&mut a, users(7), false);
-        assert_eq!(a.account.page, PAGE_CHOOSER);
-        assert_eq!(a.account.tiles, vec![1, 2, 3, 4, 5, 6], "текущий аккаунт не показывается (сток bShowCurrentUser: !1)");
-        sync(&a);
-        let st = ui.global::<AccountState>(); st.set_open(true);
-        paint_avatars(&ui);
-        let ch = ui.global::<ChooserState>();
-        let first = snap(&ui);
-        shot(&ui, "account-chooser-first");
-        // Панель как у стока: фон #0d141c, рамка #23262e (снимок 147..1135 × 171..626).
-        assert_eq!(px(&first, 640, 200), (0x0d, 0x14, 0x1c));
-        assert_eq!(px(&first, 148, 300), (0x23, 0x26, 0x2e));
-        // Плитка в фокусе: белая рамка, поднята; «+» без рамки.
-        assert_eq!(px(&first, 185, 380), (255, 255, 255), "рамка фокуса первой плитки");
-        // Вправо до «+»
-        for _ in 0..6 { a.handle(Action::Right); }
-        assert_eq!(ch.get_focus(), 6);
-        a.handle(Action::Right);
-        assert_eq!(ch.get_focus(), 6, "«+» — последний элемент ряда");
-        let plus = snap(&ui);
-        shot(&ui, "account-chooser-plus");
-        assert_eq!(px(&plus, 1031, 390), (255, 255, 255), "белая рамка «+» в фокусе (стоковый снимок x=1030..1032)");
-        assert_eq!(px(&plus, 1063, 380), (255, 255, 255), "крест «+»");
-        assert_ne!(px(&plus, 185, 380), (255, 255, 255), "фокус ушёл с первой плитки");
-        a.handle(Action::Down);
-        assert_eq!(ch.get_focus(), 7, "переключатель «спрашивать при запуске»");
-        shot(&ui, "account-chooser-toggle");
-        a.handle(Action::A);
-        assert!(a.account.ask_on_start, "переключатель меняет client setting (в DRYRUN без записи)");
-        a.handle(Action::Up);
-        assert_eq!(ch.get_focus(), 6);
-        a.handle(Action::A);
-        assert_eq!(a.account.page, PAGE_LOGIN, "«+» открывает страницу «Войти»");
-        assert_eq!(st.get_focus(), 0, "фокус в поле имени (autoFocus стока)");
-        assert_eq!(st.get_qr_state(), account_auth::QR_READY, "QR нарисован (офлайн-образец в тесте)");
-        // Для сравнения со снимком стока: родной фон Steam (steamui/images/client_login_bg_grid.jpg).
-        if let Some(path) = std::env::var_os("DECKSHELL_ACCOUNT_BACKGROUND") {
-            st.set_backdrop(slint::Image::load_from_path(std::path::Path::new(&path)).unwrap());
-        }
-        let login = snap(&ui);
-        shot(&ui, "account-login-username-focus");
-        assert_eq!(px(&login, 700, 290), (255, 255, 255), "поле имени в фокусе белое");
-        // QR: белая карточка 196..444 и тёмные модули внутри.
-        assert_eq!(px(&login, 200, 304), (255, 255, 255));
-        let dark = (220..420).flat_map(|y| (220..420).map(move |x| (x, y))).filter(|&(x, y)| px(&login, x, y) == (21, 23, 28)).count();
-        assert!(dark > 5000, "QR-модули rgb(21,23,28): {dark}");
-        a.handle(Action::Right);
-        assert_eq!(st.get_focus(), 0);
-        a.handle(Action::Down);
-        let unfocused = snap(&ui);
-        shot(&ui, "account-login-password-focus");
-        assert_ne!(px(&unfocused, 700, 290), (255, 255, 255), "поле имени без фокуса тёмное");
-        a.handle(Action::B);
-        assert_eq!(a.account.page, PAGE_CHOOSER, "B со страницы входа возвращает к выбору");
-        assert_eq!(ch.get_focus(), 6, "фокус на «+»");
-        a.handle(Action::B);
-        assert!(!a.account.open, "B с выбора закрывает окно");
-    }
-
-    #[test]
-    fn single_saved_account_goes_straight_to_login_like_stock() {
-        let (_ui, mut a) = app();
-        a.account.open = true;
-        load_users(&mut a, users(1), false);
-        assert_eq!(a.account.page, PAGE_LOGIN);
-        a.handle(Action::B);
-        assert!(!a.account.open, "без плиток B закрывает сразу");
-    }
-
-    #[test]
-    fn tile_activation_goes_to_the_switch_flow_with_that_account() {
-        let (ui, mut a) = app();
-        a.account.open = true;
-        load_users(&mut a, users(4), false);
-        ui.global::<ChooserState>().set_focus(1);
-        a.handle(Action::A);
-        assert_eq!(a.account.selected, Some(2), "вторая плитка = третий сохранённый аккаунт (текущий пропущен)");
-        // В тесте (мок-данные) поток смены отказывает без записи.
-        assert!(ui.global::<AccountState>().get_message().contains("DRYRUN"));
-        assert!(!a.account.busy);
-    }
-
-    #[test]
-    fn username_and_password_fields_use_the_keyboard_and_enable_sign_in() {
-        let (ui, mut a) = app();
-        a.account.open = true;
-        load_users(&mut a, users(1), false);
-        let st = ui.global::<AccountState>();
-        assert!(!st.get_can_login(), "«Войти» недоступна, пока поля пусты (как сток)");
-        a.handle(Action::A);
-        assert!(a.osk_is_open(), "A на поле имени открывает клавиатуру");
-        for c in "fixture".chars() { a.handle(Action::Char(c)); }
-        assert_eq!(st.get_username().as_str(), "fixture");
-        a.handle(Action::B);
-        assert!(!a.osk_is_open());
-        a.handle(Action::Down);
-        a.handle(Action::A);
-        for c in "s3cret".chars() { a.handle(Action::Char(c)); }
-        assert_eq!(password_text(), "s3cret");
-        assert_eq!(st.get_password_mask().as_str(), "••••••", "в интерфейс попадают только точки");
-        assert!(st.get_can_login());
-        a.handle(Action::B);
-        shot(&ui, "account-login-filled");
-        assert!(a.account.open);
-        close(&mut a);
-        assert_eq!(password_text(), "", "закрытие окна стирает пароль");
-        assert_eq!(st.get_password_mask().as_str(), "");
-        assert_eq!(a.account.auth.username, "");
-    }
-
-    #[test]
-    fn remember_toggle_and_navigation_map_cover_every_control() {
-        let (ui, mut a) = app();
-        a.account.open = true;
-        load_users(&mut a, users(1), false);
-        let st = ui.global::<AccountState>();
-        let mut seen = std::collections::BTreeSet::new();
-        let mut prev = snap(&ui).as_bytes().to_vec();
-        for (act, want) in [(Action::Down, 1), (Action::Down, 2), (Action::Down, 3), (Action::Right, 4), (Action::Down, 5),
-            (Action::Left, 6), (Action::Up, 7), (Action::Right, 1), (Action::Up, 0)] {
-            a.handle(act);
-            assert_eq!(st.get_focus(), want, "{act:?}");
-            let now = snap(&ui).as_bytes().to_vec();
-            assert_ne!(now, prev, "фокус {want} перерисован");
-            prev = now; seen.insert(want);
-            if let Some(dir) = std::env::var_os("DECKSHELL_PNG_DIR") { let _ = dir; shot(&ui, &format!("account-login-focus-{want}")); }
-        }
-        assert_eq!(seen.len(), 8);
-        st.set_focus(2);
-        assert!(a.account.remember, "«Запомнить меня» включено по умолчанию (сток)");
-        a.handle(Action::A);
-        assert!(!a.account.remember);
-        assert!(!st.get_remembered());
-    }
-
-    #[test]
-    fn qr_failure_shows_refresh_button_reachable_by_pad() {
-        let (ui, mut a) = app();
-        a.account.open = true;
-        load_users(&mut a, users(1), false);
-        let st = ui.global::<AccountState>();
-        st.set_qr_state(account_auth::QR_FAILED); st.set_qr_error("Истёк срок действия QR-кода — нажмите «обновить»".into());
-        a.handle(Action::Left);
-        assert_eq!(st.get_focus(), 8, "кнопка «обновить» QR в фокусе");
-        let shot_failed = snap(&ui);
-        shot(&ui, "account-login-qr-expired");
-        assert_eq!(px(&shot_failed, 320, 400), (255, 255, 255), "кнопка обновления в фокусе белая");
-        a.handle(Action::A);
-        assert_eq!(st.get_qr_state(), account_auth::QR_READY, "новая QR-сессия");
-        for state in [account_auth::QR_LOADING, account_auth::QR_SCANNED, account_auth::QR_DONE] {
-            st.set_qr_state(state);
-            shot(&ui, &format!("account-login-qr-{state}"));
-        }
-    }
-
-    #[test]
-    fn guard_page_renders_email_and_app_variants() {
-        let (ui, mut a) = app();
-        a.account.open = true;
-        load_users(&mut a, users(1), false);
-        let st = ui.global::<AccountState>();
-        a.account.page = PAGE_GUARD; a.account.auth.guard_kind = 1; st.set_page(PAGE_GUARD); st.set_guard_kind(1); st.set_guard_hint("g***@example.com".into());
-        st.set_focus(0);
-        a.handle(Action::A);
-        assert!(a.osk_is_open());
-        for c in "ab1c2x".chars() { a.handle(Action::Char(c)); }
-        assert_eq!(a.account.auth.guard_code, "AB1C2", "5 знаков, верхний регистр");
-        a.handle(Action::B);
-        shot(&ui, "account-guard-email");
-        st.set_guard_kind(3); a.account.auth.guard_kind = 3;
-        shot(&ui, "account-guard-app-confirm");
-        a.handle(Action::B);
-        assert_eq!(a.account.page, PAGE_LOGIN, "B со Steam Guard — обратно ко входу");
-    }
-}
+#[path = "account_switch_tests.rs"]
+mod tests;

@@ -1,3 +1,4 @@
+import { ControllerText } from "controller_text.slint";
 // Fixture workbench based on Gaming Mode capture 12 (DPR 1.5).
 // Buttons read and edit the Steam session; other sections retain their fixture status.
 import { GStyle } from "../generated/style.slint";
@@ -40,12 +41,12 @@ export component ControllerEditorView inherits Rectangle {
         }
     }
     Text { x: 396px; y: 37px; width: 840px; height: 45px; text: root.title; color: #ffffff; font-size: 34px; font-weight: 700; font-family: GStyle.loc-font; }
-    Text { visible: root.status != "Раскладка прочитана · изменения в редактируемой копии"; x: 396px; y: 82px; width: 710px; height: 52px; text: root.status; color: #9fc9e5; font-size: 18px; wrap: word-wrap; }
+    Text { visible: root.status != ControllerText.layout-loaded-changes-affect-the-editing-copy; x: 396px; y: 82px; width: 710px; height: 52px; text: root.status; color: #9fc9e5; font-size: 18px; wrap: word-wrap; }
     // Кадр 17 (Наборы действий): кнопка «?» справа от заголовка, 60×45.
     if root.help: Rectangle { x: parent.width - 95px; y: 36px; width: 60px; height: 45px; border-radius: 3px; background: #3b3d43;
         Text { text: "?"; color: #dcdedf; font-size: 28px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; font-family: GStyle.loc-font; } }
-    Rectangle { visible: root.can-undo; x: parent.width - 170px; y: 40px; width: 140px; height: 38px; background: root.can-undo ? #404b58 : #25272e; Text { text: "X Отменить"; color: white; font-size: 20px; horizontal-alignment: center; vertical-alignment: center; } TouchArea { enabled: root.can-undo; clicked => { root.undo(); } } }
-    Text { visible: root.status == "Раскладка прочитана · изменения в редактируемой копии"; x: 396px; y: 105px; width: 840px; height: 35px; text: root.group-title; color: #dcdedf; font-size: 25px; font-family: GStyle.loc-font; }
+    Rectangle { visible: root.can-undo; x: parent.width - 170px; y: 40px; width: 140px; height: 38px; background: root.can-undo ? #404b58 : #25272e; Text { text: ControllerText.x-undo; color: white; font-size: 20px; horizontal-alignment: center; vertical-alignment: center; } TouchArea { enabled: root.can-undo; clicked => { root.undo(); } } }
+    Text { visible: root.status == ControllerText.layout-loaded-changes-affect-the-editing-copy; x: 396px; y: 105px; width: 840px; height: 35px; text: root.group-title; color: #dcdedf; font-size: 25px; font-family: GStyle.loc-font; }
     Flickable { x: 396px; y: root.rows-y; width: parent.width - 431px; height: parent.height - root.rows-y; viewport-height: root.content-height; viewport-y: -root.scroll;
         for row[i] in root.rows: Rectangle { x: 0px; y: row.y; width: parent.width; height: row.h; border-radius: 3px; background: (row.header || row.bare) ? transparent : (root.focus-row == i ? #30333b : #20232b);
             if row.header: Text { x: 0px; y: 0px; width: parent.width; height: parent.height; text: row.label; color: #dcdedf; font-size: 25px; vertical-alignment: center; overflow: elide; font-family: GStyle.loc-font; }
@@ -61,7 +62,7 @@ export component ControllerEditorView inherits Rectangle {
                 TouchArea { clicked => { root.row-clicked(i, false); } }
             }
             if row.gear: Rectangle { x: parent.width - 78px; y: 18px; width: 60px; height: parent.height - 36px; border-radius: 3px; background: root.focus-row == i && root.focus-gear ? #ffffff : (row.dim ? #1a1c22 : #40434b);
-                accessible-role: button; accessible-label: row.label + " — настройки";
+                accessible-role: button; accessible-label: row.label + ControllerText.settings-2;
                 Image { x: (parent.width - 36px) / 2; y: (parent.height - 36px) / 2; width: 36px; height: 36px; opacity: row.dim && !(root.focus-row == i && root.focus-gear) ? 0.45 : 1.0; source: root.focus-row == i && root.focus-gear ? @image-url("../assets/controller/settings-focused.svg") : @image-url("../assets/controller/settings.svg"); }
                 TouchArea { clicked => { root.row-clicked(i, true); } }
             }

@@ -65,8 +65,17 @@ const env = {
     performance: { now: () => time },
     setTimeout(fn) { watchdog = fn; return 1; }, clearTimeout() { watchdog = undefined; },
 };
-const request = async data => JSON.parse(JSON.stringify(await runInNewContext(
-    source.replace('/*request*/', JSON.stringify(data)), env)));
+function deviceText(locale) {
+    const catalog = JSON.parse(readFileSync(new URL(`../../locales/${locale}.json`, import.meta.url), 'utf8'));
+    return Object.fromEntries(Object.entries(catalog)
+        .filter(([key]) => key.startsWith('controller.devices.'))
+        .map(([key, value]) => [key.split('.').at(-1), value]));
+}
+
+const russianText = deviceText('ru');
+const request = async (data, text = russianText) => JSON.parse(JSON.stringify(await runInNewContext(
+    source.replace('/*text*/', JSON.stringify(text)).replace('/*request*/', JSON.stringify(data)), env)));
+
 const id = { index: 15, type: 4, serial: 'test-deck' };
 
 const inventory = await request({ op: 'inventory', defaults: true });
@@ -243,6 +252,7 @@ await request({ ...noSerial, op: 'gyro-end' });
 assert.deepEqual(calls.splice(0), [['start-hardware', 15]]);
 
 window.ControllerStore = undefined;
-await assert.rejects(request({ op: 'inventory' }), /ControllerStore/);
+await assert.rejects(request({ op: 'inventory' }), /ControllerStore недоступен/);
+await assert.rejects(request({ op: 'inventory' }, deviceText('en')), /ControllerStore unavailable/);
 
 console.log('Controller devices: inventory, selected device identity, live feed, 750 ms hold, cleanup, personalization and IMU wizard passed');

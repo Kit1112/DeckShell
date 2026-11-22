@@ -1,3 +1,5 @@
+import { ControllerText } from "screens/controller_text.slint";
+export { ControllerText }
 import { AccountScreen, AccountState, AccountRow, ChooserState, AccountTile } from "screens/account_switch.slint";
 export { AccountState, AccountRow, ChooserState, AccountTile }
 import { NotificationStack, ToastState, ToastData } from "widgets/notification_toast.slint";
@@ -71,6 +73,7 @@ export { DlPageRow, Shell, CardData, LibRow, MenuItem, DlItem, Hint, RailItem, L
 
 export component AppWindow inherits Window {
     in property <bool> dry-run: false;
+    in property <string> dry-run-label;
     title: "DeckShell";
     preferred-width: 1280px;
     preferred-height: 800px;
@@ -126,7 +129,7 @@ export component AppWindow inherits Window {
         }
         if ControllerState.open && !Shell.game-overlay: Text {
             x: 237px; y: 0px; width: max(0px, min(700px, top-bar.search-left - self.x - 12px)); height: 60px;
-            text: ControllerState.browser-open ? "Загрузить раскладку" : ControllerState.title;
+            text: ControllerState.browser-open ? ControllerText.load-new-layout : ControllerState.title;
             color: #dcdedf; font-size: 23.7px; font-family: GStyle.loc-font;
             vertical-alignment: center; overflow: elide;
         }
@@ -156,8 +159,8 @@ export component AppWindow inherits Window {
         IdleCover { x: 0px; y: 0px; width: root.width; height: root.height; }
         if root.dry-run: Rectangle {
             x: 0px; y: 0px; width: root.width; height: 52px; background: #c51c24;
-            accessible-role: text; accessible-label: "РЕЖИМ ТЕСТА — действия отключены";
-            Text { width: parent.width; height: parent.height; text: "РЕЖИМ ТЕСТА — действия отключены"; color: white; font-size: 22px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
+            accessible-role: text; accessible-label: root.dry-run-label;
+            Text { width: parent.width; height: parent.height; text: root.dry-run-label; color: white; font-size: 22px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
         }
     }
 }

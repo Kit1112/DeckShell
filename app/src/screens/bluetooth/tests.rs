@@ -3,6 +3,7 @@
 //!
 //! Element / state / button → result table: `docs/bluetooth-page-2026-11-19.md`.
 use super::*;
+use crate::screens::expected_text;
 use crate::router::Route;
 use slint::Model;
 use crate::screens::osk::field_tests::{app, shot};
@@ -105,13 +106,13 @@ fn lists_follow_the_stock_split_filter_and_sort() {
 fn section_title_follows_the_discovery_state() {
     let mk = |avail: Vec<Device>, discovering| PageData { available: true, enabled: true, discovering, avail, ..Default::default() };
     let titles = |p: &PageData| page_rows(p).into_iter().filter(|r| r.kind == rk::SECTION).map(|r| (r.label, r.mark)).collect::<Vec<_>>();
-    assert_eq!(titles(&mk(vec![], true)), vec![("Поиск устройств...".to_string(), 2)]);
-    assert_eq!(titles(&mk(vec![], false)), vec![("Устройства не обнаружены".to_string(), 0)]);
-    assert_eq!(titles(&mk(vec![d(1, etype::SPEAKER, "S")], true)), vec![("Доступно для соединения".to_string(), 2)]);
+    assert_eq!(titles(&mk(vec![], true)), vec![(expected_text("Поиск устройств...", "Searching for devices...").to_string(), 2)]);
+    assert_eq!(titles(&mk(vec![], false)), vec![(expected_text("Устройства не обнаружены", "No devices found").to_string(), 0)]);
+    assert_eq!(titles(&mk(vec![d(1, etype::SPEAKER, "S")], true)), vec![(expected_text("Доступно для соединения", "Available to pair").to_string(), 2)]);
     let off = PageData { available: true, enabled: false, ..Default::default() };
     assert!(titles(&off).is_empty(), "radio off and nothing found: no section");
     let paired = PageData { available: true, enabled: false, paired: vec![Device { paired: true, ..d(1, etype::GAMEPAD, "P") }], ..Default::default() };
-    assert_eq!(titles(&paired), vec![("Привязано".to_string(), 0)]);
+    assert_eq!(titles(&paired), vec![(expected_text("Привязано", "Paired").to_string(), 0)]);
 }
 
 #[test]
@@ -123,7 +124,7 @@ fn device_rows_show_state_battery_and_spinner() {
     ], avail: vec![Device { pairing: true, ..d(4, etype::SPEAKER, "D") }], ..Default::default() });
     let by = |l: &str| rows.iter().find(|r| r.label == l).unwrap().clone();
     assert_eq!((by("A").btn.as_str(), by("A").btn_w, by("A").bars, by("A").on), ("80%", 80.0, 3, 0));
-    assert_eq!((by("B").desc.as_str(), by("B").on, by("B").bars), ("НЕ ПОДКЛЮЧЕНО", 1, 1));
+    assert_eq!((by("B").desc.as_str(), by("B").on, by("B").bars), (expected_text("НЕ ПОДКЛЮЧЕНО", "NOT CONNECTED"), 1, 1));
     assert_eq!(by("C").mark, 2, "operation in progress: spinner");
     assert_eq!((by("D").mark, by("D").bars), (2, 2), "pairing: spinner, speaker icon");
 }
@@ -159,12 +160,12 @@ fn hints_name_the_action_of_the_focused_row() {
     let a_text = || hints().iter().find(|x| x.4 == Action::A).unwrap().1;
     assert_eq!(a_text(), "#ActionButtonLabelSelect");
     go_to(&mut h, Key::Paired(2));
-    assert_eq!(a_text(), "Подробнее");
+    assert_eq!(a_text(), expected_text("Подробнее", "More Information"));
     go_to(&mut h, Key::Avail(3));
-    assert_eq!(a_text(), "Привязать");
+    assert_eq!(a_text(), expected_text("Привязать", "Pair"));
     h.radio.set_hold_pairing(true);
     press(&mut h, Action::A);
-    assert_eq!(a_text(), "Отвязать устройство");
+    assert_eq!(a_text(), expected_text("Отвязать устройство", "Cancel Pairing"));
 }
 
 // ---------------------------------------------------------------- toggles
@@ -181,7 +182,7 @@ fn main_toggle_powers_the_radio_and_scanning() {
     assert_eq!(p.paired.len(), 2, "paired devices stay");
     assert!(p.paired.iter().all(|d| !d.connected), "…but show «НЕ ПОДКЛЮЧЕНО»");
     let titles: Vec<String> = with(|s| s.rows()).into_iter().filter(|r| r.kind == rk::SECTION).map(|r| r.label).collect();
-    assert_eq!(titles, vec!["Привязано"], "no available section while the radio is off");
+    assert_eq!(titles, vec![expected_text("Привязано", "Paired")], "no available section while the radio is off");
     shot(&h.ui, "bluetooth-off");
     press(&mut h, Action::A);
     assert_eq!(h.radio.log()[3..], ["enabled true", "discovering true"]);
@@ -255,7 +256,7 @@ fn connected_device_dialog_focuses_disconnect_and_closes_on_it() {
     assert_eq!(info_items(&d1)[focus], Item::Toggle, "the connect/disconnect button has the initial focus");
     let v = with(|s| s.dialog_view()).unwrap();
     let last = v.rows.last().unwrap();
-    assert_eq!((last.label.as_str(), last.value.as_str(), last.focus), ("Отключить устройство", "Отключить", 1));
+    assert_eq!((last.label.as_str(), last.value.as_str(), last.focus), (expected_text("Отключить устройство", "Disconnect Device"), expected_text("Отключить", "Disconnect"), 1));
     shot(&h.ui, "bluetooth-dialog-connected");
     press(&mut h, Action::A);
     assert_eq!(h.radio.log().last().map(String::as_str), Some("disconnect 1"));
@@ -271,7 +272,7 @@ fn disconnected_device_dialog_offers_connect() {
     press(&mut h, Action::A);
     let v = with(|s| s.dialog_view()).unwrap();
     let last = v.rows.last().unwrap();
-    assert_eq!((last.label.as_str(), last.value.as_str()), ("Подключить устройство", "Подключиться"));
+    assert_eq!((last.label.as_str(), last.value.as_str()), (expected_text("Подключить устройство", "Connect Device"), expected_text("Подключиться", "Connect")));
     shot(&h.ui, "bluetooth-dialog-disconnected");
     press(&mut h, Action::A);
     assert_eq!(h.radio.log().last().map(String::as_str), Some("connect 2"));
@@ -286,13 +287,13 @@ fn dialog_rows_follow_the_contract_order_and_wake_visibility() {
     press(&mut h, Action::A);
     let v = with(|s| s.dialog_view()).unwrap();
     let labels: Vec<&str> = v.rows.iter().map(|r| r.label.as_str()).collect();
-    assert_eq!(labels, ["Беспроводной геймпад", "MAC-адрес", "Доверенное", "Разрешить этому устройству выводить Steam Deck из спящего режима", "Забыть устройство", "Отключить устройство"]);
+    assert_eq!(labels, [expected_text("Беспроводной геймпад", "Wireless controller"), expected_text("MAC-адрес", "MAC Address"), expected_text("Доверенное", "Trusted"), expected_text("Разрешить этому устройству выводить Steam Deck из спящего режима", "Allow this device to wake Steam Deck"), expected_text("Забыть устройство", "Forget Device"), expected_text("Отключить устройство", "Disconnect Device")]);
     assert_eq!(v.rows[1].value, "02:00:00:00:00:01");
     press(&mut h, Action::B);
     go_to(&mut h, Key::Paired(2)); // headphones: no wake support
     press(&mut h, Action::A);
     let v = with(|s| s.dialog_view()).unwrap();
-    assert!(v.rows.iter().all(|r| !r.label.starts_with("Разрешить")), "wake row hidden when unsupported");
+    assert!(v.rows.iter().all(|r| !r.label.starts_with(expected_text("Разрешить", "Allow"))), "wake row hidden when unsupported");
     assert_eq!(v.items, 4);
 }
 
@@ -360,8 +361,8 @@ fn xbox_warning_dialog_closes_with_a_or_b() {
     with(|s| s.dialog = Some(Dialog::Xbox));
     push(&mut h.a);
     let v = with(|s| s.dialog_view()).unwrap();
-    assert!(v.rows.iter().any(|r| r.label.contains("Ошибка привязки контроллера Xbox")));
-    assert!(v.rows.iter().any(|r| r.value == "Понятно!"));
+    assert!(v.rows.iter().any(|r| r.label.contains(expected_text("Ошибка привязки контроллера Xbox", "Issue Pairing to Your Xbox Controller"))));
+    assert!(v.rows.iter().any(|r| r.value == expected_text("Понятно!", "Got it!")));
     shot(&h.ui, "bluetooth-xbox");
     press(&mut h, Action::A);
     assert!(dialog().is_none());

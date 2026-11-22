@@ -1,3 +1,4 @@
+import { ControllerText } from "controller_text.slint";
 import { ControllerLayoutMenu } from "controller_menu.slint";
 // /routes/controller/<appid> - Steam Deck controller settings page (context/archive/docs/controller/SPEC.md). Geometry: CSS px x 1.2 from docs/controller/capture/deck_all.tsv.
 import { ControllerSummary, SummaryRow } from "controller_summary.slint";
@@ -102,7 +103,7 @@ export global ControllerState {
     callback picker-key-clicked(int);
     callback picker-tab-clicked(int);
     in property <int> picker-fixture-tab: 2;
-    in property <string> picker-fixture-title: "Выберите команду клавиатуры: Лицевые кнопки → A";
+    in property <string> picker-fixture-title: ControllerText.choose-a-keyboard-command-face-buttons-a;
     in property <bool> command-dialog-open;
     in property <string> command-dialog-title;
     in property <[string]> command-dialog-rows;
@@ -135,8 +136,8 @@ export global ControllerState {
     in property <bool> browser-search-focused;
     in property <string> browser-query;
     in property <int> browser-load-state: 2;
-    in property <string> browser-message: "Список раскладок сейчас недоступен.";
-    in property <string> browser-page-title: "Загрузить раскладку";
+    in property <string> browser-message: ControllerText.layout-list-is-currently-unavailable;
+    in property <string> browser-page-title: ControllerText.load-new-layout;
     in property <string> browser-page-subtitle;
     in property <length> browser-content-height: 160px;
     in-out property <length> browser-scroll-y;
@@ -229,10 +230,10 @@ export component ControllerScreen inherits Rectangle {
         if ControllerState.x360-connected: CTab { x: 612px; y: 78px; width: 279px; height: 51px; label: "X360 CONTROLLER"; kind: 1; selected: ControllerState.tab == 1; focused: ControllerState.foc == 1;
             clicked => { ControllerState.clicked(1); } }
 
-        Text { x: 205px; y: ControllerState.geo-title-y; width: 600px; height: 34px; text: "Текущая раскладка"; color: #ffffff; font-size: 27px; font-family: GStyle.loc-font; vertical-alignment: top; }
+        Text { x: 205px; y: ControllerState.geo-title-y; width: 600px; height: 34px; text: ControllerText.current-layout; color: #ffffff; font-size: 27px; font-family: GStyle.loc-font; vertical-alignment: top; }
         // Help opens the Steam Input introduction on demand.
         Rectangle { x: 1016px; y: ControllerState.geo-title-y - 6px; width: 60px; height: 45px; border-radius: 2px; background: ControllerState.foc == 2 ? #ffffff : #2f3237;
-            accessible-role: button; accessible-label: "Система ввода Steam"; accessible-enabled: true;
+            accessible-role: button; accessible-label: ControllerText.steam-input; accessible-enabled: true;
             Rectangle { x: 15px; y: 7px; width: 30px; height: 30px; border-radius: 15px; background: ControllerState.foc == 2 ? #2e3236 : #ffffff;
                 Text { text: "?"; color: ControllerState.foc == 2 ? #ffffff : #2e3236; font-size: 22px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; font-family: GStyle.loc-font; } }
             TouchArea { clicked => { ControllerState.clicked(2); } } }
@@ -247,15 +248,15 @@ export component ControllerScreen inherits Rectangle {
             TouchArea { clicked => { ControllerState.clicked(3); } } }
         // Hint plate for games without an official layout (the current layout is a stock template).
         if ControllerState.geo-banner: Rectangle { x: 206px; y: ControllerState.geo-banner-y; width: 870px; height: 60px; background: #3d434f;
-            Text { x: 16px; y: 7px; width: parent.width - 32px; height: 24px; text: "Если у игры нет официальной поддержки контроллера, вы можете воспользоваться"; color: #dcdedf; font-size: 18px; font-family: GStyle.loc-font; overflow: elide; }
-            Text { x: 16px; y: 31px; width: parent.width - 32px; height: 24px; text: "раскладками от сообщества"; color: #ffffff; font-size: 18px; font-weight: 700; font-family: GStyle.loc-font; } }
+            Text { x: 16px; y: 7px; width: parent.width - 32px; height: 24px; text: ControllerText.if-the-game-has-no-official-controller-support; color: #dcdedf; font-size: 18px; font-family: GStyle.loc-font; overflow: elide; }
+            Text { x: 16px; y: 31px; width: parent.width - 32px; height: 24px; text: ControllerText.community-layouts-3; color: #ffffff; font-size: 18px; font-weight: 700; font-family: GStyle.loc-font; } }
 
         // Actions row: 390 x 60 buttons and a 60 x 60 gear, all #2e3236; focused = #1a9fff.
-        Btn { x: 206px; y: ControllerState.geo-btn-y; width: 390px; height: 60px; text: "Посмотреть раскладку"; foc: ControllerState.foc == 4; clicked => { ControllerState.clicked(4); } }
-        Btn { x: 610px; y: ControllerState.geo-btn-y; width: 390px; height: 60px; text: "Изменить раскладку"; foc: ControllerState.foc == 5; clicked => { ControllerState.clicked(5); } }
-        Btn { x: 1016px; y: ControllerState.geo-btn-y; width: 60px; height: 60px; text: "Настройки"; icon: true; foc: ControllerState.foc == 6; clicked => { ControllerState.clicked(6); } }
+        Btn { x: 206px; y: ControllerState.geo-btn-y; width: 390px; height: 60px; text: ControllerText.view-layout; foc: ControllerState.foc == 4; clicked => { ControllerState.clicked(4); } }
+        Btn { x: 610px; y: ControllerState.geo-btn-y; width: 390px; height: 60px; text: ControllerText.edit-layout; foc: ControllerState.foc == 5; clicked => { ControllerState.clicked(5); } }
+        Btn { x: 1016px; y: ControllerState.geo-btn-y; width: 60px; height: 60px; text: ControllerText.settings; icon: true; foc: ControllerState.foc == 6; clicked => { ControllerState.clicked(6); } }
 
-        Text { x: 220px; y: ControllerState.geo-head-y; width: 600px; height: 30px; text: "БЫСТРЫЕ НАСТРОЙКИ"; color: #ffffff; font-size: 24px; letter-spacing: 1.45px; font-family: GStyle.loc-font; vertical-alignment: top; }
+        Text { x: 220px; y: ControllerState.geo-head-y; width: 600px; height: 30px; text: ControllerText.quick-settings; color: #ffffff; font-size: 24px; letter-spacing: 1.45px; font-family: GStyle.loc-font; vertical-alignment: top; }
         Flickable { x: 221px; y: ControllerState.geo-rows-y; width: 840px; height: ControllerState.geo-list-h; viewport-y <=> ControllerState.vy; viewport-height: ControllerState.content-h; accessible-role: list; accessible-label: "quick settings";
             for r[i] in ControllerState.rows: Rectangle { x: 0px; y: r.y; width: parent.width; height: r.h; border-radius: 2px;
                 background: ControllerState.foc == 7 + i ? #383a41 : #23262e;
@@ -339,11 +340,11 @@ export component ControllerScreen inherits Rectangle {
         background: #000000a0;
         TouchArea { }
         Rectangle { x: (parent.width - 510px) / 2; y: 105px; width: 510px; height: 204px; background: #23262e;
-            Text { x: 24px; y: 11px; height: 46px; text: "Изменить значение"; color: white; font-size: 25px; vertical-alignment: center; font-family: GStyle.loc-font; }
+            Text { x: 24px; y: 11px; height: 46px; text: ControllerText.edit-value; color: white; font-size: 25px; vertical-alignment: center; font-family: GStyle.loc-font; }
             Rectangle { x: 24px; y: 64px; width: 462px; height: 56px; background: white;
                 Text { x: 16px; width: 430px; height: 56px; text: ControllerState.pad-number; color: #0e141b; font-size: 26px; vertical-alignment: center; font-family: GStyle.loc-font; }
             }
-            for label[i] in ["Готово", "Отмена"]: Rectangle { x: 24px + i * 240px; y: 138px; width: 222px; height: 49px; background: #44464d;
+            for label[i] in [ControllerText.done, ControllerText.cancel]: Rectangle { x: 24px + i * 240px; y: 138px; width: 222px; height: 49px; background: #44464d;
                 Text { text: label; color: white; font-size: 22px; horizontal-alignment: center; vertical-alignment: center; font-family: GStyle.loc-font; }
                 TouchArea { clicked => { ControllerState.pad-number-clicked(i == 0); } }
             }
@@ -352,7 +353,7 @@ export component ControllerScreen inherits Rectangle {
 
     if ControllerState.open && ControllerState.settings-fixture-open: ControllerSettingsView {
         x: 0px; y: 60px; width: root.width; height: root.height - 120px;
-        sections: ["Чувствительность", "Вывод", "Мёртвые зоны", "Внешнее кольцо", "Тактильная отдача"];
+        sections: [ControllerText.sensitivity, ControllerText.output, ControllerText.deadzones, ControllerText.ring-command, ControllerText.haptics-settings];
         rows: ControllerState.setting-rows; content-height: ControllerState.setting-content-height; scroll-y: ControllerState.setting-scroll; active-section: ControllerState.setting-section; focused-row: ControllerState.setting-focus;
         section-clicked(i) => { ControllerState.setting-section-clicked(i); }
         row-clicked(i) => { ControllerState.setting-row-clicked(i); }
@@ -362,7 +363,7 @@ export component ControllerScreen inherits Rectangle {
     if ControllerState.open && ControllerState.browser-fixture-open: ControllerBrowserView {
         x: 0px; y: 60px; width: root.width; height: root.height - 120px;
         tabs: ControllerState.browser-tabs; cards: ControllerState.browser-cards; active-tab: 1; focused-card: 0;
-        load-state: 1; title: "Раскладки сообщества"; subtitle: ControllerState.browser-page-subtitle; content-height: 600px;
+        load-state: 1; title: ControllerText.community-layouts-2; subtitle: ControllerState.browser-page-subtitle; content-height: 600px;
         search-visible: ControllerState.browser-fixture-search; search-focused: ControllerState.browser-fixture-search;
     }
 
@@ -388,18 +389,18 @@ export component ControllerScreen inherits Rectangle {
         TouchArea { }
         Rectangle {
             x: (parent.width - 846px) / 2; y: 195px; width: 846px; height: 380px; background: #20232b;
-            Text { x: 24px; y: 22px; width: parent.width - 48px; text: "Предпросмотр раскладки"; color: #9fc9e5; font-size: 20px; font-family: GStyle.loc-font; }
+            Text { x: 24px; y: 22px; width: parent.width - 48px; text: ControllerText.layout-preview; color: #9fc9e5; font-size: 20px; font-family: GStyle.loc-font; }
             Text { x: 24px; y: 64px; width: parent.width - 48px; height: 70px; text: ControllerState.browser-preview-title; color: white; font-size: 29px; wrap: word-wrap; overflow: elide; font-family: GStyle.loc-font; }
             Text { x: 24px; y: 146px; width: parent.width - 48px; height: 135px; text: ControllerState.browser-preview-description; color: #dcdedf; font-size: 21px; wrap: word-wrap; overflow: elide; font-family: GStyle.loc-font; }
             if ControllerState.browser-preview-apply: Rectangle {
                 x: 24px; y: 297px; width: 530px; height: 58px; background: #ffffff;
-                Text { text: ControllerState.browser-preview-install ? "X  Загрузить и применить" : "X  Применить раскладку"; color: #0e141b; font-size: 22px; horizontal-alignment: center; vertical-alignment: center; font-family: GStyle.loc-font; }
+                Text { text: ControllerState.browser-preview-install ? ControllerText.x-download-and-apply : ControllerText.x-apply-layout; color: #0e141b; font-size: 22px; horizontal-alignment: center; vertical-alignment: center; font-family: GStyle.loc-font; }
                 TouchArea { clicked => { ControllerState.browser-preview-action(true); } }
             }
-            if !ControllerState.browser-preview-apply: Text { x: 24px; y: 297px; width: 530px; height: 58px; text: "Демоданные · применение отключено"; color: #b8bcbf; font-size: 22px; vertical-alignment: center; font-family: GStyle.loc-font; }
+            if !ControllerState.browser-preview-apply: Text { x: 24px; y: 297px; width: 530px; height: 58px; text: ControllerText.demo-data-applying-disabled; color: #b8bcbf; font-size: 22px; vertical-alignment: center; font-family: GStyle.loc-font; }
             Rectangle {
                 x: parent.width - 235px; y: 297px; width: 211px; height: 58px; background: #3d4552;
-                Text { text: "B  Назад"; color: white; font-size: 22px; horizontal-alignment: center; vertical-alignment: center; font-family: GStyle.loc-font; }
+                Text { text: ControllerText.b-back; color: white; font-size: 22px; horizontal-alignment: center; vertical-alignment: center; font-family: GStyle.loc-font; }
                 TouchArea { clicked => { ControllerState.browser-preview-action(false); } }
             }
         }

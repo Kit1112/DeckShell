@@ -1,5 +1,6 @@
 //! UI controller core: shared state (library data, images, router, overlays), input dispatch and the glue to the
 //! per-screen modules in `crate::screens` (each owns its state struct and `impl App` block).
+use steam_assets::i18n::tr_ref;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -30,25 +31,27 @@ fn hero_frame(id: u32) -> HeroFrame {
 }
 
 pub fn comma(s: String) -> String {
-    s.replace('.', ",")
+    if steam_assets::i18n::current().code() == "ru" { s.replace('.', ",") } else { s }
 }
 pub fn fmt_size(b: u64) -> String {
+    use steam_assets::i18n::tr_args;
     let g = b as f64 / 1e9;
     if b == 0 {
         "-".into()
     } else if g >= 1.0 {
-        comma(format!("{g:.1} Гбайт"))
+        tr_args("screen_format.size_gb", &[("number", &comma(format!("{g:.1}")))])
     } else {
-        format!("{:.0} Мбайт", b as f64 / 1e6)
+        tr_args("screen_format.size_mb", &[("number", &format!("{:.0}", b as f64 / 1e6))])
     }
 }
 pub fn fmt_playtime(m: u32) -> String {
+    use steam_assets::i18n::{tr, tr_args};
     if m == 0 {
-        "Нет".into()
+        tr("screen_format.no_playtime")
     } else if m < 60 {
-        format!("{m} мин.")
+        tr_args("screen_format.playtime_minutes", &[("minutes", &m.to_string())])
     } else {
-        comma(format!("{:.1} ч.", m as f64 / 60.0))
+        tr_args("screen_format.playtime_hours", &[("hours", &comma(format!("{:.1}", m as f64 / 60.0)))])
     }
 }
 pub fn now_secs() -> u64 {
@@ -58,12 +61,13 @@ pub fn days_ago(t: u64) -> u64 {
     now_secs().saturating_sub(t) / 86_400
 }
 pub fn fmt_ago(t: Option<u64>) -> String {
-    let Some(t) = t else { return "Никогда".into() };
+    use steam_assets::i18n::{tr, tr_args};
+    let Some(t) = t else { return tr("screen_format.never") };
     match days_ago(t) {
-        0 => "Сегодня".into(),
-        1 => "Вчера".into(),
-        d if d < 60 => format!("{d} дн. назад"),
-        d => format!("{} мес. назад", d / 30),
+        0 => tr("screen_format.today"),
+        1 => tr("screen_format.yesterday"),
+        d if d < 60 => tr_args("screen_format.days_ago", &[("days", &d.to_string())]),
+        d => tr_args("screen_format.months_ago", &[("months", &(d / 30).to_string())]),
     }
 }
 
@@ -477,7 +481,7 @@ impl App {
         crate::screens::media::init_strings(&ui);
         crate::screens::search::init_strings(&ui);
         let tb = ui.global::<TopBarState>();
-        tb.set_search_placeholder(crate::assets::t_or("#SearchPlaceholder", "").into());
+        tb.set_search_placeholder(crate::assets::t_or("#SearchPlaceholder", tr_ref("search.placeholder")).into());
         // Steam shows this warning for an unformatted SD card, not mere presence.
         // Until that state is available, do not fabricate a warning.
         tb.set_has_sdcard(false);
@@ -1077,7 +1081,7 @@ impl App {
 
     fn sync_library_status(&self) {
         self.ui().global::<Shell>().set_library_status(if self.ds.library_unavailable() {
-            crate::assets::t_or("#DeckShell_LibraryUnavailable", "Не удалось прочитать библиотеку. Ожидание данных Steam.").into()
+            crate::assets::t_or("#DeckShell_LibraryUnavailable", tr_ref("library.library_unavailable")).into()
         } else { "".into() });
     }
 
@@ -1620,14 +1624,14 @@ impl App {
                 let on_hero = self.dl.lines.get(self.dl.focus).is_some_and(|l| l.kind == 1) && self.dl.col == 1;
                 let paused = self.live.downloads.as_ref().and_then(|d| d.overview.paused) == Some(true);
                 let a_label = match (on_hero, paused) {
-                    (true, true) => "Продолжить загрузку",
-                    (true, false) => "Приостановить загрузку",
+                    (true, true) => crate::screens::stock_hint("#Downloads_Resume_Tooltip", "downloads.resume_download"),
+                    (true, false) => crate::screens::stock_hint("#Downloads_Pause_Tooltip", "downloads.pause_download"),
                     _ => "#ActionButtonLabelSelect",
                 };
-                vec![("y", "Сменить устройство", 1, "F4", Action::Y), opts, ("a", a_label, 1, "Enter", Action::A), b]
+                vec![("y", crate::screens::stock_hint("#Downloads_ChangeDevice", "downloads.switch_device"), 1, "F4", Action::Y), opts, ("a", a_label, 1, "Enter", Action::A), b]
             }
             Route::Media if self.media_selecting() || self.media_batch_busy() => self.media_selection_hints(),
-            Route::Media => vec![("x", "Выбрать игру", 1, "F3", Action::X), ("y", "Действия", 1, "F4", Action::Y), ("menu", "#MediaPage_Filter", 2, "F9", Action::Menu), a, b],
+            Route::Media => vec![("x", tr_ref("footer.select_game"), 1, "F3", Action::X), ("y", tr_ref("footer.actions"), 1, "F4", Action::Y), ("menu", "#MediaPage_Filter", 2, "F9", Action::Menu), a, b],
             Route::Library(_) => vec![("x", self.filter_token(), 1, "F3", Action::X), ("y", "#ActionButtonLabelSort", 1, "F4", Action::Y), opts, a, b],
             Route::App(id) if self.is_running(*id) => vec![("x", "#GameAction_Stop", 1, "F3", Action::X), a, b],
             _ => vec![a, b],

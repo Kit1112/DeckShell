@@ -2,6 +2,7 @@
 //! Разбор оригинала: docs/keyboard-analysis-2026-11-18.md. Управление: сенсор (набор на отпускание), A, D-pad/стики,
 //! тачпады (позиционный ввод по половинам), X Backspace (удержание — повтор 450/200 мс), Y пробел, R2 «Поиск»/Enter,
 //! L2 Shift (удержание), L3 Caps, L1/R1 вкладки эмодзи, B закрыть. Отклик: звук Typing + хаптика Deck (см. `haptic`).
+use steam_assets::i18n;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
@@ -555,7 +556,7 @@ fn apply(ui: &AppWindow, pad_mode: bool) {
             (r.x, r.y, items)
         });
         let emoji = o.kb.mode == Mode::Emoji;
-        let message = if emoji && o.kb.cat < CAT_STEAM { t_or("#Keyboard_SteamItems_None", "Нет предметов") } else { String::new() };
+        let message = if emoji && o.kb.cat < CAT_STEAM { t_or("#Keyboard_SteamItems_None", i18n::tr_ref("osk.no_objects")) } else { String::new() };
         (model, o.open, (o.kb.panel_top(), o.kb.panel_h()), emoji, message, o.pads, ext,
             o.input_source.show_focus(pad_mode), o.hold.is_some_and(|h| h.src == Src::A))
     });
@@ -1299,9 +1300,9 @@ mod settings_tests {
             "keyboard_layout": "{\"currentLayout\":18,\"selectedLayouts\":[18,7]}",
         });
         let s = parse_settings(&v);
-        assert_eq!(s.haptic, None, "пресет 0 — хаптика выкл.");
+        assert_eq!(s.haptic, None, "Preset 0, haptic off.");
         assert_eq!(s.pad_scale, 1.5);
-        assert_eq!(s.layouts, vec![1], "неперенесённые раскладки пропущены");
+        assert_eq!(s.layouts, vec![1], "untransferred layouts skipped");
         assert_eq!(s.current, 1);
         let c = json!({"keyboard_haptic_preset": "10", "keyboard_haptic_custom": "{\"eHapticType\":1,\"unIntensity\":3,\"ndBGain\":-4}"});
         assert_eq!(parse_settings(&c).haptic, Some((1, 3, -4)));

@@ -9,7 +9,9 @@
 //!   answers 302 there). Redirects are followed by hand so every hop is checked. `force_ipv4` = IPv4-only resolver.
 //! * Downloads stream into `<dest>.part` with progress, cancellation, a size cap, a free-space check and a WebM signature
 //!   check, then rename atomically. Nothing here runs unless the user asked for it (the page calls it).
+use steam_assets::i18n::tr_ref;
 use serde_json::{json, Value};
+use steam_assets::i18n;
 use std::io::{Read, Write};
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::path::{Path, PathBuf};
@@ -111,7 +113,7 @@ pub struct Catalog {
 
 pub fn parse_catalog(bytes: &[u8]) -> Result<Catalog, NetErr> {
     let v: Value = serde_json::from_slice(bytes).map_err(|e| NetErr::BadData(format!("JSON: {e}")))?;
-    let arr = v.get("posts").and_then(|p| p.as_array()).ok_or_else(|| NetErr::BadData("нет списка posts".into()))?;
+    let arr = v.get("posts").and_then(|p| p.as_array()).ok_or_else(|| NetErr::BadData(tr_ref("anim_repo.missing_posts").into()))?;
     let mut seen = std::collections::HashSet::new();
     let posts: Vec<Post> = arr.iter().filter_map(Post::from_json).filter(|p| seen.insert(p.id.clone())).collect();
     Ok(Catalog { posts, site_cached_at: v.get("last_cached_at").and_then(|x| x.as_i64()) })
@@ -133,11 +135,11 @@ impl Sort {
     pub const ALL: [Sort; 5] = [Sort::Newest, Sort::Oldest, Sort::Alpha, Sort::Popular, Sort::Liked];
     pub fn label(self) -> &'static str {
         match self {
-            Sort::Newest => "Сначала новые",
-            Sort::Oldest => "Сначала старые",
-            Sort::Alpha => "По названию",
-            Sort::Popular => "Популярные",
-            Sort::Liked => "Понравившиеся",
+            Sort::Newest => i18n::tr_ref("anim_repo.newest"),
+            Sort::Oldest => i18n::tr_ref("anim_repo.oldest"),
+            Sort::Alpha => i18n::tr_ref("anim_repo.name"),
+            Sort::Popular => i18n::tr_ref("anim_repo.popular"),
+            Sort::Liked => i18n::tr_ref("anim_repo.liked"),
         }
     }
 }
@@ -154,9 +156,9 @@ impl Kind {
     pub const ALL: [Kind; 3] = [Kind::All, Kind::Boot, Kind::Suspend];
     pub fn label(self) -> &'static str {
         match self {
-            Kind::All => "Все типы",
-            Kind::Boot => "Запуск",
-            Kind::Suspend => "Сон",
+            Kind::All => i18n::tr_ref("anim_repo.all_types"),
+            Kind::Boot => i18n::tr_ref("anim_repo.startup"),
+            Kind::Suspend => i18n::tr_ref("anim_repo.sleep"),
         }
     }
     pub fn accepts(self, target: &str) -> bool {
@@ -201,57 +203,50 @@ pub fn filter(posts: &[Post], q: &Query) -> Vec<usize> {
 }
 
 /// "3 года назад" style age of an ISO-8601 timestamp (`2022-10-06T16:34:50.000000Z`).
-pub fn relative_ru(iso: &str, now_unix: i64) -> String {
+pub fn relative_age(iso: &str, now_unix: i64) -> String {
     let Ok(t) = chrono::DateTime::parse_from_rfc3339(iso) else { return String::new() };
     let d = (now_unix - t.timestamp()).max(0);
-    let (n, forms) = if d < 3600 {
-        return "только что".into();
+    let (key, count) = if d < 3600 {
+        return i18n::tr("anim_repo.just_now");
     } else if d < 86_400 {
-        (d / 3600, ["час", "часа", "часов"])
+        ("anim_repo.hour_ago", d / 3600)
     } else if d < 30 * 86_400 {
-        (d / 86_400, ["день", "дня", "дней"])
+        ("anim_repo.day_ago", d / 86_400)
     } else if d < 365 * 86_400 {
-        (d / (30 * 86_400), ["месяц", "месяца", "месяцев"])
+        ("anim_repo.month_ago", d / (30 * 86_400))
     } else {
-        (d / (365 * 86_400), ["год", "года", "лет"])
+        ("anim_repo.year_ago", d / (365 * 86_400))
     };
-    format!("{n} {} назад", plural(n, forms))
+    i18n::tr_plural(key, count, &[])
 }
 
-pub fn plural(n: i64, f: [&'static str; 3]) -> &'static str {
-    let (m10, m100) = (n % 10, n % 100);
-    if m10 == 1 && m100 != 11 {
-        f[0]
-    } else if (2..=4).contains(&m10) && !(12..=14).contains(&m100) {
-        f[1]
-    } else {
-        f[2]
-    }
-}
-
-/// 1234567 -> "1,2 млн", 35674 -> "35,7 тыс.", 980 -> "980".
+/// Compact download and like counts.
 pub fn short_count(n: i64) -> String {
-    let f = |v: f64, unit: &str| format!("{} {unit}", format!("{v:.1}").replace(".0", "").replace('.', ","));
+    let format = |v: f64, key| {
+        let number = crate::app::comma(format!("{v:.1}").trim_end_matches(".0").to_owned());
+        i18n::tr_args(key, &[("number", &number)])
+    };
     if n >= 1_000_000 {
-        f(n as f64 / 1e6, "млн")
+        format(n as f64 / 1e6, "anim_repo.million")
     } else if n >= 10_000 {
-        f(n as f64 / 1e3, "тыс.")
+        format(n as f64 / 1e3, "anim_repo.thousand")
     } else {
         n.to_string()
     }
 }
 
-pub fn size_ru(bytes: u64) -> String {
+pub fn size_label(bytes: u64) -> String {
     let mb = bytes as f64 / (1024.0 * 1024.0);
-    if bytes >= 1 << 30 {
-        format!("{:.1} ГБ", mb / 1024.0).replace('.', ",")
+    let (key, number) = if bytes >= 1 << 30 {
+        ("anim_repo.gb", crate::app::comma(format!("{:.1}", mb / 1024.0)))
     } else if mb >= 10.0 {
-        format!("{mb:.0} МБ")
+        ("anim_repo.mb", format!("{mb:.0}"))
     } else if bytes >= 1 << 20 {
-        format!("{mb:.1} МБ").replace('.', ",")
+        ("anim_repo.mb", crate::app::comma(format!("{mb:.1}")))
     } else {
-        format!("{} КБ", (bytes + 1023) / 1024)
-    }
+        ("anim_repo.kb", bytes.div_ceil(1024).to_string())
+    };
+    i18n::tr_args(key, &[("number", &number)])
 }
 
 // ---------------------------------------------------------------- network
@@ -274,23 +269,23 @@ pub enum NetErr {
 }
 
 impl NetErr {
-    /// Message for the page (Russian, no URLs or personal data).
-    pub fn ru(&self) -> String {
+    /// Localized message for the animation page.
+    pub fn message(&self) -> String {
         match self {
-            NetErr::Offline(_) => "Нет подключения к steamdeckrepo.com. Проверьте интернет".into(),
-            NetErr::Timeout => "Сервер не ответил вовремя. Попробуйте ещё раз".into(),
-            NetErr::RateLimited => "Слишком много запросов к steamdeckrepo.com. Подождите минуту".into(),
-            NetErr::Status(c) if *c >= 500 => format!("Сайт steamdeckrepo.com недоступен (ошибка {c})"),
-            NetErr::Status(404) => "Анимация не найдена на сайте (ошибка 404)".into(),
-            NetErr::Status(c) => format!("Сайт отклонил запрос (ошибка {c})"),
-            NetErr::HostNotAllowed(_) => "Сайт перенаправил на неразрешённый адрес: загрузка остановлена".into(),
-            NetErr::Tls(_) => "Не удалось установить защищённое соединение".into(),
-            NetErr::Cancelled => "Загрузка отменена".into(),
-            NetErr::TooLarge => "Файл слишком большой".into(),
-            NetErr::NoSpace { need, free } => format!("Недостаточно места: нужно {}, свободно {}", size_ru(*need), size_ru(*free)),
-            NetErr::NotVideo => "Сайт вернул не видео WebM".into(),
-            NetErr::Io(_) => "Ошибка записи на диск".into(),
-            NetErr::BadData(_) => "Сайт вернул повреждённые данные".into(),
+            NetErr::Offline(_) => i18n::tr_ref("anim_repo.offline").into(),
+            NetErr::Timeout => i18n::tr_ref("anim_repo.timeout").into(),
+            NetErr::RateLimited => i18n::tr_ref("anim_repo.too_many_requests").into(),
+            NetErr::Status(c) if *c >= 500 => i18n::tr_args("anim_repo.unavailable", &[("code", &c.to_string())]),
+            NetErr::Status(404) => i18n::tr_ref("anim_repo.not_found").into(),
+            NetErr::Status(c) => i18n::tr_args("anim_repo.rejected", &[("code", &c.to_string())]),
+            NetErr::HostNotAllowed(_) => i18n::tr_ref("anim_repo.redirect").into(),
+            NetErr::Tls(_) => i18n::tr_ref("anim_repo.tls").into(),
+            NetErr::Cancelled => i18n::tr_ref("anim_repo.cancelled").into(),
+            NetErr::TooLarge => i18n::tr_ref("anim_repo.too_large").into(),
+            NetErr::NoSpace { need, free } => i18n::tr_args("anim_repo.no_space", &[("need", &size_label(*need)), ("free", &size_label(*free))]),
+            NetErr::NotVideo => i18n::tr_ref("anim_repo.not_webm").into(),
+            NetErr::Io(_) => i18n::tr_ref("anim_repo.disk_write").into(),
+            NetErr::BadData(_) => i18n::tr_ref("anim_repo.bad_data").into(),
         }
     }
     /// Worth retrying (the plugin retries any non-200 status; 429 is final there too).
@@ -382,7 +377,7 @@ impl Net {
                 301 | 302 | 303 | 307 | 308 => {
                     let loc = resp.header("location").unwrap_or("").to_string();
                     url = if loc.starts_with('/') {
-                        let (scheme, host, port) = split_url(&url).ok_or_else(|| NetErr::BadData("адрес".into()))?;
+                        let (scheme, host, port) = split_url(&url).ok_or_else(|| NetErr::BadData(tr_ref("anim_repo.invalid_address").into()))?;
                         format!("{scheme}://{host}{}{loc}", port.map(|p| format!(":{p}")).unwrap_or_default())
                     } else {
                         loc
@@ -391,7 +386,7 @@ impl Net {
                 c => return Err(NetErr::Status(c)),
             }
         }
-        Err(NetErr::BadData("слишком много перенаправлений".into()))
+        Err(NetErr::BadData(tr_ref("anim_repo.redirect_limit").into()))
     }
 
     /// Whole body into memory, at most `max` bytes.
@@ -447,7 +442,7 @@ impl Net {
         free_space: &dyn Fn(&Path) -> Option<u64>,
         progress: &mut dyn FnMut(u64, Option<u64>),
     ) -> Result<u64, NetErr> {
-        let dir = dest.parent().ok_or_else(|| NetErr::Io("нет каталога".into()))?;
+        let dir = dest.parent().ok_or_else(|| NetErr::Io(tr_ref("anim_repo.missing_directory").into()))?;
         std::fs::create_dir_all(dir).map_err(|e| io_err(&e))?;
         let resp = self.get(url, Some(cancel))?;
         let total = resp.header("content-length").and_then(|v| v.parse::<u64>().ok());
@@ -494,7 +489,7 @@ impl Net {
                 return Err(NetErr::NotVideo);
             }
             if total.is_some_and(|t| t != done) {
-                return Err(NetErr::BadData("файл получен не полностью".into()));
+                return Err(NetErr::BadData(tr_ref("anim_repo.incomplete_download").into()));
             }
             f.sync_all().map_err(|e| io_err(&e))?;
             Ok(done)
@@ -636,11 +631,12 @@ pub fn fetch_thumb(net: &Net, cache: &RepoCache, id: &str, url: &str, w: u32, h:
 #[cfg(test)]
 pub mod tests {
     use super::*;
+    use crate::screens::expected_text;
     use std::io::{BufRead, BufReader};
     use std::net::TcpListener;
     use std::sync::Arc;
 
-    pub const FIXTURE: &str = include_str!("fixtures/steamdeckrepo-posts.json");
+    pub const FIXTURE: &str = include_str!("../../tests/fixtures/steamdeckrepo-posts.json");
 
     #[test]
     fn parses_the_site_format_like_the_plugin() {
@@ -649,10 +645,10 @@ pub mod tests {
         // the fixture has 8 posts: one unknown type and one duplicate id are dropped
         assert_eq!(c.posts.len(), 6);
         let p = &c.posts[0];
-        assert_eq!((p.id.as_str(), p.name.as_str(), p.author.as_str(), p.target), ("MnZgE", "Star Wars Intro (Disney+)", "Jaidek", "boot"));
+        assert_eq!((p.id.as_str(), p.name.as_str(), p.author.as_str(), p.target), ("BootA", "Starfield Intro", "Fixture Creator A", "boot"));
         assert_eq!(p.duration, Some(10.0));
-        assert_eq!(p.download_url(BASE), "https://steamdeckrepo.com/post/download/MnZgE");
-        let s = c.posts.iter().find(|p| p.id == "ndbjY").unwrap();
+        assert_eq!(p.download_url(BASE), "https://steamdeckrepo.com/post/download/BootA");
+        let s = c.posts.iter().find(|p| p.id == "Sleep").unwrap();
         assert_eq!(s.target, "suspend");
         assert!(s.description.is_empty(), "null content becomes empty");
         let e = p.to_entry(BASE);
@@ -677,22 +673,22 @@ pub mod tests {
         let mut q = Query::default();
         assert_eq!(ids(&q).len(), 6);
         q.sort = Sort::Popular;
-        assert_eq!(ids(&q)[0], "PDkKY");
+        assert_eq!(ids(&q)[0], "BootB");
         q.sort = Sort::Liked;
-        assert_eq!(ids(&q)[0], "PDkKY");
+        assert_eq!(ids(&q)[0], "BootB");
         q.sort = Sort::Oldest;
-        assert_eq!(ids(&q)[0], "MnZgE");
+        assert_eq!(ids(&q)[0], "BootA");
         q.sort = Sort::Newest;
         assert_eq!(ids(&q)[0], "Mach1");
         q.sort = Sort::Alpha;
-        assert_eq!(ids(&q).first().map(String::as_str), Some("nvWjE")); // "90's ..." sorts before letters
+        assert_eq!(ids(&q).first().map(String::as_str), Some("BootC")); // "90's ..." sorts before letters
         q.kind = Kind::Suspend;
-        assert_eq!(ids(&q), vec!["ndbjY"]);
+        assert_eq!(ids(&q), vec!["Sleep"]);
         q.kind = Kind::All;
         q.text = "STAR".into();
-        assert_eq!(ids(&q), vec!["MnZgE"]);
-        q.text = "parimak".into(); // author
-        assert_eq!(ids(&q), vec!["PDkKY"]);
+        assert_eq!(ids(&q), vec!["BootA"]);
+        q.text = "creator b".into(); // author
+        assert_eq!(ids(&q), vec!["BootB"]);
         q.text = "заставка".into(); // Cyrillic title, case-insensitive
         assert_eq!(ids(&q), vec!["RuZ01"]);
         q.text.clear();
@@ -702,20 +698,21 @@ pub mod tests {
 
     #[test]
     fn russian_numbers() {
-        assert_eq!(plural(1, ["год", "года", "лет"]), "год");
-        assert_eq!(plural(3, ["год", "года", "лет"]), "года");
-        assert_eq!(plural(11, ["год", "года", "лет"]), "лет");
-        assert_eq!(plural(22, ["день", "дня", "дней"]), "дня");
+        let ru = i18n::by_code("ru").unwrap();
+        assert_eq!(ru.tr_plural("anim_repo.year_ago", 1, &[]), "1 год назад");
+        assert_eq!(ru.tr_plural("anim_repo.year_ago", 3, &[]), "3 года назад");
+        assert_eq!(ru.tr_plural("anim_repo.year_ago", 11, &[]), "11 лет назад");
+        assert_eq!(ru.tr_plural("anim_repo.day_ago", 22, &[]), "22 дня назад");
         let now = chrono::DateTime::parse_from_rfc3339("2026-11-18T00:00:00Z").unwrap().timestamp();
-        assert_eq!(relative_ru("2022-10-06T16:34:50.000000Z", now), "4 года назад");
-        assert_eq!(relative_ru("2026-11-15T00:00:00Z", now), "3 дня назад");
-        assert_eq!(relative_ru("bad", now), "");
-        assert_eq!(short_count(35674), "35,7 тыс.");
+        assert_eq!(relative_age("2022-10-06T16:34:50.000000Z", now), expected_text("4 года назад", "4 years ago"));
+        assert_eq!(relative_age("2026-11-15T00:00:00Z", now), expected_text("3 дня назад", "3 days ago"));
+        assert_eq!(relative_age("bad", now), "");
+        assert_eq!(short_count(35674), expected_text("35,7 тыс.", "35.7K"));
         assert_eq!(short_count(980), "980");
-        assert_eq!(short_count(2_000_000), "2 млн");
-        assert_eq!(size_ru(13_083_545), "12 МБ");
-        assert_eq!(size_ru(2_036_735), "1,9 МБ");
-        assert_eq!(size_ru(25_859), "26 КБ");
+        assert_eq!(short_count(2_000_000), expected_text("2 млн", "2M"));
+        assert_eq!(size_label(13_083_545), expected_text("12 МБ", "12 MB"));
+        assert_eq!(size_label(2_036_735), expected_text("1,9 МБ", "1.9 MB"));
+        assert_eq!(size_label(25_859), expected_text("26 КБ", "26 KB"));
     }
 
     #[test]
@@ -824,7 +821,7 @@ pub mod tests {
         let f = serve(|_, _| (429, vec![], vec![], 0));
         assert_eq!(test_net(&f).fetch_catalog(), Err(NetErr::RateLimited));
         assert_eq!(f.hits.lock().unwrap().len(), 1, "429 is not retried");
-        assert!(NetErr::RateLimited.ru().contains("минуту"));
+        assert!(NetErr::RateLimited.message().contains(expected_text("минуту", "minute")));
     }
 
     #[test]
@@ -836,7 +833,7 @@ pub mod tests {
         let net = Net { base: format!("http://{addr}"), ipv4: false, test_hosts: vec![addr.to_string()], timeout: Duration::from_secs(2) };
         let e = net.fetch_catalog().unwrap_err();
         assert!(matches!(e, NetErr::Offline(_)), "{e:?}");
-        assert!(e.ru().contains("интернет"));
+        assert!(e.message().contains(expected_text("интернет", "internet")));
     }
 
     #[test]
@@ -844,15 +841,15 @@ pub mod tests {
         let body = webm(200_000);
         let b2 = body.clone();
         let f = serve(move |p, base| match p {
-            "/post/download/PDkKY" => (302, vec![("Location".into(), format!("{base}/videos/PDkKY.webm?sig=1"))], vec![], 0),
-            "/videos/PDkKY.webm?sig=1" => (200, vec![], b2.clone(), 0),
+            "/post/download/BootB" => (302, vec![("Location".into(), format!("{base}/videos/BootB.webm?sig=1"))], vec![], 0),
+            "/videos/BootB.webm?sig=1" => (200, vec![], b2.clone(), 0),
             _ => (404, vec![], vec![], 0),
         });
         let dir = tmp("dl");
-        let dest = dir.join("PDkKY.webm");
+        let dest = dir.join("BootB.webm");
         let cancel = AtomicBool::new(false);
         let mut seen = vec![];
-        let n = test_net(&f).download(&format!("{}/post/download/PDkKY", f.base), &dest, &cancel, &|_| Some(10 << 30), &mut |d, t| seen.push((d, t))).unwrap();
+        let n = test_net(&f).download(&format!("{}/post/download/BootB", f.base), &dest, &cancel, &|_| Some(10 << 30), &mut |d, t| seen.push((d, t))).unwrap();
         assert_eq!(n, 200_000);
         assert_eq!(std::fs::read(&dest).unwrap(), body);
         assert!(!part_path(&dest).exists());
@@ -910,7 +907,7 @@ pub mod tests {
         assert!(matches!(dl("/big", 1 << 20), Err(NetErr::NoSpace { need: 300_000, .. })));
         assert_eq!(dl("/missing", 1 << 40), Err(NetErr::Status(404)));
         assert!(!dir.join("e.webm").exists());
-        assert!(NetErr::Status(404).ru().contains("404"));
+        assert!(NetErr::Status(404).message().contains("404"));
         let _ = std::fs::remove_dir_all(dir);
     }
 }

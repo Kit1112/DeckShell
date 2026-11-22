@@ -2,6 +2,7 @@
 use crate::*;
 use slint::{ComponentHandle, ModelRc, VecModel};
 use std::rc::Rc;
+use steam_assets::i18n::{tr_args, tr_ref};
 
 fn model<T: Clone + 'static>(values: Vec<T>) -> ModelRc<T> { Rc::new(VecModel::from(values)).into() }
 
@@ -17,6 +18,7 @@ fn render_gallery() {
         i_slint_backend_testing::TestingBackendOptions { renderer_name: Some("software".into()), mock_time: true, ..Default::default() },
     ))).unwrap();
     let ui = AppWindow::new().unwrap();
+    crate::screens::controller::wire_text(&ui);
     ui.global::<crate::Icons>().on_tinted(crate::assets::tint_image);
     ui.window().set_size(slint::PhysicalSize::new(1280, 800));
     ui.global::<HomeState>().set_hero_title("An exceptionally long game title with missing artwork".into());
@@ -128,18 +130,18 @@ fn render_gallery() {
             has_icon: icon.is_some(), icon: icon.unwrap_or_default(),
         }
     };
-    footer.set_left_hint(Hint { glyph: "STEAM".into(), label: "МЕНЮ".into(), kind: 3, ..Default::default() });
-    let selection_hints = || model(vec![pad_hint("a", "ВЫБРАТЬ"), pad_hint("b", "НАЗАД")]);
+    footer.set_left_hint(Hint { glyph: "STEAM".into(), label: steam_assets::i18n::tr_ref("controller.menu_2").into(), kind: 3, ..Default::default() });
+    let selection_hints = || model(vec![pad_hint("a", steam_assets::i18n::tr_ref("controller.select_2")), pad_hint("b", steam_assets::i18n::tr_ref("controller.back"))]);
     footer.set_hints(selection_hints());
     ui.global::<ControllerState>().set_browser_fixture_open(true);
     ui.global::<ControllerState>().set_browser_tabs(model(vec![
-        ControllerBrowserTab { label: "РЕКОМЕНДАЦИИ".into(), x: 123.0, w: 282.0, ..Default::default() },
-        ControllerBrowserTab { label: "РАСКЛАДКИ СООБЩЕСТВА".into(), x: 627.0, w: 392.0, ..Default::default() },
-        ControllerBrowserTab { label: "ПОИСК".into(), x: 1044.0, w: 130.0, ..Default::default() },
+        ControllerBrowserTab { label: steam_assets::i18n::tr_ref("controller.recommended").into(), x: 123.0, w: 282.0, ..Default::default() },
+        ControllerBrowserTab { label: steam_assets::i18n::tr_ref("controller.community_layouts").into(), x: 627.0, w: 392.0, ..Default::default() },
+        ControllerBrowserTab { label: steam_assets::i18n::tr_ref("controller.search").into(), x: 1044.0, w: 130.0, ..Default::default() },
     ]));
     ui.global::<ControllerState>().set_browser_cards(model(vec![
-        ControllerConfigCard { y: 51.0, title: "Community controller layout".into(), author: "Fixture author".into(), description: "A long description for the controller layout fixture that intentionally wraps onto another line, so the list can exercise variable card height and text clipping.".into(), description_height: 48.0, status: "НЕ ЗАГРУЖЕНО".into(), votes: "92".into(), playtime: "52065 Ч. СЫГРАНО".into(), ..Default::default() },
-        ControllerConfigCard { y: 200.0, title: "Second layout".into(), author: "Another author".into(), description: "Another description".into(), status: "НЕ ЗАГРУЖЕНО".into(), ..Default::default() },
+        ControllerConfigCard { y: 51.0, title: "Community controller layout".into(), author: "Fixture author".into(), description: "A long description for the controller layout fixture that intentionally wraps onto another line, so the list can exercise variable card height and text clipping.".into(), description_height: 48.0, status: steam_assets::i18n::tr_ref("controller.not_downloaded_2").into(), votes: "92".into(), playtime: steam_assets::i18n::tr_ref("controller.52065_hours_played").into(), ..Default::default() },
+        ControllerConfigCard { y: 200.0, title: "Second layout".into(), author: "Another author".into(), description: "Another description".into(), status: steam_assets::i18n::tr_ref("controller.not_downloaded_2").into(), ..Default::default() },
     ]));
     let snapshot = ui.window().take_snapshot().expect("controller chooser snapshot");
     assert_eq!((snapshot.width(), snapshot.height()), (1280, 800));
@@ -148,14 +150,14 @@ fn render_gallery() {
     }
     // Task 505: own-layouts tab (Мои раскладки) with the user's copies; fixture data, not a Gaming Mode capture.
     ui.global::<ControllerState>().set_browser_tabs(model(vec![
-        ControllerBrowserTab { label: "МОИ РАСКЛАДКИ".into(), x: 123.0, w: 282.0, ..Default::default() },
-        ControllerBrowserTab { label: "ШАБЛОНЫ".into(), x: 430.0, w: 200.0, ..Default::default() },
-        ControllerBrowserTab { label: "РАСКЛАДКИ СООБЩЕСТВА".into(), x: 655.0, w: 392.0, ..Default::default() },
-        ControllerBrowserTab { label: "ПОИСК".into(), x: 1070.0, w: 130.0, ..Default::default() },
+        ControllerBrowserTab { label: steam_assets::i18n::tr_ref("controller.your_layouts").into(), x: 123.0, w: 282.0, ..Default::default() },
+        ControllerBrowserTab { label: steam_assets::i18n::tr_ref("controller.templates").into(), x: 430.0, w: 200.0, ..Default::default() },
+        ControllerBrowserTab { label: steam_assets::i18n::tr_ref("controller.community_layouts").into(), x: 655.0, w: 392.0, ..Default::default() },
+        ControllerBrowserTab { label: steam_assets::i18n::tr_ref("controller.search").into(), x: 1070.0, w: 130.0, ..Default::default() },
     ]));
     ui.global::<ControllerState>().set_browser_cards(model(vec![
-        ControllerConfigCard { y: 51.0, title: "Геймпад (копия)".into(), description: "Своя копия шаблона «Геймпад»".into(), selected: true, ..Default::default() },
-        ControllerConfigCard { y: 200.0, title: "Для карточных игр".into(), description: "Своя раскладка".into(), ..Default::default() },
+        ControllerConfigCard { y: 51.0, title: steam_assets::i18n::tr_ref("controller.gamepad_copy").into(), description: steam_assets::i18n::tr_ref("controller.personal_copy_of_the_gamepad_template").into(), selected: true, ..Default::default() },
+        ControllerConfigCard { y: 200.0, title: steam_assets::i18n::tr_ref("controller.for_card_games").into(), description: steam_assets::i18n::tr_ref("controller.personal_layout").into(), ..Default::default() },
     ]));
     let snapshot = ui.window().take_snapshot().expect("controller own layouts snapshot");
     assert_eq!((snapshot.width(), snapshot.height()), (1280, 800));
@@ -172,23 +174,23 @@ fn render_gallery() {
     ui.global::<ControllerState>().set_browser_fixture_search(false);
     ui.global::<ControllerState>().set_browser_fixture_open(false);
     ui.global::<ControllerState>().set_editor_fixture_open(true);
-    ui.global::<ControllerState>().set_editor_title("Кнопки".into());
-    ui.global::<ControllerState>().set_editor_group_title("Лицевые кнопки".into());
-    ui.global::<ControllerState>().set_editor_sections(model(["Кнопки", "Крестовина", "Триггеры", "Джойстики", "Трекпады", "Гироскопы", "Виртуальное меню", "Наборы действий"].into_iter().map(|label| ControllerEditorSection { label: label.into(), ..Default::default() }).collect()));
-    ui.global::<ControllerState>().set_editor_rows(model([("Функции", "Блок кнопок"), ("A", "Кнопка A"), ("B", "Кнопка B"), ("X", "Кнопка X"), ("Y", "Кнопка Y")].into_iter().enumerate().map(|(i, (label, value))| ControllerEditorRow { label: label.into(), value: value.into(), gear: true, y: i as f32 * 105.0, h: 96.0, ..Default::default() }).collect()));
+    ui.global::<ControllerState>().set_editor_title(steam_assets::i18n::tr_ref("controller.buttons").into());
+    ui.global::<ControllerState>().set_editor_group_title(steam_assets::i18n::tr_ref("controller.face_buttons_2").into());
+    ui.global::<ControllerState>().set_editor_sections(model([steam_assets::i18n::tr_ref("controller.buttons"), steam_assets::i18n::tr_ref("controller.dpad"), steam_assets::i18n::tr_ref("controller.triggers"), steam_assets::i18n::tr_ref("controller.joysticks"), steam_assets::i18n::tr_ref("controller.trackpads"), steam_assets::i18n::tr_ref("controller.gyro"), steam_assets::i18n::tr_ref("controller.virtual_menus"), steam_assets::i18n::tr_ref("controller.action_sets")].into_iter().map(|label| ControllerEditorSection { label: label.into(), ..Default::default() }).collect()));
+    ui.global::<ControllerState>().set_editor_rows(model([(steam_assets::i18n::tr_ref("controller.behavior"), steam_assets::i18n::tr_ref("controller.button_pad")), ("A", steam_assets::i18n::tr_ref("controller.a_button")), ("B", steam_assets::i18n::tr_ref("controller.b_button")), ("X", steam_assets::i18n::tr_ref("controller.x_button")), ("Y", steam_assets::i18n::tr_ref("controller.y_button"))].into_iter().enumerate().map(|(i, (label, value))| ControllerEditorRow { label: label.into(), value: value.into(), gear: true, y: i as f32 * 105.0, h: 96.0, ..Default::default() }).collect()));
     ui.global::<ControllerState>().set_editor_content_height(525.0);
     let snapshot = ui.window().take_snapshot().expect("controller editor snapshot");
     assert_eq!((snapshot.width(), snapshot.height()), (1280, 800));
     if let Some(dir) = &output {
         image::save_buffer(dir.join("controller-editor.png"), snapshot.as_bytes(), 1280, 800, image::ColorType::Rgba8).unwrap();
     }
-    ui.global::<ControllerState>().set_editor_title("Джойстики".into());
-    ui.global::<ControllerState>().set_editor_group_title("Правый джойстик".into());
+    ui.global::<ControllerState>().set_editor_title(steam_assets::i18n::tr_ref("controller.joysticks").into());
+    ui.global::<ControllerState>().set_editor_group_title(steam_assets::i18n::tr_ref("controller.right_joystick_2").into());
     ui.global::<ControllerState>().set_editor_active_section(3);
     ui.global::<ControllerState>().set_editor_rows(model(vec![
-        ControllerEditorRow { label: "Функции".into(), value: "Джойстик".into(), gear: true, y: 0.0, h: 96.0, ..Default::default() },
-        ControllerEditorRow { label: "Нажатие".into(), value: "Нажатие на правый стик".into(), gear: true, y: 105.0, h: 126.0, ..Default::default() },
-        ControllerEditorRow { label: "Касание".into(), value: "Добавить команду".into(), gear: true, y: 240.0, h: 126.0, ..Default::default() },
+        ControllerEditorRow { label: steam_assets::i18n::tr_ref("controller.behavior").into(), value: steam_assets::i18n::tr_ref("controller.output_joystick").into(), gear: true, y: 0.0, h: 96.0, ..Default::default() },
+        ControllerEditorRow { label: steam_assets::i18n::tr_ref("controller.click").into(), value: steam_assets::i18n::tr_ref("controller.right_stick_click").into(), gear: true, y: 105.0, h: 126.0, ..Default::default() },
+        ControllerEditorRow { label: steam_assets::i18n::tr_ref("controller.touch").into(), value: steam_assets::i18n::tr_ref("controller.add_command").into(), gear: true, y: 240.0, h: 126.0, ..Default::default() },
     ]));
     ui.global::<ControllerState>().set_editor_content_height(366.0);
     let snapshot = ui.window().take_snapshot().expect("controller stick editor snapshot");
@@ -196,25 +198,25 @@ fn render_gallery() {
     if let Some(dir) = &output {
         image::save_buffer(dir.join("controller-editor-stick.png"), snapshot.as_bytes(), 1280, 800, image::ColorType::Rgba8).unwrap();
     }
-    ui.global::<ControllerState>().set_editor_title("Виртуальное меню".into());
+    ui.global::<ControllerState>().set_editor_title(steam_assets::i18n::tr_ref("controller.virtual_menus").into());
     ui.global::<ControllerState>().set_editor_group_title("".into());
     ui.global::<ControllerState>().set_editor_active_section(6);
     ui.global::<ControllerState>().set_editor_rows_y(93.0);
     ui.global::<ControllerState>().set_editor_content_height(126.0);
-    ui.global::<ControllerState>().set_editor_rows(model(vec![ControllerEditorRow { label: "".into(), value: "Добавить виртуальное меню".into(), value_width: 406.0, y: 0.0, h: 126.0, ..Default::default() }]));
+    ui.global::<ControllerState>().set_editor_rows(model(vec![ControllerEditorRow { label: "".into(), value: steam_assets::i18n::tr_ref("controller.add_virtual_menu").into(), value_width: 406.0, y: 0.0, h: 126.0, ..Default::default() }]));
     let snapshot = ui.window().take_snapshot().expect("controller virtual menu snapshot");
     assert_eq!((snapshot.width(), snapshot.height()), (1280, 800));
     if let Some(dir) = &output {
         image::save_buffer(dir.join("controller-virtual-menu.png"), snapshot.as_bytes(), 1280, 800, image::ColorType::Rgba8).unwrap();
     }
-    ui.global::<ControllerState>().set_editor_title("Наборы действий".into());
+    ui.global::<ControllerState>().set_editor_title(steam_assets::i18n::tr_ref("controller.action_sets").into());
     ui.global::<ControllerState>().set_editor_active_section(7);
     ui.global::<ControllerState>().set_editor_rows_y(96.0);
     ui.global::<ControllerState>().set_editor_content_height(217.0);
-    ui.global::<ControllerState>().set_editor_rows(model(vec![ControllerEditorRow { label: "По умолчанию".into(), gear: true, gear_only: true, y: 0.0, h: 96.0, ..Default::default() }]));
+    ui.global::<ControllerState>().set_editor_rows(model(vec![ControllerEditorRow { label: steam_assets::i18n::tr_ref("controller.default").into(), gear: true, gear_only: true, y: 0.0, h: 96.0, ..Default::default() }]));
     ui.global::<ControllerState>().set_editor_actions(model(vec![
-        ControllerEditorAction { label: "Добавить набор действий".into(), x: 0.0, y: 126.0, w: 410.0, h: 90.0 },
-        ControllerEditorAction { label: "Глобальные настройки набора".into(), x: 440.0, y: 126.0, w: 409.0, h: 90.0 },
+        ControllerEditorAction { label: steam_assets::i18n::tr_ref("controller.add_action_set").into(), x: 0.0, y: 126.0, w: 410.0, h: 90.0 },
+        ControllerEditorAction { label: steam_assets::i18n::tr_ref("controller.global_set_options").into(), x: 440.0, y: 126.0, w: 409.0, h: 90.0 },
     ]));
     let snapshot = ui.window().take_snapshot().expect("controller action sets snapshot");
     assert_eq!((snapshot.width(), snapshot.height()), (1280, 800));
@@ -254,13 +256,13 @@ fn render_gallery() {
         c.set_picker_fixture_open(false);
         c.set_settings_fixture_open(false);
         c.set_browser_fixture_open(false);
-        c.set_title("Настройки контроллера для Balatro".into());
+        c.set_title(steam_assets::i18n::tr_ref("controller.controller_settings_for_balatro").into());
         c.set_tab(0);
         c.set_summary_rows(model(crate::screens::controller::summary_rows()));
         c.set_summary_device(crate::screens::controller::summary_device_art());
         c.set_summary_open(true);
         c.set_summary_focus(0);
-        footer.set_hints(model(vec![pad_hint("b", "НАЗАД")]));
+        footer.set_hints(model(vec![pad_hint("b", steam_assets::i18n::tr_ref("controller.back"))]));
         let snapshot = ui.window().take_snapshot().expect("controller summary snapshot");
         assert_eq!((snapshot.width(), snapshot.height()), (1280, 800));
         assert_eq!(pixel(snapshot.as_bytes(), 640, 300), &[13, 19, 27, 255]);
@@ -283,11 +285,11 @@ fn render_gallery() {
         c.set_picker_fixture_open(false);
         c.set_settings_fixture_open(false);
         c.set_browser_fixture_open(false);
-        c.set_title("Настройки контроллера для Balatro".into());
+        c.set_title(steam_assets::i18n::tr_ref("controller.controller_settings_for_balatro").into());
         c.set_author("LocalThunk".into());
-        c.set_layout_name("Официальная раскладка Balatro - Геймпад".into());
+        c.set_layout_name(steam_assets::i18n::tr_ref("controller.official_layout_for_balatro_gamepad").into());
         c.set_tab(1);
-        c.set_rows(model(vec![CRow { kind: 0, gear: false, label: "Инвертировать ось Y правого джойстика".into(), value: "".into(), on: false, frac: 0.0, y: 0.0, h: 69.0 }]));
+        c.set_rows(model(vec![CRow { kind: 0, gear: false, label: steam_assets::i18n::tr_ref("controller.invert_right_joystick_y_axis").into(), value: "".into(), on: false, frac: 0.0, y: 0.0, h: 69.0 }]));
         c.set_content_h(78.0);
         for (name, foc, tab) in [("controller-root-03", 1, 1), ("controller-root-05-card", 3, 1), ("controller-root-06-view", 4, 1), ("controller-root-40m-deck-tab", 0, 0)] {
             c.set_foc(foc);
@@ -305,7 +307,7 @@ fn render_gallery() {
         c.set_tab(0); c.set_foc(6); c.set_menu_page(1); c.set_menu_focus(0);
         let snapshot = ui.window().take_snapshot().expect("layout menu snapshot");
         if let Some(dir) = &output { image::save_buffer(dir.join("controller-layout-menu.png"), snapshot.as_bytes(), 1280, 800, image::ColorType::Rgba8).unwrap(); }
-        c.set_menu_page(2); c.set_menu_info_name("Геймпад".into()); c.set_menu_info_description("Образец описания".into()); c.set_menu_info_url("template://controller_neptune_gamepad_joystick.vdf".into());
+        c.set_menu_page(2); c.set_menu_info_name(steam_assets::i18n::tr_ref("controller.gamepad_3").into()); c.set_menu_info_description(steam_assets::i18n::tr_ref("controller.sample_description").into()); c.set_menu_info_url("template://controller_neptune_gamepad_joystick.vdf".into());
         let snapshot = ui.window().take_snapshot().expect("layout information snapshot");
         if let Some(dir) = &output { image::save_buffer(dir.join("controller-layout-info.png"), snapshot.as_bytes(), 1280, 800, image::ColorType::Rgba8).unwrap(); }
         c.set_menu_page(0);
@@ -321,7 +323,7 @@ fn render_gallery() {
     }
     ui.global::<ControllerState>().set_picker_keys(model(keys));
     ui.global::<ControllerState>().set_picker_tabs(model([
-        "ГЕЙМПАД", "МЫШЬ", "КЛАВИАТУРА", "ЦИФРОВАЯ КЛАВИАТУРА", "НАБОРЫ ДЕЙСТВИЙ", "СИСТЕМА", "КАМЕРА",
+        steam_assets::i18n::tr_ref("controller.gamepad"), steam_assets::i18n::tr_ref("controller.mouse"), steam_assets::i18n::tr_ref("controller.keyboard"), steam_assets::i18n::tr_ref("controller.numpad"), steam_assets::i18n::tr_ref("controller.action_sets_2"), steam_assets::i18n::tr_ref("controller.system"), steam_assets::i18n::tr_ref("controller.camera"),
     ].into_iter().map(Into::into).collect()));
     let snapshot = ui.window().take_snapshot().expect("controller command picker snapshot");
     assert_eq!((snapshot.width(), snapshot.height()), (1280, 800));
@@ -329,13 +331,13 @@ fn render_gallery() {
         image::save_buffer(dir.join("controller-command-picker.png"), snapshot.as_bytes(), 1280, 800, image::ColorType::Rgba8).unwrap();
     }
     ui.global::<ControllerState>().set_picker_fixture_tab(1);
-    ui.global::<ControllerState>().set_picker_fixture_title("Выберите команду мыши: Лицевые кнопки → A".into());
+    ui.global::<ControllerState>().set_picker_fixture_title(steam_assets::i18n::tr_ref("controller.choose_a_mouse_command_face_buttons_a").into());
     let mouse = [
-        ("Нажатие левой кнопки мыши", 211., 185.), ("Нажатие средней кнопки", 211., 260.),
-        ("Нажатие правой кнопки мыши", 211., 335.), ("Нажатие 4-й кнопки мыши", 211., 434.),
-        ("Нажатие 5-й кнопки мыши", 211., 509.), ("Колесо мыши вверх", 813., 185.),
-        ("Колесо мыши вниз", 813., 260.), ("Перемещение в позицию", 813., 434.),
-        ("Перемещение на значение", 813., 509.),
+        (steam_assets::i18n::tr_ref("controller.left_mouse_click"), 211., 185.), (steam_assets::i18n::tr_ref("controller.middle_mouse_click"), 211., 260.),
+        (steam_assets::i18n::tr_ref("controller.right_mouse_click"), 211., 335.), (steam_assets::i18n::tr_ref("controller.mouse_4_click"), 211., 434.),
+        (steam_assets::i18n::tr_ref("controller.mouse_5_click"), 211., 509.), (steam_assets::i18n::tr_ref("controller.scroll_wheel_up"), 813., 185.),
+        (steam_assets::i18n::tr_ref("controller.scroll_wheel_down"), 813., 260.), (steam_assets::i18n::tr_ref("controller.move_to_position"), 813., 434.),
+        (steam_assets::i18n::tr_ref("controller.move_by_amount"), 813., 509.),
     ].into_iter().map(|(label, x, y)| ControllerPickerKey { label: label.into(), x, y, w: 252., h: 57., center: true, ..Default::default() }).collect();
     ui.global::<ControllerState>().set_picker_keys(model(mouse));
     let snapshot = ui.window().take_snapshot().expect("controller mouse picker snapshot");
@@ -357,7 +359,7 @@ fn render_gallery() {
             }
         }).collect();
         c.set_picker_fixture_tab(0);
-        c.set_picker_fixture_title("Выберите команду геймпада: Лицевые кнопки → A".into());
+        c.set_picker_fixture_title(steam_assets::i18n::tr_ref("controller.choose_a_gamepad_command_face_buttons_a").into());
         c.set_picker_keys(model(gamepad_keys));
         let frame = ui.window().take_snapshot().expect("gamepad command picker snapshot");
         assert!((460..820).any(|x| (350..550).any(|y| pixel(frame.as_bytes(), x, y)[0] > 65)),
@@ -368,13 +370,13 @@ fn render_gallery() {
     }
     ui.global::<ControllerState>().set_picker_fixture_open(false);
     ui.global::<ControllerState>().set_settings_fixture_open(true);
-    ui.global::<ControllerState>().set_setting_title("Чувствительность".into());
+    ui.global::<ControllerState>().set_setting_title(steam_assets::i18n::tr_ref("controller.sensitivity").into());
     ui.global::<ControllerState>().set_setting_rows(model(vec![
-        ControllerSettingRow { kind: 0, label: "Горизонтальная чувствительность".into(), value: "100%".into(), fraction: 1.0, y: 0.0, h: 138.0, ..Default::default() },
-        ControllerSettingRow { kind: 0, label: "Вертикальная чувствительность".into(), value: "100%".into(), fraction: 1.0, y: 147.0, h: 138.0, ..Default::default() },
-        ControllerSettingRow { kind: 1, label: "Инверсия горизонтальной оси".into(), value: "".into(), fraction: 0.0, y: 294.0, h: 69.0, ..Default::default() },
-        ControllerSettingRow { kind: 1, label: "Инверсия вертикальной оси".into(), value: "".into(), fraction: 0.0, y: 372.0, h: 69.0, ..Default::default() },
-        ControllerSettingRow { kind: 2, label: "Кривая чувствительности стика".into(), value: "Линейная".into(), fraction: 0.0, y: 450.0, h: 96.0, ..Default::default() },
+        ControllerSettingRow { kind: 0, label: steam_assets::i18n::tr_ref("controller.horizontal_scale").into(), value: "100%".into(), fraction: 1.0, y: 0.0, h: 138.0, ..Default::default() },
+        ControllerSettingRow { kind: 0, label: steam_assets::i18n::tr_ref("controller.vertical_scale").into(), value: "100%".into(), fraction: 1.0, y: 147.0, h: 138.0, ..Default::default() },
+        ControllerSettingRow { kind: 1, label: steam_assets::i18n::tr_ref("controller.invert_horizontal_axis").into(), value: "".into(), fraction: 0.0, y: 294.0, h: 69.0, ..Default::default() },
+        ControllerSettingRow { kind: 1, label: steam_assets::i18n::tr_ref("controller.invert_vertical_axis").into(), value: "".into(), fraction: 0.0, y: 372.0, h: 69.0, ..Default::default() },
+        ControllerSettingRow { kind: 2, label: steam_assets::i18n::tr_ref("controller.stick_response_curve").into(), value: steam_assets::i18n::tr_ref("controller.linear").into(), fraction: 0.0, y: 450.0, h: 96.0, ..Default::default() },
     ]));
     let snapshot = ui.window().take_snapshot().expect("controller settings snapshot");
     assert_eq!((snapshot.width(), snapshot.height()), (1280, 800));
@@ -383,11 +385,11 @@ fn render_gallery() {
     if let Some(dir) = &output {
         image::save_buffer(dir.join("controller-stick-settings.png"), snapshot.as_bytes(), 1280, 800, image::ColorType::Rgba8).unwrap();
     }
-    ui.global::<ControllerState>().set_setting_title("Тактильная отдача".into());
+    ui.global::<ControllerState>().set_setting_title(steam_assets::i18n::tr_ref("controller.haptics_settings").into());
     ui.global::<ControllerState>().set_setting_section(4);
     ui.global::<ControllerState>().set_setting_rows(model(vec![
-        ControllerSettingRow { kind: 2, label: "Уровень тактильной отдачи".into(), value: "Выкл.".into(), y: 0.0, h: 96.0, ..Default::default() },
-        ControllerSettingRow { kind: 2, label: "Триггеры тактильной отдачи при активации гироскопа".into(), description: "Выберите, когда должна срабатывать тактильная отдача.".into(), value: "При включении/выключении".into(), y: 105.0, h: 250.0, ..Default::default() },
+        ControllerSettingRow { kind: 2, label: steam_assets::i18n::tr_ref("controller.haptics_intensity").into(), value: steam_assets::i18n::tr_ref("controller.off").into(), y: 0.0, h: 96.0, ..Default::default() },
+        ControllerSettingRow { kind: 2, label: steam_assets::i18n::tr_ref("controller.gyro_activation_haptics_triggers").into(), description: steam_assets::i18n::tr_ref("controller.choose_when_haptics_should_trigger").into(), value: steam_assets::i18n::tr_ref("controller.on_enable_and_disable").into(), y: 105.0, h: 250.0, ..Default::default() },
     ]));
     let snapshot = ui.window().take_snapshot().expect("controller haptics snapshot");
     assert_eq!((snapshot.width(), snapshot.height()), (1280, 800));
@@ -425,6 +427,12 @@ fn render_gallery() {
         }
     }
     game_bar_icons_survive_focus_move(&ui);
+    if let Some(dir) = &output {
+        ui.set_dry_run_label(tr_ref("app.dry_run_banner").into());
+        ui.set_dry_run(true);
+        let frame = ui.window().take_snapshot().expect("dry-run banner snapshot");
+        image::save_buffer(dir.join("dry-run-banner.png"), frame.as_bytes(), 1280, 800, image::ColorType::Rgba8).unwrap();
+    }
 }
 
 #[test]
@@ -551,7 +559,7 @@ fn top_bar_overlap_lint() {
     icons.set_wifi_levels(model(vec![solid(colors[4]); 5]));
     icons.set_wifi_off(solid(colors[4]));
     bar.set_battery_icon(solid(colors[5]));
-    bar.set_search_placeholder("Поиск по играм или профилям…".into());
+    bar.set_search_placeholder(tr_ref("search.placeholder").into());
     let clicked = Rc::new(Cell::new(-1));
     let target = clicked.clone();
     bar.on_header_clicked(move |id| target.set(id));
@@ -832,6 +840,7 @@ fn hero_editor_pan_and_focus_redraw() {
     )));
     let ui = AppWindow::new().unwrap();
     ui.window().set_size(slint::PhysicalSize::new(1280, 800));
+    crate::sgdb::wire(&ui);
     // 2:1 striped banner: bars every 40 px, so any horizontal shift is visible
     let (w, h) = (960u32, 310u32);
     let mut buf = slint::SharedPixelBuffer::<slint::Rgba8Pixel>::new(w, h);
@@ -845,7 +854,7 @@ fn hero_editor_pan_and_focus_redraw() {
     s.set_hero(slint::Image::from_rgba8(buf));
     s.set_hero_has(true);
     s.set_hero_edit_open(true);
-    s.set_hero_edit_info("Масштаб 2.0×\nСдвиг по X +100%\nСдвиг по Y +0%".into());
+    s.set_hero_edit_info(tr_args("sgdb.hero_position", &[("zoom", "2.0"), ("x", "+100"), ("y", "+0")]).into());
     let output = std::env::var_os("DECKSHELL_GALLERY_DIR").map(std::path::PathBuf::from);
     if let Some(dir) = &output { std::fs::create_dir_all(dir).unwrap(); }
     let mut shot = |name: &str, zoom: f32, pan_x: f32, pan_y: f32, focus: i32| -> Vec<u8> {
@@ -880,13 +889,14 @@ fn media_phone_panel_renders() {
     let ui = AppWindow::new().unwrap();
     ui.window().set_size(slint::PhysicalSize::new(1280, 800));
     ui.global::<Shell>().set_page(5);
+    crate::screens::media::init_strings(&ui);
     let m = ui.global::<MediaState>();
     m.set_title("Media".into());
     m.set_viewer_open(true);
     m.set_viewer_has(false);
     m.set_viewer_title("Fixture game: Balatro".into());
-    m.set_viewer_sub("Скриншот  -  сегодня".into());
-    m.set_viewer_actions(model(vec!["Поделиться".into(), "Отправить на телефон…".into(), "Удалить".into()]));
+    m.set_viewer_sub(tr_ref("fixture.media_screenshot_today").into());
+    m.set_viewer_actions(model(vec![tr_ref("media.share").into(), tr_ref("media.send_to_phone").into(), tr_ref("media.delete").into()]));
     m.set_viewer_focus(1);
     let output = std::env::var_os("DECKSHELL_GALLERY_DIR").map(std::path::PathBuf::from);
     if let Some(dir) = &output { std::fs::create_dir_all(dir).unwrap(); }
@@ -908,11 +918,11 @@ fn media_phone_panel_renders() {
         snap.as_bytes().to_vec()
     };
     let hidden = shot("media-phone-hidden", 0, 0, "");
-    let check = shot("media-phone-busy-check", 1, 0, "Проверка мобильного устройства…");
-    let export = shot("media-phone-busy-export", 1, 1, "Экспорт...");
-    let upload = shot("media-phone-busy-upload", 1, 2, "Загрузка…");
-    let sent = shot("media-phone-sent", 2, 3, "Отправлено. Ролик придёт уведомлением в мобильном приложении Steam.");
-    let failed = shot("media-phone-failed", 3, 0, "Отправка не удалась: upload failed. Ничего не отправлено.");
+    let check = shot("media-phone-busy-check", 1, 0, tr_ref("media.checking_your_mobile_device"));
+    let export = shot("media-phone-busy-export", 1, 1, tr_ref("media_phone.exporting"));
+    let upload = shot("media-phone-busy-upload", 1, 2, tr_ref("media_phone.uploading"));
+    let sent = shot("media-phone-sent", 2, 3, tr_ref("media.sent_the_video_will_come_as_a"));
+    let failed = shot("media-phone-failed", 3, 0, tr_ref("fixture.media_send_failed"));
     let differs = |a: &[u8], b: &[u8]| a.iter().zip(b).filter(|(x, y)| x != y).count();
     let panel = |a: &[u8], b: &[u8], what: &str| assert!(differs(&a[560 * 1280 * 4..700 * 1280 * 4], &b[560 * 1280 * 4..700 * 1280 * 4]) > 0, "{what}: panel did not render");
     panel(&hidden, &check, "busy panel vs hidden");
@@ -1080,7 +1090,7 @@ fn top_bar_focus_zone_states() {
     bar.set_battery_icon_dark(crate::assets::battery_icon_dark(0.9, false, false));
     bar.set_clock("3:17 PM".into());
     bar.set_clock_12h(true);
-    bar.set_search_placeholder("Поиск по играм или профилям…".into());
+    bar.set_search_placeholder(tr_ref("search.placeholder").into());
     let art = solid([200, 150, 90, 255], 64, 96);
     let cards: Vec<CardData> = (0..5).map(|i| CardData {
         id: i, name: format!("Fixture game {i}").into(), img: art.clone(), has_img: true, wide: art.clone(), has_wide: true, ..Default::default()

@@ -5,7 +5,7 @@
    {
     "result": 1,
     "publishedfileid": "3417625332",
-    "creator": "76561198000000002",
+    "creator": "76561197960265729",
     "creator_appid": 241100,
     "consumer_appid": 241100,
     "consumer_shortcutid": 0,
@@ -17,7 +17,7 @@
     "url": "",
     "hcontent_file": "2916114047430564",
     "hcontent_preview": "18446744073709551615",
-    "title": "Haxell's Steam Controller Balatro Bindings",
+    "title": "Sample Steam Controller Balatro Bindings",
     "file_description": "Based on the official Balatro layout. Right trackpad as mouse; left trackpad as left click. Hold left and right back grip buttons to restart the run.",
     "time_created": 1738261176,
     "time_updated": 1738261176,
@@ -114,7 +114,7 @@
    {
     "result": 1,
     "publishedfileid": "3177015367",
-    "creator": "76561198000000003",
+    "creator": "76561197960265730",
     "creator_appid": 241100,
     "consumer_appid": 241100,
     "consumer_shortcutid": 0,
